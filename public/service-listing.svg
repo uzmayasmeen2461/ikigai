@@ -1,0 +1,14 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="32" fill="#FFF7ED"/>
+  <circle cx="508" cy="98" r="88" fill="#FED7AA"/>
+  <circle cx="118" cy="322" r="90" fill="#FFE4E6"/>
+  <rect x="132" y="88" width="376" height="246" rx="34" fill="white" stroke="#FDBA74" stroke-width="4"/>
+  <rect x="172" y="128" width="120" height="120" rx="28" fill="#FB923C"/>
+  <path d="M214 188c0-25 36-25 36 0 0 24-18 44-18 44s-18-20-18-44Z" fill="white"/>
+  <circle cx="232" cy="188" r="10" fill="#FB923C"/>
+  <rect x="320" y="134" width="128" height="18" rx="9" fill="#EA580C"/>
+  <rect x="320" y="176" width="148" height="16" rx="8" fill="#FFEDD5"/>
+  <rect x="320" y="212" width="112" height="16" rx="8" fill="#FFEDD5"/>
+  <rect x="172" y="276" width="276" height="18" rx="9" fill="#FED7AA"/>
+  <text x="182" y="388" fill="#9A3412" font-family="Arial, sans-serif" font-size="28" font-weight="700">Zomato / Swiggy Listing</text>
+</svg>

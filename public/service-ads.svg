@@ -1,0 +1,12 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="32" fill="#F8FAFC"/>
+  <circle cx="505" cy="94" r="88" fill="#C7D2FE"/>
+  <circle cx="118" cy="324" r="92" fill="#E0E7FF"/>
+  <rect x="142" y="92" width="356" height="236" rx="34" fill="white" stroke="#A5B4FC" stroke-width="4"/>
+  <path d="M208 224h-38c-14 0-26-12-26-26s12-26 26-26h38v52Z" fill="#4F46E5"/>
+  <path d="M208 172l178-54v160l-178-54V172Z" fill="#1E293B"/>
+  <rect x="390" y="154" width="58" height="88" rx="20" fill="#818CF8"/>
+  <rect x="212" y="236" width="52" height="70" rx="16" fill="#4F46E5"/>
+  <rect x="330" y="300" width="118" height="16" rx="8" fill="#E0E7FF"/>
+  <text x="218" y="388" fill="#312E81" font-family="Arial, sans-serif" font-size="30" font-weight="700">Ads Management</text>
+</svg>

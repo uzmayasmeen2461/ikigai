@@ -1,0 +1,13 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="32" fill="#FFF7ED"/>
+  <circle cx="505" cy="96" r="86" fill="#FED7AA"/>
+  <circle cx="120" cy="322" r="92" fill="#FFEDD5"/>
+  <path d="M170 214l150-112 150 112v118H170V214Z" fill="white" stroke="#FDBA74" stroke-width="4"/>
+  <path d="M142 222l178-134 178 134" stroke="#EA580C" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="260" y="228" width="120" height="104" rx="22" fill="#FED7AA"/>
+  <rect x="210" y="236" width="38" height="38" rx="10" fill="#FB923C"/>
+  <rect x="392" y="236" width="38" height="38" rx="10" fill="#FB923C"/>
+  <rect x="282" y="262" width="76" height="70" rx="16" fill="#EA580C"/>
+  <circle cx="346" cy="298" r="5" fill="#FFF7ED"/>
+  <text x="214" y="382" fill="#9A3412" font-family="Arial, sans-serif" font-size="30" font-weight="700">Earn From Home</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="32" fill="#F0FDF4"/>
+  <circle cx="508" cy="94" r="86" fill="#BBF7D0"/>
+  <circle cx="122" cy="324" r="92" fill="#DCFCE7"/>
+  <rect x="138" y="86" width="364" height="238" rx="32" fill="white" stroke="#86EFAC" stroke-width="4"/>
+  <rect x="178" y="128" width="284" height="146" rx="24" fill="#DCFCE7"/>
+  <path d="M290 164l76 37-76 37v-74Z" fill="#16A34A"/>
+  <rect x="178" y="292" width="148" height="16" rx="8" fill="#22C55E"/>
+  <rect x="346" y="292" width="116" height="16" rx="8" fill="#BBF7D0"/>
+  <path d="M206 166h46M206 198h38M206 230h56" stroke="#16A34A" stroke-width="12" stroke-linecap="round"/>
+  <text x="174" y="382" fill="#166534" font-family="Arial, sans-serif" font-size="28" font-weight="700">Training Before Tasks</text>
+</svg>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Navbar } from "../../../components/Navbar";
 
 export default function Apply() {
     const [form, setForm] = useState({
@@ -14,6 +13,7 @@ export default function Apply() {
     const [errors, setErrors] = useState({});
     const [success, setSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [submitMessage, setSubmitMessage] = useState({ type: "", text: "" });
 
     // ✅ Handle input change
     const handleChange = (e) => {
@@ -29,6 +29,7 @@ export default function Apply() {
             ...prev,
             [name]: "",
         }));
+        setSubmitMessage({ type: "", text: "" });
     };
 
     // ✅ Validation logic
@@ -68,11 +69,16 @@ export default function Apply() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setSubmitMessage({ type: "", text: "" });
 
         const validationErrors = validate();
 
         if (Object.keys(validationErrors).length > 0) {
             setErrors(validationErrors);
+            setSubmitMessage({
+                type: "error",
+                text: "Please fix the highlighted fields before submitting your application.",
+            });
             setLoading(false); // IMPORTANT FIX
             return;
         }
@@ -90,32 +96,45 @@ export default function Apply() {
 
             if (res.ok) {
                 setSuccess(true);
+                setForm({
+                    name: "",
+                    phone: "",
+                    skills: "",
+                    availability: "",
+                });
             } else {
-                alert("Something went wrong. Please try again.");
+                setSubmitMessage({
+                    type: "error",
+                    text: "Could not submit your application right now. Please try again.",
+                });
             }
         } catch (error) {
             console.error(error);
-            alert("Error submitting form");
+            setSubmitMessage({
+                type: "error",
+                text: "Network issue while submitting your application. Please try again.",
+            });
         }
 
         setLoading(false);
     };
 
     return (
-        <main>
-            <Navbar />
-
+        <main className="gradient-page">
             <section className="max-w-[800px] mx-auto py-20 px-6">
-                <h1 className="text-3xl font-semibold text-center">
-                    Start Earning From Home
-                </h1>
+                <div className="text-center">
+                    <p className="eyebrow">IKIGAI Partner Application</p>
+                    <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-slate-950 md:text-5xl">
+                        Start Earning From Home
+                    </h1>
 
-                <p className="text-gray-600 text-center mt-4">
-                    Fill this form and we’ll connect you with tasks you can do from home.
-                </p>
+                    <p className="text-gray-600 mt-4">
+                        Fill this form and we’ll connect you with tasks you can do from home.
+                    </p>
+                </div>
 
                 {!success ? (
-                    <form onSubmit={handleSubmit} className="mt-10 space-y-6">
+                    <form onSubmit={handleSubmit} className="ui-card mt-10 space-y-6">
 
                         {/* Name */}
                         <div>
@@ -124,8 +143,7 @@ export default function Apply() {
                                 placeholder="Your Name"
                                 value={form.name}
                                 onChange={handleChange}
-                                className={`w-full border p-3 rounded-xl ${errors.name ? "border-red-500" : "border-gray-300"
-                                    }`}
+                                className={`form-field ${errors.name ? "border-red-500" : ""}`}
                             />
                             {errors.name && (
                                 <p className="text-red-500 text-sm mt-1">{errors.name}</p>
@@ -139,8 +157,7 @@ export default function Apply() {
                                 placeholder="Phone Number"
                                 value={form.phone}
                                 onChange={handleChange}
-                                className={`w-full border p-3 rounded-xl ${errors.phone ? "border-red-500" : "border-gray-300"
-                                    }`}
+                                className={`form-field ${errors.phone ? "border-red-500" : ""}`}
                             />
                             {errors.phone && (
                                 <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
@@ -154,8 +171,7 @@ export default function Apply() {
                                 placeholder="Skills (typing, product listing, etc.)"
                                 value={form.skills}
                                 onChange={handleChange}
-                                className={`w-full border p-3 rounded-xl ${errors.skills ? "border-red-500" : "border-gray-300"
-                                    }`}
+                                className={`form-field ${errors.skills ? "border-red-500" : ""}`}
                             />
                             {errors.skills && (
                                 <p className="text-red-500 text-sm mt-1">{errors.skills}</p>
@@ -168,8 +184,7 @@ export default function Apply() {
                                 name="availability"
                                 value={form.availability}
                                 onChange={handleChange}
-                                className={`w-full border p-3 rounded-xl ${errors.availability ? "border-red-500" : "border-gray-300"
-                                    }`}
+                                className={`form-field ${errors.availability ? "border-red-500" : ""}`}
                             >
                                 <option>Availability</option>
                                 <option>1-2 hours/day</option>
@@ -184,20 +199,32 @@ export default function Apply() {
                             )}
                         </div>
 
+                        {submitMessage.text && (
+                            <div
+                                className={`rounded-2xl border p-4 text-sm leading-6 ${
+                                    submitMessage.type === "error"
+                                        ? "border-red-200 bg-red-50 text-red-700"
+                                        : "border-green-200 bg-green-50 text-green-700"
+                                }`}
+                            >
+                                {submitMessage.text}
+                            </div>
+                        )}
+
                         {/* Submit */}
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-gray-900 text-white py-3 rounded-xl hover:bg-gray-800 transition disabled:opacity-50"
+                            className="btn-primary w-full"
                         >
                             {loading ? "Submitting..." : "Apply Now"}
                         </button>
 
                     </form>
                 ) : (
-                    <div className="text-center mt-10">
+                    <div className="ui-card mt-10 text-center">
                         <h2 className="text-2xl font-semibold text-green-600">
-                            Thank you! We will contact you soon 😊
+                            Thank you! We will contact you soon
                         </h2>
                         <p className="text-gray-500 mt-2">
                             Our team will review your application and reach out shortly.

@@ -61,7 +61,7 @@ export function Pricing() {
                     >
                         {/* MOST POPULAR TAG */}
                         {plan.highlight && (
-                            <span className="absolute top-4 right-4 text-xs bg-gray-900 text-white px-3 py-1 rounded-full">
+                            <span className="absolute top-4 right-4 rounded-full bg-slate-950 px-3 py-1 text-xs text-white">
                                 Most Popular
                             </span>
                         )}
@@ -87,9 +87,7 @@ export function Pricing() {
                         </ul>
 
                         <button
-                            className={`w-full mt-8 py-3 rounded-xl transition ${plan.highlight
-                                    ? "bg-gray-900 text-white hover:bg-gray-800"
-                                    : "border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            className={`mt-8 w-full ${plan.highlight ? "btn-primary" : "btn-secondary"
                                 }`}
                         >
                             Get Started

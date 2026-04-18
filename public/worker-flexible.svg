@@ -1,0 +1,13 @@
+<svg width="640" height="420" viewBox="0 0 640 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="420" rx="32" fill="#EFF6FF"/>
+  <circle cx="510" cy="92" r="86" fill="#BFDBFE"/>
+  <circle cx="120" cy="322" r="92" fill="#DBEAFE"/>
+  <rect x="132" y="96" width="376" height="232" rx="34" fill="white" stroke="#93C5FD" stroke-width="4"/>
+  <rect x="174" y="140" width="146" height="22" rx="11" fill="#1D4ED8"/>
+  <rect x="174" y="190" width="292" height="18" rx="9" fill="#DBEAFE"/>
+  <rect x="174" y="230" width="238" height="18" rx="9" fill="#DBEAFE"/>
+  <rect x="174" y="270" width="104" height="34" rx="17" fill="#2563EB"/>
+  <path d="M392 266c34 0 62-28 62-62s-28-62-62-62-62 28-62 62 28 62 62 62Z" fill="#BFDBFE"/>
+  <path d="M392 168v38l26 20" stroke="#1E3A8A" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="174" y="382" fill="#1E3A8A" font-family="Arial, sans-serif" font-size="28" font-weight="700">Flexible Online Work</text>
+</svg>
