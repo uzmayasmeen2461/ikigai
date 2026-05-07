@@ -6,7 +6,7 @@ export function TrustSection() {
         },
         {
             value: "50+",
-            label: "IKIGAI partners",
+            label: "ikigaidigital partners",
         },
     ];
 

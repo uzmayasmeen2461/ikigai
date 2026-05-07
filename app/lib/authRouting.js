@@ -12,8 +12,8 @@ export function normalizeRole(role) {
 export function dashboardForRole(role) {
     const normalizedRole = normalizeRole(role);
 
-    if (normalizedRole === "admin") return "/admin";
-    if (normalizedRole === "partner") return "/worker";
+    if (normalizedRole === "admin") return "/admin/orders";
+    if (normalizedRole === "partner") return "/partner/tasks";
 
     return "/dashboard";
 }

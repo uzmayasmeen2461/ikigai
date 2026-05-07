@@ -119,7 +119,7 @@ const steps = [
     { title: "Choose Service", desc: "Select the setup your business needs.", icon: ShoppingBag },
     { title: "Secure Payment", desc: "Pay safely through Razorpay checkout.", icon: CreditCard },
     { title: "Upload Details", desc: "Share documents, images, and instructions.", icon: FileText },
-    { title: "IKIGAI Executes Task", desc: "Trained partners work through a managed process.", icon: Zap },
+    { title: "ikigaidigital Executes Task", desc: "Trained partners work through a managed process.", icon: Zap },
     { title: "Get Delivery + Support", desc: "Track updates and receive final delivery.", icon: BadgeCheck },
 ];
 
@@ -136,7 +136,7 @@ const reasons = [
     },
     {
         title: "Verified Execution Partners",
-        desc: "Trained partners, managed by IKIGAI.",
+        desc: "Trained partners, managed by ikigaidigital.",
         icon: ShieldCheck,
     },
     {
@@ -187,7 +187,7 @@ const faqs = [
     },
     {
         q: "Do you support Hyderabad businesses?",
-        a: "Yes. IKIGAI is built for Hyderabad and Indian small businesses.",
+        a: "Yes. ikigaidigital is built for Hyderabad and Indian small businesses.",
     },
     {
         q: "Can I track task progress?",
@@ -233,7 +233,7 @@ function HeroMockup() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">
-                                IKIGAI Dashboard
+                                ikigaidigital Dashboard
                             </p>
                             <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em]">
                                 Business setup progress
@@ -508,8 +508,8 @@ export function HomeLanding() {
             <section className="section-space relative mx-auto max-w-[1440px] px-6">
                 <div className="absolute left-12 top-16 -z-10 h-80 w-80 rounded-full bg-indigo-100/70 blur-3xl" />
                 <SectionHeader
-                    eyebrow="Why IKIGAI"
-                    title="Why Businesses Choose IKIGAI"
+                    eyebrow="Why ikigaidigital"
+                    title="Why Businesses Choose ikigaidigital"
                     desc="Digital execution without operational clutter."
                 />
 
@@ -549,9 +549,9 @@ export function HomeLanding() {
                                 ))}
                             </div>
                             <div className="mt-6 grid gap-3 text-sm font-semibold text-slate-700">
-                                <a href="mailto:support@ikigai.in" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition duration-200 hover:border-blue-200 hover:text-blue-700">
+                                <a href="mailto:support@ikigaidigital.in" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition duration-200 hover:border-blue-200 hover:text-blue-700">
                                     <Mail className="h-4 w-4 text-blue-600" />
-                                    Business support: support@ikigai.in
+                                    Business support: support@ikigaidigital.in
                                 </a>
                                 <a href="/contact" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition duration-200 hover:border-blue-200 hover:text-blue-700">
                                     <MapPin className="h-4 w-4 text-blue-600" />
@@ -613,9 +613,9 @@ export function HomeLanding() {
                 <div className="premium-panel relative grid gap-6 overflow-hidden p-8 shadow-2xl shadow-slate-200/50 md:grid-cols-[1fr_auto] md:items-center md:p-10">
                     <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-blue-100/80 blur-3xl" />
                     <div className="relative">
-                        <p className="eyebrow">Partner With IKIGAI</p>
+                        <p className="eyebrow">Partner With ikigaidigital</p>
                         <h2 className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-slate-950">
-                            Earn With IKIGAI On Your Schedule
+                            Earn With ikigaidigital On Your Schedule
                         </h2>
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
                             Complete trained digital tasks remotely.
@@ -658,13 +658,13 @@ export function HomeLanding() {
                     <div className="absolute bottom-0 left-10 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
                     <div className="relative">
                         <p className="inline-flex rounded-full border border-blue-300/30 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-blue-200">
-                            Start With IKIGAI
+                            Start With ikigaidigital
                         </p>
                         <h2 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.03em] md:text-6xl">
                             Ready to set up your business online?
                         </h2>
                         <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-                            Choose a service and let IKIGAI handle the execution.
+                            Choose a service and let ikigaidigital handle the execution.
                         </p>
                         <div className="mt-8 flex flex-col justify-center gap-4 sm:flex-row">
                             <a href="/services" className="btn-primary bg-white px-8 py-4 text-slate-950 shadow-white/15 hover:bg-slate-100">

@@ -7,11 +7,11 @@ export const servicePricing = {
         baseAmount: 2000,
     },
     instagram: {
-        label: "Social Media Setup",
+        label: "Instagram / Facebook Business Setup",
         baseAmount: 2499,
     },
     social: {
-        label: "Social Media Setup",
+        label: "Instagram / Facebook Business Setup",
         baseAmount: 2499,
     },
     zomato: {

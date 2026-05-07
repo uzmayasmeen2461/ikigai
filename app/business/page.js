@@ -60,17 +60,17 @@ const services = [
 const executionSteps = [
     {
         title: "Share your requirement",
-        desc: "Tell IKIGAI what you want to set up, list, organize, or launch for your business.",
+        desc: "Tell ikigaidigital what you want to set up, list, organize, or launch for your business.",
         icon: ClipboardList,
     },
     {
-        title: "IKIGAI structures the task",
+        title: "ikigaidigital structures the task",
         desc: "We review your inputs, define the work clearly, and convert scattered details into an execution plan.",
         icon: Layers3,
     },
     {
         title: "Execution through trained partners",
-        desc: "IKIGAI assigns trained partners to complete the work within the managed task workflow.",
+        desc: "ikigaidigital assigns trained partners to complete the work within the managed task workflow.",
         icon: UsersRound,
     },
     {
@@ -98,14 +98,14 @@ const dashboardItems = [
     },
     {
         title: "Clear next steps",
-        desc: "Know what is moving, what is complete, and where IKIGAI needs more information.",
+        desc: "Know what is moving, what is complete, and where ikigaidigital needs more information.",
         icon: Clock3,
     },
 ];
 
 const trustPoints = [
     "No need to hire full-time digital staff for small setup tasks.",
-    "IKIGAI manages execution, partner assignment, and task structure.",
+    "ikigaidigital manages execution, partner assignment, and task structure.",
     "Partners only work with the details required and permitted for the task.",
     "Client progress, notes, and task status stay visible in the dashboard.",
 ];
@@ -260,7 +260,7 @@ export default function Business() {
                             Get digital tasks executed without hiring full-time staff.
                         </h1>
                         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 md:text-xl">
-                            IKIGAI helps businesses request, structure, execute, and track digital setup tasks
+                            ikigaidigital helps businesses request, structure, execute, and track digital setup tasks
                             through a managed system of trained partners.
                         </p>
                         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -293,7 +293,7 @@ export default function Business() {
                 <SectionHeader
                     eyebrow="What You Can Request"
                     title="Digital business tasks, structured for execution"
-                    desc="IKIGAI is built for practical setup work that small businesses need but do not always want to hire full-time staff for."
+                    desc="ikigaidigital is built for practical setup work that small businesses need but do not always want to hire full-time staff for."
                 />
 
                 <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -320,7 +320,7 @@ export default function Business() {
                                 How execution works
                             </p>
                             <h2 className="mt-5 text-4xl font-semibold tracking-[-0.03em] md:text-5xl">
-                                IKIGAI manages the work, not just the handoff.
+                                ikigaidigital manages the work, not just the handoff.
                             </h2>
                             <p className="mt-5 text-lg leading-8 text-slate-300">
                                 Your task is reviewed, structured, assigned, tracked, and completed through a managed workflow.
@@ -371,8 +371,8 @@ export default function Business() {
                             Managed access for sensitive business information.
                         </h2>
                         <p className="mt-5 text-lg leading-8 text-slate-600">
-                            IKIGAI is designed so businesses can share task requirements with confidence.
-                            Partner execution is managed through IKIGAI, and confidential details are not directly
+                            ikigaidigital is designed so businesses can share task requirements with confidence.
+                            Partner execution is managed through ikigaidigital, and confidential details are not directly
                             exposed unless the system permits access for the specific task.
                         </p>
                     </div>
@@ -380,9 +380,9 @@ export default function Business() {
                     <div className="grid gap-5">
                         {[
                             { title: "Confidentiality first", desc: "Business documents, credentials, and sensitive details are treated as controlled information.", icon: LockKeyhole },
-                            { title: "Managed partner access", desc: "Partners receive task-relevant information through IKIGAI’s execution process.", icon: KeyRound },
+                            { title: "Managed partner access", desc: "Partners receive task-relevant information through ikigaidigital’s execution process.", icon: KeyRound },
                             { title: "Client visibility", desc: "You still see the status, notes, and progress updates needed to stay in control.", icon: Eye },
-                            { title: "Structured completion", desc: "The goal is not random outsourcing. It is organized execution under IKIGAI management.", icon: ShieldCheck },
+                            { title: "Structured completion", desc: "The goal is not random outsourcing. It is organized execution under ikigaidigital management.", icon: ShieldCheck },
                         ].map((item) => (
                             <div key={item.title} className="ui-card flex gap-4 p-5">
                                 <IconBadge icon={item.icon} />
@@ -407,7 +407,7 @@ export default function Business() {
                             Submit your business requirement.
                         </h2>
                         <p className="mt-4 text-lg leading-8 text-slate-300">
-                            Tell us what you need. IKIGAI will review the request and help structure the next steps.
+                            Tell us what you need. ikigaidigital will review the request and help structure the next steps.
                         </p>
                         <a href="/signup" className="btn-secondary mt-8 border-white/20 bg-white/10 text-white hover:bg-white/15">
                             Create client account
@@ -475,7 +475,7 @@ export default function Business() {
                                 <label className="mb-2 block text-sm font-semibold text-slate-700">Describe your requirement</label>
                                 <textarea
                                     name="requirement"
-                                    placeholder="Tell us what you want IKIGAI to help set up or execute."
+                                    placeholder="Tell us what you want ikigaidigital to help set up or execute."
                                     value={form.requirement}
                                     onChange={handleChange}
                                     className={`form-field min-h-36 ${errors.requirement ? "border-red-500" : ""}`}
@@ -505,7 +505,7 @@ export default function Business() {
                                 <CheckCircle2 className="h-7 w-7" />
                             </div>
                             <h2 className="mt-5 text-2xl font-semibold text-slate-950">
-                                Thanks. IKIGAI will review your request.
+                                Thanks. ikigaidigital will review your request.
                             </h2>
                             <p className="mt-2 text-slate-500">
                                 Our team will contact you within 24 hours with the next steps.

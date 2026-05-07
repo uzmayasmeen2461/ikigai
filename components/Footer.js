@@ -1,9 +1,13 @@
+import { BRAND } from "../config/branding";
+import { BrandLogo } from "./BrandLogo";
+
 const footerGroups = [
     {
         title: "Company",
         links: [
             { label: "Home", href: "/" },
             { label: "For Business", href: "/business" },
+            { label: "Pricing", href: "/pricing" },
             { label: "Partner With Us", href: "/partners" },
             { label: "Contact Us", href: "/contact" },
         ],
@@ -28,7 +32,8 @@ const footerGroups = [
     {
         title: "Contact",
         links: [
-            { label: "support@ikigai.in", href: "mailto:support@ikigai.in" },
+            { label: BRAND.supportEmail, href: `mailto:${BRAND.supportEmail}` },
+            { label: "ikigaidigital.in", href: BRAND.website },
             { label: "Hyderabad, Telangana, India", href: "/contact" },
             { label: "GST invoice available", href: "/services" },
         ],
@@ -41,25 +46,14 @@ export function Footer() {
             <div className="mx-auto max-w-[1440px] px-6 py-12">
                 <div className="grid gap-10 lg:grid-cols-[1.1fr_1.5fr] lg:items-start">
                     <div>
-                        <div className="inline-flex items-center gap-3">
-                            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white shadow-lg shadow-slate-300/60">
-                                IK
-                            </span>
-                            <div>
-                                <span className="block bg-gradient-to-r from-slate-950 via-slate-800 to-blue-700 bg-clip-text text-2xl font-semibold tracking-[-0.04em] text-transparent">
-                                    IKIGAI
-                                </span>
-                                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                                    Connecting Purpose with Productivity
-                                </span>
-                            </div>
-                        </div>
+                        <BrandLogo showTagline />
                         <p className="mt-5 max-w-md text-sm leading-6 text-slate-500">
                             Premium digital setup and execution support for Indian small businesses,
                             restaurants, cloud kitchens, retailers, and home brands.
                         </p>
                         <div className="mt-5 grid gap-2 text-sm text-slate-600">
-                            <span>Business support: support@ikigai.in</span>
+                            <span>Business support: {BRAND.supportEmail}</span>
+                            <span>Website: ikigaidigital.in</span>
                             <span>Address: Hyderabad, Telangana, India</span>
                             <span>Secure payments via Razorpay. GST invoice available.</span>
                         </div>
@@ -94,7 +88,7 @@ export function Footer() {
                 </div>
 
                 <div className="mt-10 flex flex-col gap-3 border-t border-slate-200/80 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                    <span>© IKIGAI. All rights reserved.</span>
+                    <span>© {BRAND.name}. All rights reserved.</span>
                     <span>
                         Designed by <span className="font-semibold text-slate-900">UY</span>
                     </span>

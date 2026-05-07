@@ -25,25 +25,34 @@ import { dashboardForRole, getUserRole } from "../app/lib/authRouting";
 const roleOptions = [
     {
         value: "client",
-        title: "Client",
-        helper: "For business owners who need digital setup and execution support.",
+        title: "I am a Business Owner",
+        helper: "I want help with digital services.",
         icon: BriefcaseBusiness,
     },
     {
         value: "worker",
-        title: "IKIGAI Partner",
-        helper: "For people who want to earn flexibly through guided digital work.",
+        title: "I want to Earn with ikigaidigital",
+        helper: "I want to complete tasks and get trained.",
         icon: UsersRound,
     },
 ];
 
 const trustPoints = [
-    "Managed digital execution",
-    "Confidentiality-first workflow",
-    "Clear dashboards and updates",
+    "Simple service requests",
+    "Clear updates",
+    "Secure payments",
 ];
 
 const checkoutIntentKey = "ikigai_pending_service_checkout";
+
+function normalizeEmail(value = "") {
+    return value.trim().toLowerCase();
+}
+
+function isValidEmail(value = "") {
+    const normalizedEmail = normalizeEmail(value);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(normalizedEmail);
+}
 
 function checkoutIntentPath(role) {
     if (typeof window === "undefined" || role !== "client") return "";
@@ -118,11 +127,12 @@ export function AuthExperience({ mode = "login", unified = false }) {
 
     const validate = () => {
         const nextErrors = {};
+        const normalizedEmail = normalizeEmail(email);
 
-        if (!email.trim()) {
+        if (!normalizedEmail) {
             nextErrors.email = "Email is required.";
-        } else if (!/^\S+@\S+\.\S+$/.test(email)) {
-            nextErrors.email = "Enter a valid email address.";
+        } else if (!isValidEmail(normalizedEmail)) {
+            nextErrors.email = "Enter a proper email address.";
         }
 
         if (!password) {
@@ -132,7 +142,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
         }
 
         if (isSignup && !["client", "worker"].includes(role)) {
-            nextErrors.role = "Choose client or IKIGAI partner.";
+            nextErrors.role = "Choose one option to continue.";
         }
 
         setErrors(nextErrors);
@@ -144,9 +154,10 @@ export function AuthExperience({ mode = "login", unified = false }) {
 
         setLoading(true);
         setMessage({ type: "", text: "" });
+        const normalizedEmail = normalizeEmail(email);
 
         const { data, error } = await supabase.auth.signInWithPassword({
-            email,
+            email: normalizedEmail,
             password,
         });
 
@@ -174,9 +185,10 @@ export function AuthExperience({ mode = "login", unified = false }) {
 
         setLoading(true);
         setMessage({ type: "", text: "" });
+        const normalizedEmail = normalizeEmail(email);
 
         const { data, error } = await supabase.auth.signUp({
-            email,
+            email: normalizedEmail,
             password,
         });
 
@@ -199,7 +211,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
             {
                 id: data.user.id,
                 role,
-                name: email,
+                name: normalizedEmail,
             },
         ]);
 
@@ -218,7 +230,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
         setLoading(false);
         setMessage({
             type: "success",
-            text: "Account created. Opening your IKIGAI workspace...",
+            text: "Account created. Opening your ikigaidigital workspace...",
         });
 
         window.setTimeout(() => {
@@ -246,15 +258,14 @@ export function AuthExperience({ mode = "login", unified = false }) {
                     <div className="relative">
                         <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-blue-200">
                             <Sparkles className="h-4 w-4" />
-                            IKIGAI onboarding
+                            Start with ikigaidigital
                         </div>
 
                         <h1 className="mt-8 max-w-2xl text-5xl font-semibold leading-tight tracking-[-0.05em] md:text-6xl">
-                            A calmer way to manage digital business execution.
+                            Get started without the confusion.
                         </h1>
                         <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">
-                            Create your IKIGAI workspace to request services, track progress, or join the partner
-                            network with a clear, professional workflow.
+                            Sign up, start a service, or join as a partner in a few simple steps.
                         </p>
 
                         <div className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -267,18 +278,18 @@ export function AuthExperience({ mode = "login", unified = false }) {
                         </div>
 
                         <div className="mt-10 rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl">
-                            <p className="text-sm font-semibold text-blue-200">Choose the right path</p>
+                            <p className="text-sm font-semibold text-blue-200">Choose your path</p>
                             <div className="mt-4 grid gap-4 sm:grid-cols-2">
                                 <div>
-                                    <p className="font-semibold text-white">Clients</p>
+                                    <p className="font-semibold text-white">Business Owner</p>
                                     <p className="mt-1 text-sm leading-6 text-slate-300">
-                                        For business owners who need setup, listings, and digital execution support.
+                                        Start services, pay, and track progress.
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-white">Partners</p>
+                                    <p className="font-semibold text-white">Partner</p>
                                     <p className="mt-1 text-sm leading-6 text-slate-300">
-                                        For people who want flexible earning opportunities with guided tasks.
+                                        View tasks, use tools, and send updates.
                                     </p>
                                 </div>
                             </div>
@@ -318,12 +329,12 @@ export function AuthExperience({ mode = "login", unified = false }) {
                         <div className="mb-7">
                             <p className="eyebrow">{isSignup ? "Create account" : "Welcome back"}</p>
                             <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-slate-950 md:text-4xl">
-                                {isSignup ? "Start your IKIGAI workspace" : "Login to your workspace"}
+                                {isSignup ? "Create your account" : "Login to ikigaidigital"}
                             </h2>
                             <p className="mt-3 text-sm leading-6 text-slate-500">
                                 {isSignup
-                                    ? "Choose your role, add your credentials, and begin with a clean onboarding flow."
-                                    : "Enter your credentials to continue into your dashboard."}
+                                    ? "Choose one option below, then continue."
+                                    : "Enter your email and password to continue."}
                             </p>
                         </div>
 
@@ -331,7 +342,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                             {isSignup && (
                                 <div>
                                     <label className="mb-3 block text-sm font-semibold text-slate-700">
-                                        Choose your role
+                                        Choose one option
                                     </label>
                                     <div className="grid gap-3">
                                         {roleOptions.map((option) => {
@@ -387,6 +398,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                                             setEmail(e.target.value);
                                             setErrors((prev) => ({ ...prev, email: "" }));
                                         }}
+                                        onBlur={() => setEmail((current) => normalizeEmail(current))}
                                         className={`form-field pl-12 ${errors.email ? "border-red-300 focus:border-red-300 focus:ring-red-100" : ""}`}
                                     />
                                 </div>
@@ -444,7 +456,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                         </form>
 
                         <p className="mt-6 text-center text-sm text-slate-500">
-                            {isSignup ? "Already have an account?" : "New to IKIGAI?"}{" "}
+                            {isSignup ? "Already have an account?" : "New to ikigaidigital?"}{" "}
                             {unified ? (
                                 <button
                                     type="button"

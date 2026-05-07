@@ -1,11 +1,12 @@
 import { calculatePricing, getServicePricing } from "./pricing";
+import { BRAND } from "../../config/branding";
 
 export const invoiceSupplierConfig = {
-    legalName: process.env.IKIGAI_SUPPLIER_NAME || "IKIGAI Digital Services",
-    brandName: "IKIGAI",
-    tagline: "Connecting Purpose with Productivity",
+    legalName: process.env.IKIGAI_SUPPLIER_NAME || BRAND.companyName,
+    brandName: BRAND.name,
+    tagline: BRAND.tagline,
     address: process.env.IKIGAI_SUPPLIER_ADDRESS || "Hyderabad, Telangana, India",
-    email: process.env.IKIGAI_SUPPORT_EMAIL || "support@ikigai.in",
+    email: process.env.IKIGAI_SUPPORT_EMAIL || BRAND.supportEmail,
     phone: process.env.IKIGAI_SUPPORT_PHONE || "Phone to be updated",
     gstin: process.env.IKIGAI_GSTIN || "GSTIN-TO-BE-UPDATED",
     pan: process.env.IKIGAI_PAN || "PAN-TO-BE-UPDATED",
@@ -40,7 +41,7 @@ export function createInvoiceNumber(taskId) {
     const year = new Date().getFullYear();
     const numericId = String(taskId || "").replace(/\D/g, "");
     const sequence = numericId.slice(-4) || String(hashId(taskId || Date.now())).slice(-4);
-    return `IKG-${year}-${padInvoiceNumber(sequence || "1")}`;
+    return `IDG-${year}-${padInvoiceNumber(sequence || "1")}`;
 }
 
 export function invoiceUrlForTask(taskId) {
@@ -132,11 +133,16 @@ function buildTaskTitle(task, serviceLabel) {
 }
 
 function formatCurrency(amount = 0) {
-    return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
+    // This PDF uses built-in Type1 fonts (Helvetica / Helvetica-Bold) in a
+    // hand-written content stream. Those fonts/rendering paths do not reliably
+    // support the rupee glyph, which is why "₹" gets mangled in the generated
+    // invoice. Keep the invoice PDF ASCII-safe while preserving Indian number
+    // grouping.
+    const number = new Intl.NumberFormat("en-IN", {
         maximumFractionDigits: 0,
     }).format(Number(amount || 0));
+
+    return `INR ${number}`;
 }
 
 export function buildInvoiceData(task) {
@@ -156,7 +162,7 @@ export function buildInvoiceData(task) {
         task.users?.name,
         task.user?.name,
         task.client_email?.split("@")[0],
-        "IKIGAI Client"
+        "ikigaidigital Client"
     );
     const clientEmail = firstAvailable(task.client_email, task.users?.email, task.user?.email, "Email not provided");
     const clientPhone = firstAvailable(task.client_phone, task.phone, "Phone not provided");
@@ -384,7 +390,7 @@ export function generateInvoicePdf(task) {
 
         separator(94),
         color(invoiceTheme.ink),
-        text("Thank you for choosing IKIGAI.", 48, 72, 10, "F2"),
+        text(`Thank you for choosing ${invoice.supplier.brandName}.`, 48, 72, 10, "F2"),
         color(invoiceTheme.muted),
         text("Your task is ready for managed execution. This is a system-generated invoice.", 48, 56, 8),
         text(`Support: ${supplier.email}`, 402, 56, 8),

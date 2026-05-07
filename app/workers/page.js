@@ -53,12 +53,12 @@ export default function Workers() {
         <main className="gradient-page">
             <section className="mx-auto grid max-w-[1440px] gap-10 px-6 py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
                 <div>
-                    <p className="eyebrow">For IKIGAI Partners</p>
+                    <p className="eyebrow">For ikigaidigital Partners</p>
                     <h1 className="mt-5 max-w-4xl text-5xl font-semibold leading-tight tracking-[-0.04em] text-slate-950 md:text-6xl">
                         Earn from home by completing practical business tasks.
                     </h1>
                     <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-                        Join IKIGAI as a remote partner, get trained, and work on simple digital tasks for clients across WhatsApp, Instagram, listings, websites, and ads.
+                        Join ikigaidigital as a remote partner, get trained, and work on simple digital tasks for clients across WhatsApp, Instagram, listings, websites, and ads.
                     </p>
 
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -98,7 +98,7 @@ export default function Workers() {
                         A simple path from application to first task
                     </h2>
                     <p className="mt-4 text-lg leading-8 text-slate-600">
-                        IKIGAI keeps the process clear so you know what to do before, during, and after every task.
+                        ikigaidigital keeps the process clear so you know what to do before, during, and after every task.
                     </p>
                 </div>
 
@@ -151,7 +151,7 @@ export default function Workers() {
                             No advanced experience required.
                         </h2>
                         <p className="relative mt-4 text-lg leading-8 text-slate-300">
-                            We focus on reliable IKIGAI partners who can learn, communicate clearly, and complete tasks carefully.
+                            We focus on reliable ikigaidigital partners who can learn, communicate clearly, and complete tasks carefully.
                         </p>
 
                         <div className="relative mt-8 space-y-4">
@@ -175,7 +175,7 @@ export default function Workers() {
                         Apply today and get guided before your first task.
                     </h2>
                     <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                        Submit your IKIGAI partner application and our team will review your details before connecting you with suitable work.
+                        Submit your ikigaidigital partner application and our team will review your details before connecting you with suitable work.
                     </p>
 
                     <Link href="/workers/apply" className="btn-primary mt-8 px-8 py-4">

@@ -2,16 +2,25 @@ import { NextResponse } from "next/server";
 import { createInvoiceNumber, generateInvoicePdf, invoiceUrlForTask } from "../../../lib/invoice";
 import { sendInvoiceEmail } from "../../../lib/invoiceEmail";
 import { verifyRazorpaySignature } from "../../../lib/razorpay";
-import { createSupabaseAdmin, getAuthenticatedUser } from "../../../lib/supabaseServer";
+import { createSupabaseAdmin, getBearerToken, getAuthenticatedUser } from "../../../lib/supabaseServer";
+import { autoAssignPaidTask } from "../../../lib/automation";
+import { BRAND } from "../../../../config/branding";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
     try {
-        const { user, error: authError } = await getAuthenticatedUser(request);
+        const token = getBearerToken(request);
+        let user = null;
 
-        if (authError || !user) {
-            return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
+        if (token) {
+            const auth = await getAuthenticatedUser(request);
+
+            if (auth.error || !auth.user) {
+                return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+            }
+
+            user = auth.user;
         }
 
         const {
@@ -36,7 +45,7 @@ export async function POST(request) {
             return NextResponse.json({ error: "Task not found." }, { status: 404 });
         }
 
-        if (task.client_id !== user.id) {
+        if (task.client_id && task.client_id !== user?.id) {
             return NextResponse.json({ error: "You can only verify payment for your own task." }, { status: 403 });
         }
 
@@ -74,13 +83,14 @@ export async function POST(request) {
             payment_id: razorpay_payment_id,
             invoice_number: invoiceNumber,
             invoice_url: invoiceUrl,
-            client_email: task.client_email || user.email,
+            client_email: task.client_email || user?.email,
             client_name:
                 task.client_name ||
-                user.user_metadata?.full_name ||
-                user.user_metadata?.name ||
-                user.email?.split("@")[0] ||
-                "IKIGAI Client",
+                user?.user_metadata?.full_name ||
+                user?.user_metadata?.name ||
+                task.client_email?.split("@")[0] ||
+                user?.email?.split("@")[0] ||
+                `${BRAND.name} Client`,
             paid_at: paidAt,
         };
 
@@ -115,7 +125,7 @@ export async function POST(request) {
             invoiceEmailStatus = emailResult?.skipped ? "skipped" : "sent";
         } catch (invoiceError) {
             invoiceEmailStatus = "failed";
-            console.error("IKIGAI invoice/email error", {
+            console.error(`${BRAND.name} invoice/email error`, {
                 taskId: task.id,
                 invoiceNumber,
                 error: invoiceError?.message || invoiceError,
@@ -132,6 +142,14 @@ export async function POST(request) {
             })
             .eq("razorpay_order_id", razorpay_order_id);
 
+        const assignment = await autoAssignPaidTask(supabase, savedTask || updatedTask).catch((assignmentError) => {
+            console.error(`${BRAND.name} auto-assignment error`, {
+                taskId: task.id,
+                error: assignmentError?.message || assignmentError,
+            });
+            return { assigned: false, error: assignmentError?.message || "Auto-assignment failed." };
+        });
+
         return NextResponse.json({
             success: true,
             message:
@@ -139,7 +157,8 @@ export async function POST(request) {
                     ? "Payment successful. Invoice is available in your dashboard, but email delivery needs review."
                     : "Payment successful. Invoice sent to your email.",
             invoice_email_status: invoiceEmailStatus,
-            task: savedTask || updatedTask,
+            auto_assignment: assignment,
+            task: assignment?.task || savedTask || updatedTask,
         });
     } catch (error) {
         return NextResponse.json(

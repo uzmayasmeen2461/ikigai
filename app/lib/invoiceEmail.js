@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { BRAND } from "../../config/branding";
 import { buildInvoiceData } from "./invoice";
 import { formatINR } from "./pricing";
 
@@ -23,8 +24,8 @@ export function buildPaymentConfirmationEmail({ task }) {
         <div style="margin:0;background:#f8fafc;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
             <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;overflow:hidden;box-shadow:0 24px 60px rgba(15,23,42,0.08)">
                 <div style="background:#020617;padding:32px;color:#ffffff">
-                    <div style="font-size:26px;font-weight:800;letter-spacing:-0.04em">IKIGAI</div>
-                    <div style="margin-top:6px;color:#bfdbfe;font-size:13px">Connecting Purpose with Productivity</div>
+                    <div style="font-size:26px;font-weight:800;letter-spacing:-0.04em">${BRAND.name}</div>
+                    <div style="margin-top:6px;color:#bfdbfe;font-size:13px">${BRAND.tagline}</div>
                     <div style="margin-top:28px;display:inline-block;border:1px solid rgba(255,255,255,0.18);border-radius:999px;padding:8px 12px;color:#dbeafe;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em">
                         Payment Confirmed
                     </div>
@@ -32,7 +33,7 @@ export function buildPaymentConfirmationEmail({ task }) {
                 <div style="padding:32px">
                     <h1 style="margin:0;font-size:28px;line-height:1.2;letter-spacing:-0.04em;color:#0f172a">Thank you, ${clientName}.</h1>
                     <p style="margin:14px 0 0;color:#475569;font-size:15px;line-height:1.7">
-                        Your payment has been received and verified successfully. Your IKIGAI task is now ready for managed execution.
+                        Your payment has been received and verified successfully. Your ${BRAND.name} task is now ready for managed execution.
                     </p>
 
                     <div style="margin-top:26px;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden">
@@ -48,7 +49,7 @@ export function buildPaymentConfirmationEmail({ task }) {
                     <div style="margin-top:26px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:20px">
                         <h2 style="margin:0;font-size:18px;color:#0f172a">What happens next?</h2>
                         <ol style="margin:14px 0 0;padding-left:20px;color:#475569;line-height:1.7;font-size:14px">
-                            <li>IKIGAI will review your task details.</li>
+                            <li>${BRAND.name} will review your task details.</li>
                             <li>Assignment will begin shortly through the managed workflow.</li>
                             <li>You can track progress and latest updates in your dashboard.</li>
                         </ol>
@@ -60,7 +61,7 @@ export function buildPaymentConfirmationEmail({ task }) {
                     </p>
                 </div>
                 <div style="border-top:1px solid #e2e8f0;padding:18px 32px;color:#94a3b8;font-size:12px;background:#f8fafc">
-                    This is a system-generated payment confirmation from IKIGAI.
+                    This is a system-generated payment confirmation from ${BRAND.name}.
                 </div>
             </div>
         </div>
@@ -69,7 +70,7 @@ export function buildPaymentConfirmationEmail({ task }) {
     const text = [
         `Hi ${invoice.client.name},`,
         "",
-        "Your IKIGAI payment has been received and verified successfully.",
+        `Your ${BRAND.name} payment has been received and verified successfully.`,
         "",
         `Service: ${invoice.item.serviceName}`,
         `Task: ${invoice.item.taskTitle}`,
@@ -77,18 +78,18 @@ export function buildPaymentConfirmationEmail({ task }) {
         `Invoice number: ${invoice.invoice.number}`,
         "",
         "What happens next:",
-        "1. IKIGAI will review your task details.",
+        `1. ${BRAND.name} will review your task details.`,
         "2. Assignment will begin shortly through the managed workflow.",
         "3. You can track progress and latest updates in your dashboard.",
         "",
         `Your invoice PDF is attached. For support, contact ${invoice.supplier.email}.`,
         "",
-        "IKIGAI",
-        "Connecting Purpose with Productivity",
+        BRAND.name,
+        BRAND.tagline,
     ].join("\n");
 
     return {
-        subject: "Payment Confirmation & Invoice – IKIGAI",
+        subject: `Payment Confirmation & Invoice - ${BRAND.name}`,
         html,
         text,
         invoice,
@@ -104,7 +105,7 @@ export async function sendInvoiceEmail({ task, invoicePdf }) {
     const email = buildPaymentConfirmationEmail({ task });
 
     return resend.emails.send({
-        from: "IKIGAI <onboarding@resend.dev>",
+        from: `${BRAND.name} <onboarding@resend.dev>`,
         to: task.client_email,
         subject: email.subject,
         html: email.html,

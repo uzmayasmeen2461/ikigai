@@ -3,14 +3,14 @@ import { LegalPage } from "../../components/LegalPage";
 export default function RefundPolicyPage() {
     return (
         <LegalPage
-            eyebrow="IKIGAI Policy"
+            eyebrow="ikigaidigital Policy"
             title="Refund Policy"
             updated="18 April 2026"
-            intro="IKIGAI offers fixed-price digital setup services. This policy explains how cancellations, failed payments, and refund requests are handled."
+            intro="ikigaidigital offers fixed-price digital setup services. This policy explains how cancellations, failed payments, and refund requests are handled."
             sections={[
                 {
                     title: "Before work starts",
-                    body: "If payment is completed but IKIGAI has not started reviewing or executing the task, clients may request cancellation and refund review by contacting support.",
+                    body: "If payment is completed but ikigaidigital has not started reviewing or executing the task, clients may request cancellation and refund review by contacting support.",
                 },
                 {
                     title: "After execution begins",
@@ -26,7 +26,7 @@ export default function RefundPolicyPage() {
                 },
                 {
                     title: "Service changes",
-                    body: "If client requirements change after payment, IKIGAI may revise scope, turnaround, or pricing before continuing execution.",
+                    body: "If client requirements change after payment, ikigaidigital may revise scope, turnaround, or pricing before continuing execution.",
                 },
             ]}
         />

@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { supabase } from "../app/lib/supabase";
 import { formatINR, getServicePricing } from "../app/lib/pricing";
-import { AuthGate } from "./AuthGate";
 
 function formatDate(value) {
     if (!value) return "Not available";
@@ -73,7 +72,7 @@ function SuccessHero({ task }) {
                     Your Payment Has Been Confirmed
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500 md:text-lg">
-                    Thank you for choosing IKIGAI. Your task is now being prepared for managed execution.
+                    Thank you for choosing ikigaidigital. Your task is now being prepared for managed execution.
                 </p>
 
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -141,8 +140,8 @@ function OrderSummary({ task }) {
 function NextSteps() {
     const steps = [
         ["Payment received", "Your Razorpay payment was verified securely."],
-        ["IKIGAI reviews your request", "We structure your task into clear execution steps."],
-        ["Task assigned to the right partner", "A trained IKIGAI Partner begins managed execution."],
+        ["ikigaidigital reviews your request", "We structure your task into clear execution steps."],
+        ["Task assigned to the right partner", "A trained ikigaidigital Partner begins managed execution."],
         ["Track progress in your dashboard", "Follow status, notes, and completion updates anytime."],
     ];
 
@@ -245,10 +244,10 @@ function SupportCard() {
                 <div>
                     <h2 className="text-lg font-semibold text-slate-950">Need help with your request?</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                        Contact IKIGAI support and we’ll help you with invoice, payment, or task updates.
+                        Contact ikigaidigital support and we’ll help you with invoice, payment, or task updates.
                     </p>
-                    <a href="mailto:support@ikigai.example" className="mt-3 inline-flex text-sm font-semibold text-blue-700">
-                        support@ikigai.example
+                    <a href="mailto:support@ikigaidigital.in" className="mt-3 inline-flex text-sm font-semibold text-blue-700">
+                        support@ikigaidigital.in
                     </a>
                 </div>
             </div>
@@ -278,6 +277,7 @@ function ErrorState({ message }) {
 export function PaymentSuccessExperience() {
     const searchParams = useSearchParams();
     const taskId = searchParams.get("task_id");
+    const orderId = searchParams.get("order_id");
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -286,8 +286,9 @@ export function PaymentSuccessExperience() {
     const queryString = useMemo(() => {
         const params = new URLSearchParams();
         if (taskId) params.set("task_id", taskId);
+        if (orderId) params.set("order_id", orderId);
         return params.toString();
-    }, [taskId]);
+    }, [taskId, orderId]);
 
     const getToken = async () => {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -302,17 +303,10 @@ export function PaymentSuccessExperience() {
             setError("");
 
             const token = await getToken();
-
-            if (!token) {
-                setError("Please login again to view your payment confirmation.");
-                setLoading(false);
-                return;
-            }
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
             const response = await fetch(`/api/payments/success${queryString ? `?${queryString}` : ""}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers,
             });
             const payload = await response.json();
 
@@ -342,6 +336,11 @@ export function PaymentSuccessExperience() {
 
         try {
             const token = await getToken();
+
+            if (!token) {
+                throw new Error("Please sign up or login with the same email to download the invoice from your dashboard.");
+            }
+
             const response = await fetch(data.task.invoice_url || `/api/invoices/${data.task.id}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -357,7 +356,7 @@ export function PaymentSuccessExperience() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `${data.task.invoice_number || "IKIGAI-Invoice"}.pdf`;
+            link.download = `${data.task.invoice_number || "ikigaidigital-Invoice"}.pdf`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -390,18 +389,20 @@ export function PaymentSuccessExperience() {
                         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50">
                             <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">Continue from here</h2>
                             <p className="mt-2 text-sm leading-6 text-slate-500">
-                                You can track progress anytime from your IKIGAI dashboard or create another service request.
+                                {data.guest
+                                    ? "Your payment is complete. Sign up or login with the same email to track progress from your dashboard."
+                                    : "You can track progress anytime from your ikigaidigital dashboard or create another service request."}
                             </p>
                             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                                <Link href="/dashboard" className="btn-primary w-full">
-                                    Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                                <Link href={data.guest ? "/signup" : "/dashboard"} className="btn-primary w-full">
+                                    {data.guest ? "Sign Up To Track Progress" : "Go to Dashboard"} <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
                                 <button type="button" onClick={downloadInvoice} className="btn-secondary w-full">
                                     Download Invoice <Download className="ml-2 h-4 w-4" />
                                 </button>
                             </div>
-                            <Link href="/dashboard#create-task" className="btn-secondary mt-3 w-full">
-                                Create Another Task
+                            <Link href={data.guest ? "/services" : "/dashboard#create-task"} className="btn-secondary mt-3 w-full">
+                                {data.guest ? "Start Another Service" : "Create Another Task"}
                             </Link>
                         </section>
                         <SupportCard />
@@ -413,9 +414,5 @@ export function PaymentSuccessExperience() {
 }
 
 export function ProtectedPaymentSuccessExperience() {
-    return (
-        <AuthGate allowedRoles="client">
-            <PaymentSuccessExperience />
-        </AuthGate>
-    );
+    return <PaymentSuccessExperience />;
 }

@@ -99,6 +99,7 @@ body {
   .gradient-page {
     @apply relative overflow-hidden bg-gradient-to-b from-blue-50 via-white to-slate-50;
   }
+
 }
 
 @layer utilities {

@@ -13,39 +13,46 @@ import {
     LayoutDashboard,
     LogOut,
     Menu,
+    Bell,
     MessageSquareText,
     PanelLeft,
     ShieldCheck,
+    UserCheck,
     UsersRound,
 } from "lucide-react";
 import { supabase } from "../app/lib/supabase";
+import { BRAND } from "../config/branding";
+import { BrandLogo } from "./BrandLogo";
 
 const navConfig = {
     admin: [
-        { label: "Overview", href: "/admin", icon: LayoutDashboard },
-        { label: "Tasks", href: "/admin#tasks", icon: ClipboardList },
-        { label: "Partners", href: "/admin#partners", icon: UsersRound },
-        { label: "Clients", href: "/admin#clients", icon: BriefcaseBusiness },
-        { label: "Trainings", href: "/admin#trainings", icon: BookOpenCheck },
+        { label: "Orders", href: "/admin/orders", icon: LayoutDashboard },
+        { label: "Exceptions", href: "/admin/exceptions", icon: ClipboardList },
+        { label: "Assignments", href: "/admin/assignments", icon: UserCheck },
+        { label: "Payments", href: "/admin/payments", icon: ShieldCheck },
+        { label: "Partner Payouts", href: "/admin/partner-payouts", icon: FileText },
+        { label: "Partners", href: "/admin/partners", icon: UsersRound },
+        { label: "Reports", href: "/admin/reports", icon: BarChart3 },
     ],
     client: [
-        { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-        { label: "My Tasks", href: "/dashboard#tasks", icon: ClipboardList },
-        { label: "Services", href: "/services", icon: BriefcaseBusiness },
-        { label: "Support / Notes", href: "/dashboard#support", icon: MessageSquareText },
+        { label: "My Requests", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Tasks", href: "/dashboard/tasks", icon: ClipboardList },
+        { label: "Invoices", href: "/dashboard/invoices", icon: FileText },
+        { label: "Start Service", href: "/dashboard/start-service", icon: BriefcaseBusiness },
+        { label: "Help", href: "/dashboard/help", icon: MessageSquareText },
     ],
     partner: [
-        { label: "Overview", href: "/worker", icon: LayoutDashboard },
-        { label: "Assigned Tasks", href: "/worker#tasks", icon: ClipboardList },
-        { label: "Trainings", href: "/worker#training", icon: BookOpenCheck },
-        { label: "Updates", href: "/worker#updates", icon: MessageSquareText },
+        { label: "My Tasks", href: "/partner/tasks", icon: LayoutDashboard },
+        { label: "Tools", href: "/partner/tools", icon: FileText },
+        { label: "Training", href: "/partner/training", icon: BookOpenCheck },
+        { label: "Project History", href: "/partner/project-history", icon: ClipboardList },
     ],
 };
 
 const roleLabels = {
     admin: "Admin",
     client: "Client",
-    partner: "IKIGAI Partner",
+    partner: `${BRAND.name} Partner`,
 };
 
 export function DashboardShell({
@@ -59,15 +66,26 @@ export function DashboardShell({
     const router = useRouter();
     const [menuOpen, setMenuOpen] = useState(false);
     const [email, setEmail] = useState("");
+    const [notifications, setNotifications] = useState([]);
     const [activeHref, setActiveHref] = useState(pathname);
 
     const navItems = useMemo(() => navConfig[role] || navConfig.client, [role]);
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
+        supabase.auth.getUser().then(async ({ data }) => {
             setEmail(data.user?.email || "");
+            if (!data.user) return;
+
+            const { data: notificationData } = await supabase
+                .from("notifications")
+                .select("*")
+                .or(`user_id.eq.${data.user.id},role.eq.${role}`)
+                .order("created_at", { ascending: false })
+                .limit(3);
+
+            setNotifications(notificationData || []);
         });
-    }, []);
+    }, [role]);
 
     useEffect(() => {
         const syncActiveHref = () => {
@@ -88,23 +106,16 @@ export function DashboardShell({
     const isActive = (href) => {
         const base = href.split("#")[0];
         if (href.includes("#")) return activeHref === href;
-        return pathname === base && !activeHref.includes("#");
+        return (pathname === base || pathname.startsWith(`${base}/`)) && !activeHref.includes("#");
     };
 
     const sidebar = (
         <aside className="flex h-full flex-col">
             <div className="border-b border-slate-200/80 p-5">
                 <Link href="/" className="group flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white shadow-lg shadow-slate-300/60 transition group-hover:scale-105">
-                        IK
-                    </span>
-                    <div>
-                        <p className="bg-gradient-to-r from-slate-950 via-slate-800 to-blue-700 bg-clip-text text-lg font-semibold tracking-[-0.03em] text-transparent">
-                            IKIGAI
-                        </p>
-                        <p className="text-xs font-medium text-slate-400">Product workspace</p>
-                    </div>
+                    <BrandLogo size="compact" />
                 </Link>
+                <p className="mt-2 pl-[3.25rem] text-xs font-medium text-slate-400">Product workspace</p>
             </div>
 
             <nav className="flex-1 space-y-2 p-4">
@@ -198,7 +209,7 @@ export function DashboardShell({
                             <div className="hidden text-right md:block">
                                 <p className="text-xs font-medium text-slate-400">Signed in</p>
                                 <p className="max-w-48 truncate text-sm font-semibold text-slate-700">
-                                    {email || "IKIGAI user"}
+                                    {email || `${BRAND.name} user`}
                                 </p>
                             </div>
                             <button
@@ -215,7 +226,7 @@ export function DashboardShell({
                     <section className="dashboard-panel mb-8 p-6">
                         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                             <div>
-                                <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+                                <div className="dashboard-eyebrow">
                                     <PanelLeft className="h-3.5 w-3.5" />
                                     {roleLabels[role] || roleLabels.client}
                                 </div>
@@ -249,6 +260,22 @@ export function DashboardShell({
                     </section>
 
                     {children}
+                    {notifications.length > 0 ? (
+                        <section className="mt-8 rounded-2xl border border-blue-100 bg-blue-50/80 p-4">
+                            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-800">
+                                <Bell className="h-4 w-4" />
+                                Recent updates
+                            </div>
+                            <div className="grid gap-2">
+                                {notifications.map((item) => (
+                                    <div key={item.id} className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+                                        <span className="font-semibold text-slate-950">{item.title}</span>
+                                        {item.message ? <span> - {item.message}</span> : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    ) : null}
                 </main>
             </div>
         </div>

@@ -1,5 +1,7 @@
 import "./globals.css";
+import "react-image-crop/dist/ReactCrop.css";
 import { SiteChrome } from "../components/SiteChrome";
+import { BRAND } from "../config/branding";
 
 export default function RootLayout({ children }) {
 
@@ -12,6 +14,6 @@ export default function RootLayout({ children }) {
   );
 }
 export const metadata = {
-  title: "IKIGAI",
-  description: "Connecting Purpose with Productivity",
+  title: BRAND.name,
+  description: "ikigaidigital helps small businesses grow digitally using WhatsApp, catalog setup, and online presence.",
 };

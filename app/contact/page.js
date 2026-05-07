@@ -1,5 +1,6 @@
 import {
     Clock3,
+    Globe2,
     Mail,
     MapPin,
     MessageCircle,
@@ -10,9 +11,15 @@ import {
 const contactCards = [
     {
         title: "Business Support Email",
-        value: "support@ikigai.in",
-        href: "mailto:support@ikigai.in",
+        value: "support@ikigaidigital.in",
+        href: "mailto:support@ikigaidigital.in",
         icon: Mail,
+    },
+    {
+        title: "Website",
+        value: "ikigaidigital.in",
+        href: "https://ikigaidigital.in",
+        icon: Globe2,
     },
     {
         title: "Business Address",
@@ -44,7 +51,7 @@ export default function ContactPage() {
                         <div>
                             <p className="eyebrow">Contact Us</p>
                             <h1 className="mt-6 text-5xl font-semibold leading-tight tracking-[-0.05em] text-slate-950 md:text-6xl">
-                                Talk to IKIGAI support
+                                Talk to ikigaidigital support
                             </h1>
                             <p className="mt-5 text-lg leading-8 text-slate-600">
                                 Need help before starting a service? Reach us for business setup, payments, invoices, and task updates.

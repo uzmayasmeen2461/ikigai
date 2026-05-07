@@ -1,5 +1,7 @@
 "use client";
 
+import { BRAND } from "../../config/branding";
+
 export function loadRazorpayCheckout() {
     return new Promise((resolve) => {
         if (typeof window === "undefined") {
@@ -54,7 +56,7 @@ function logCheckoutOptions(options) {
 
     const { isMobile, userAgent } = getCheckoutEnvironment();
 
-    console.info("[IKIGAI Razorpay] Opening Standard Checkout", {
+    console.info(`[${BRAND.name} Razorpay] Opening Standard Checkout`, {
         order_id: options.order_id,
         amount: options.amount,
         currency: options.currency,
@@ -80,8 +82,8 @@ export function buildRazorpayCheckoutOptions({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || fallbackKey,
         amount: order.amount,
         currency: order.currency || "INR",
-        name: "IKIGAI",
-        description: serviceTitle || "IKIGAI Digital Service",
+        name: BRAND.name,
+        description: serviceTitle || `${BRAND.name} Digital Service`,
         order_id: order.id,
         prefill: {
             name: client.name || "",
@@ -112,15 +114,20 @@ export function buildRazorpayCheckoutOptions({
 }
 
 export async function reportPaymentFailure({ token, taskId, orderId, reason }) {
-    if (!token || !taskId) return;
+    if (!taskId) return;
 
     try {
+        const headers = {
+            "Content-Type": "application/json",
+        };
+
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+
         await fetch("/api/payments/failure", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
+            headers,
             body: JSON.stringify({
                 task_id: taskId,
                 razorpay_order_id: orderId,

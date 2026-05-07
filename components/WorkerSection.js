@@ -29,20 +29,20 @@ export function WorkerSection() {
             <div className="premium-panel grid gap-8 p-8 md:p-12 lg:grid-cols-[1fr_0.9fr] lg:items-center">
                 <div>
                     <p className="eyebrow">
-                        For IKIGAI Partners
+                        For ikigaidigital Partners
                     </p>
                     <h2 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-gray-950 md:text-5xl">
                         Earn from home
                     </h2>
                     <p className="mt-4 max-w-2xl text-lg leading-8 text-gray-600">
-                        Join IKIGAI to complete practical business tasks from home with guidance, training, and a simple dashboard for updates.
+                        Join ikigaidigital to complete practical business tasks from home with guidance, training, and a simple dashboard for updates.
                     </p>
 
                     <a
                         href="/workers"
                         className="btn-primary mt-8 px-7 py-4"
                     >
-                        Join as IKIGAI Partner
+                        Join as ikigaidigital Partner
                     </a>
                 </div>
 

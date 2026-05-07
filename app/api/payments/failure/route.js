@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
-import { createSupabaseAdmin, getAuthenticatedUser } from "../../../lib/supabaseServer";
+import { createSupabaseAdmin, getBearerToken, getAuthenticatedUser } from "../../../lib/supabaseServer";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
     try {
-        const { user, error: authError } = await getAuthenticatedUser(request);
+        const token = getBearerToken(request);
+        let user = null;
 
-        if (authError || !user) {
-            return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
+        if (token) {
+            const auth = await getAuthenticatedUser(request);
+
+            if (auth.error || !auth.user) {
+                return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+            }
+
+            user = auth.user;
         }
 
         const { task_id, razorpay_order_id, reason } = await request.json();
@@ -28,7 +35,7 @@ export async function POST(request) {
             return NextResponse.json({ error: "Task not found." }, { status: 404 });
         }
 
-        if (task.client_id !== user.id) {
+        if (task.client_id && task.client_id !== user?.id) {
             return NextResponse.json({ error: "You can only update your own payment." }, { status: 403 });
         }
 

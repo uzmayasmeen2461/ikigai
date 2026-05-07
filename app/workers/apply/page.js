@@ -6,6 +6,7 @@ export default function Apply() {
     const [form, setForm] = useState({
         name: "",
         phone: "",
+        email: "",
         skills: "",
         availability: "",
     });
@@ -44,6 +45,10 @@ export default function Apply() {
         // Phone validation (India)
         if (!/^[6-9]\d{9}$/.test(form.phone)) {
             newErrors.phone = "Enter a valid 10-digit phone number";
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(form.email.trim())) {
+            newErrors.email = "Enter a valid email address";
         }
 
         // Skills validation
@@ -99,6 +104,7 @@ export default function Apply() {
                 setForm({
                     name: "",
                     phone: "",
+                    email: "",
                     skills: "",
                     availability: "",
                 });
@@ -123,7 +129,7 @@ export default function Apply() {
         <main className="gradient-page">
             <section className="max-w-[800px] mx-auto py-20 px-6">
                 <div className="text-center">
-                    <p className="eyebrow">IKIGAI Partner Application</p>
+                    <p className="eyebrow">ikigaidigital Partner Application</p>
                     <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-slate-950 md:text-5xl">
                         Start Earning From Home
                     </h1>
@@ -161,6 +167,21 @@ export default function Apply() {
                             />
                             {errors.phone && (
                                 <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                            )}
+                        </div>
+
+                        {/* Email */}
+                        <div>
+                            <input
+                                name="email"
+                                type="email"
+                                placeholder="Email Address"
+                                value={form.email}
+                                onChange={handleChange}
+                                className={`form-field ${errors.email ? "border-red-500" : ""}`}
+                            />
+                            {errors.email && (
+                                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
                             )}
                         </div>
 
@@ -227,7 +248,7 @@ export default function Apply() {
                             Thank you! We will contact you soon
                         </h2>
                         <p className="text-gray-500 mt-2">
-                            Our team will review your application and reach out shortly.
+                            Your ikigaidigital partner application has been received. Our team will review it and reach out shortly.
                         </p>
                     </div>
                 )}

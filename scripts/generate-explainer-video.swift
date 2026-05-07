@@ -1,7 +1,7 @@
 import AppKit
 import AVFoundation
 
-let outputURL = URL(fileURLWithPath: "public/ikigai-explainer.mp4")
+let outputURL = URL(fileURLWithPath: "public/ikigaidigital-explainer.mp4")
 try? FileManager.default.removeItem(at: outputURL)
 
 let size = CGSize(width: 1280, height: 720)
@@ -10,14 +10,14 @@ let secondsPerSlide = 8
 
 let slides: [(title: String, body: [String])] = [
     (
-        "IKIGAI kya karta hai?",
+        "ikigaidigital kya karta hai?",
         [
             "Small business, home business, restaurant aur cloud kitchen owners ke liye digital setup easy banata hai.",
-            "Aap requirement share karte hain, IKIGAI task ko organize karta hai."
+            "Aap requirement share karte hain, ikigaidigital task ko organize karta hai."
         ]
     ),
     (
-        "Services jo IKIGAI provide karta hai",
+        "Services jo ikigaidigital provide karta hai",
         [
             "WhatsApp Business setup aur catalog",
             "Product listing across platforms",
@@ -43,9 +43,9 @@ let slides: [(title: String, body: [String])] = [
     (
         "Task submit hone ke baad",
         [
-            "IKIGAI task review karta hai.",
+            "ikigaidigital task review karta hai.",
             "Work ko clear steps mein structure karta hai.",
-            "Trained IKIGAI Partners ke through execution manage hota hai."
+            "Trained ikigaidigital Partners ke through execution manage hota hai."
         ]
     ),
     (
@@ -59,8 +59,8 @@ let slides: [(title: String, body: [String])] = [
     (
         "Partners bhi join kar sakte hain",
         [
-            "Agar aap flexible earning chahte hain, IKIGAI Partner ke roop mein join kar sakte hain.",
-            "Aaj hi IKIGAI ke saath get started kijiye."
+            "Agar aap flexible earning chahte hain, ikigaidigital Partner ke roop mein join kar sakte hain.",
+            "Aaj hi ikigaidigital ke saath get started kijiye."
         ]
     )
 ]
@@ -161,7 +161,7 @@ func drawSlide(title: String, body: [String], index: Int) -> CVPixelBuffer {
     let badge = NSBezierPath(roundedRect: CGRect(x: 106, y: 570, width: 250, height: 44), xRadius: 22, yRadius: 22)
     NSColor.white.withAlphaComponent(0.12).setFill()
     badge.fill()
-    drawText("IKIGAI EXPLAINER", in: CGRect(x: 132, y: 582, width: 210, height: 22), font: .systemFont(ofSize: 15, weight: .bold), color: NSColor(red: 0.75, green: 0.86, blue: 1, alpha: 1))
+    drawText("ikigaidigital EXPLAINER", in: CGRect(x: 132, y: 582, width: 210, height: 22), font: .systemFont(ofSize: 15, weight: .bold), color: NSColor(red: 0.75, green: 0.86, blue: 1, alpha: 1))
 
     let slideNumber = "\(index + 1)/\(slides.count)"
     let numberBadge = NSBezierPath(roundedRect: CGRect(x: 1088, y: 570, width: 86, height: 44), xRadius: 22, yRadius: 22)
@@ -179,8 +179,8 @@ func drawSlide(title: String, body: [String], index: Int) -> CVPixelBuffer {
         y -= 76
     }
 
-    drawText("Connecting Purpose with Productivity", in: CGRect(x: 116, y: 112, width: 500, height: 30), font: .systemFont(ofSize: 22, weight: .semibold), color: NSColor(red: 0.74, green: 0.82, blue: 0.92, alpha: 1))
-    drawText("ikigai", in: CGRect(x: 988, y: 104, width: 185, height: 58), font: .systemFont(ofSize: 48, weight: .bold), color: .white, alignment: .right)
+    drawText("Make digital work simple", in: CGRect(x: 116, y: 112, width: 500, height: 30), font: .systemFont(ofSize: 22, weight: .semibold), color: NSColor(red: 0.74, green: 0.82, blue: 0.92, alpha: 1))
+    drawText("ikigaidigital", in: CGRect(x: 900, y: 104, width: 270, height: 58), font: .systemFont(ofSize: 48, weight: .bold), color: .white, alignment: .right)
 
     NSGraphicsContext.restoreGraphicsState()
     CVPixelBufferUnlockBaseAddress(pixelBuffer, [])

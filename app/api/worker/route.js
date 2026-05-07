@@ -1,35 +1,79 @@
 import { Resend } from "resend";
+import { BRAND } from "../../../config/branding";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const adminInbox = process.env.IKIGAI_SUPPORT_EMAIL || BRAND.supportEmail;
+
+function cleanText(value = "") {
+    return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function isValidEmail(value = "") {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(value);
+}
 
 export async function POST(req) {
     try {
         const body = await req.json();
+        const name = cleanText(body.name);
+        const phone = cleanText(body.phone);
+        const email = cleanText(body.email).toLowerCase();
+        const skills = cleanText(body.skills);
+        const availability = cleanText(body.availability);
 
         // Server-side validation
-        if (!body.name || body.name.length < 3) {
+        if (!name || name.length < 3) {
             return Response.json({ error: "Invalid name" }, { status: 400 });
         }
 
-        if (!/^[6-9]\d{9}$/.test(body.phone)) {
+        if (!/^[6-9]\d{9}$/.test(phone)) {
             return Response.json({ error: "Invalid phone" }, { status: 400 });
         }
 
-        if (!body.skills || body.skills.length < 3) {
+        if (!isValidEmail(email)) {
+            return Response.json({ error: "Invalid email" }, { status: 400 });
+        }
+
+        if (!skills || skills.length < 3) {
             return Response.json({ error: "Invalid skills" }, { status: 400 });
         }
 
         await resend.emails.send({
-            from: "IKIGAI <onboarding@resend.dev>",
-            to: "uzma.yasmeen.ui@gmail.com",
-            subject: "New Worker Application",
+            from: `${BRAND.name} <onboarding@resend.dev>`,
+            to: adminInbox,
+            subject: `New ${BRAND.name} Partner Application`,
             html: `
-        <h2>New Worker</h2>
-        <p><b>Name:</b> ${body.name}</p>
-        <p><b>Phone:</b> ${body.phone}</p>
-        <p><b>Skills:</b> ${body.skills}</p>
-        <p><b>Availability:</b> ${body.availability}</p>
+        <h2>New Partner Application</h2>
+        <p><b>Name:</b> ${name}</p>
+        <p><b>Phone:</b> ${phone}</p>
+        <p><b>Email:</b> ${email}</p>
+        <p><b>Skills:</b> ${skills}</p>
+        <p><b>Availability:</b> ${availability}</p>
       `,
+        });
+
+        await resend.emails.send({
+            from: `${BRAND.name} <onboarding@resend.dev>`,
+            to: email,
+            subject: `Your ${BRAND.name} partner application has been received`,
+            html: `
+        <h2>Your ${BRAND.name} partner application has been received.</h2>
+        <p>Hi ${name},</p>
+        <p>Thank you for applying to become an ${BRAND.name} partner. Our team will review your details and contact you if your profile matches current task requirements.</p>
+        <p><b>Phone:</b> ${phone}</p>
+        <p><b>Skills:</b> ${skills}</p>
+        <p><b>Availability:</b> ${availability || "Not specified"}</p>
+        <p>For support, contact ${BRAND.supportEmail}.</p>
+      `,
+            text: [
+                `Your ${BRAND.name} partner application has been received.`,
+                `Hi ${name},`,
+                `Thank you for applying to become an ${BRAND.name} partner. Our team will review your details and contact you if your profile matches current task requirements.`,
+                `Phone: ${phone}`,
+                `Skills: ${skills}`,
+                `Availability: ${availability || "Not specified"}`,
+                `Support: ${BRAND.supportEmail}`,
+            ].join("\n\n"),
         });
 
         return Response.json({ success: true });

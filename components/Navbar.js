@@ -6,14 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { dashboardForRole, getUserRole } from "../app/lib/authRouting";
+import { BRAND } from "../config/branding";
+import { BrandLogo } from "./BrandLogo";
 
 const navItems = [
     { label: "Home", href: "/", match: "/" },
     { label: "Services", href: "/services", match: "/services", primary: true },
-    { label: "For Business", href: "/business", match: "/business", primary: true },
-    { label: "Partner With Us", href: "/partners", match: "/partners", subtle: true },
-    { label: "Pricing", href: "/#pricing", match: "/#pricing" },
-    { label: "Contact", href: "/contact", match: "/contact" },
+    { label: "Pricing", href: "/pricing", match: "/pricing" },
+    { label: "Partner", href: "/partners", match: "/partners", subtle: true },
 ];
 
 export default function Navbar() {
@@ -127,7 +127,7 @@ export default function Navbar() {
                         onClick={closeMenu}
                         className="btn-primary justify-center px-5 py-2.5 text-sm"
                     >
-                        Get Started
+                        Start
                     </Link>
                 </>
             )}
@@ -146,14 +146,9 @@ export default function Navbar() {
                         href="/"
                         onClick={closeMenu}
                         className="group inline-flex items-center gap-3 rounded-full pr-3 transition"
-                        aria-label="IKIGAI home"
+                        aria-label={`${BRAND.name} home`}
                     >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white shadow-lg shadow-slate-300/60 transition duration-200 group-hover:scale-105 group-hover:shadow-blue-200">
-                            IK
-                        </span>
-                        <span className="bg-gradient-to-r from-slate-950 via-slate-800 to-blue-700 bg-clip-text text-lg font-semibold tracking-[-0.03em] text-transparent">
-                            IKIGAI
-                        </span>
+                        <BrandLogo size="compact" />
                     </Link>
 
                     <nav className="hidden items-center rounded-full border border-slate-200/80 bg-white/70 p-1 shadow-sm shadow-slate-100/80 lg:flex">

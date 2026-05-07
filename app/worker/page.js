@@ -1,31 +1,30 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-    BookOpenCheck,
     CheckCircle2,
-    CircleDot,
     Clock3,
     ClipboardList,
-    ExternalLink,
     FileText,
     Loader2,
     MessageSquareText,
-    PlayCircle,
     Send,
     Sparkles,
     Target,
+    Wrench,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { isWhatsAppServiceType } from "../../app/lib/whatsappCatalog";
 import { DashboardShell } from "../../components/DashboardShell";
 import { AuthGate } from "../../components/AuthGate";
 import {
     EmptyState,
     ErrorState,
     FeedbackMessage,
-    FilterTabs,
     SectionHeading,
     ServiceBadge,
+    SlaBadge,
     StatCard,
     StatusBadge,
 } from "../../components/DashboardUI";
@@ -34,6 +33,8 @@ const statusLabels = {
     pending: "Pending",
     assigned: "Assigned",
     in_progress: "In progress",
+    submitted_for_review: "Submitted for review",
+    revision_requested: "Revision requested",
     completed: "Completed",
 };
 
@@ -51,19 +52,69 @@ const serviceLabels = {
 const priorityOrder = {
     assigned: 1,
     in_progress: 2,
+    revision_requested: 2,
+    submitted_for_review: 3,
     pending: 3,
     completed: 4,
 };
 
-const trainingFilters = [
-    { value: "all", label: "All" },
-    { value: "whatsapp", label: "WhatsApp" },
-    { value: "instagram", label: "Instagram" },
-    { value: "restaurant", label: "Restaurant" },
-    { value: "website", label: "Website" },
-    { value: "ads", label: "Ads" },
-    { value: "general", label: "General" },
-];
+function canOpenWhatsAppTool(task) {
+    const status = task.status || "assigned";
+    return (
+        isWhatsAppServiceType(`${task.service_type || ""} ${task.title || ""}`) &&
+        task.payment_status === "paid" &&
+        status !== "completed" &&
+        status !== "cancelled"
+    );
+}
+
+function canOpenInstagramTool(task) {
+    const status = task.status || "assigned";
+    const normalizedService = `${task.service_type || ""} ${task.title || ""}`.toLowerCase();
+
+    return (
+        (normalizedService.includes("instagram") ||
+            normalizedService.includes("social") ||
+            normalizedService.includes("facebook")) &&
+        task.payment_status === "paid" &&
+        status !== "completed" &&
+        status !== "cancelled"
+    );
+}
+
+function getToolAction(task) {
+    if (canOpenWhatsAppTool(task)) {
+        return {
+            label: "Open WhatsApp Catalog Tool",
+            href: `/partner/tools/whatsapp-catalog?taskId=${task.id}`,
+            available: true,
+        };
+    }
+
+    if (canOpenInstagramTool(task)) {
+        return {
+            label: "Open Instagram Setup Tool",
+            href: `/partner/tools/instagram-setup?taskId=${task.id}`,
+            available: true,
+        };
+    }
+
+    const normalizedService = `${task.service_type || ""} ${task.title || ""}`.toLowerCase();
+    if (normalizedService.includes("listing")) {
+        return { label: "Product Listing Tool Coming Soon", available: false };
+    }
+
+    if (
+        normalizedService.includes("restaurant") ||
+        normalizedService.includes("cloud_kitchen") ||
+        normalizedService.includes("cloud kitchen") ||
+        normalizedService.includes("zomato")
+    ) {
+        return { label: "Menu / Listing Tool Coming Soon", available: false };
+    }
+
+    return null;
+}
 
 function TaskSkeleton() {
     return (
@@ -103,18 +154,17 @@ function formatUpdateTimestamp(task) {
 
 export default function WorkerDashboard() {
     const [tasks, setTasks] = useState([]);
-    const [trainings, setTrainings] = useState([]);
     const [noteDrafts, setNoteDrafts] = useState({});
     const [noteMessages, setNoteMessages] = useState({});
     const [statusMessages, setStatusMessages] = useState({});
     const [statusUpdatingId, setStatusUpdatingId] = useState(null);
     const [statusUpdatingAction, setStatusUpdatingAction] = useState("");
     const [noteUpdatingId, setNoteUpdatingId] = useState(null);
+    const [availability, setAvailability] = useState("available");
+    const [availabilityMessage, setAvailabilityMessage] = useState({ type: "", text: "" });
+    const [reviewDrafts, setReviewDrafts] = useState({});
     const [loading, setLoading] = useState(true);
-    const [trainingLoading, setTrainingLoading] = useState(true);
     const [taskError, setTaskError] = useState("");
-    const [trainingError, setTrainingError] = useState("");
-    const [trainingFilter, setTrainingFilter] = useState("all");
 
     const sortedTasks = useMemo(
         () =>
@@ -140,45 +190,34 @@ export default function WorkerDashboard() {
                 accent: "bg-yellow-500",
             },
             {
-                label: "Completed",
-                value: tasks.filter((task) => task.status === "completed").length,
+                label: "In review",
+                value: tasks.filter((task) => task.status === "submitted_for_review").length,
                 icon: CheckCircle2,
                 accent: "bg-green-500",
             },
-            {
-                label: "Training resources",
-                value: trainings.length,
-                icon: BookOpenCheck,
-                accent: "bg-slate-950",
-            },
         ],
-        [tasks, trainings]
+        [tasks]
     );
 
-    const trainingCategoriesCount = useMemo(() => {
-        const categories = new Set(
-            trainings.map((training) => (training.category || "general").toLowerCase())
-        );
-
-        return categories.size;
-    }, [trainings]);
-
-    const filteredTrainings = useMemo(() => {
-        if (trainingFilter === "all") return trainings;
-
-        return trainings.filter(
-            (training) => (training.category || "general").toLowerCase() === trainingFilter
-        );
-    }, [trainingFilter, trainings]);
-
     const renderProgressIndicator = (status) => {
-        if (status === "completed") {
+        if (status === "completed" || status === "client_approved" || status === "auto_approved") {
             return (
                 <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-green-100 text-green-700">
                         <CheckCircle2 className="h-4 w-4" />
                     </span>
                     Completed with update trail
+                </div>
+            );
+        }
+
+        if (status === "submitted_for_review") {
+            return (
+                <div className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                        <CheckCircle2 className="h-4 w-4" />
+                    </span>
+                    Submitted. Waiting for client approval.
                 </div>
             );
         }
@@ -263,6 +302,14 @@ export default function WorkerDashboard() {
             return;
         }
 
+        const { data: profile } = await supabase
+            .from("users")
+            .select("availability")
+            .eq("id", user.id)
+            .single();
+
+        setAvailability(profile?.availability || "available");
+
         const { data, error } = await supabase
             .from("tasks")
             .select("*")
@@ -279,21 +326,30 @@ export default function WorkerDashboard() {
         setLoading(false);
     };
 
-    const fetchTrainings = async () => {
-        setTrainingLoading(true);
-        setTrainingError("");
+    const getAuthToken = async () => {
+        const { data } = await supabase.auth.getSession();
+        return data.session?.access_token || "";
+    };
 
-        const { data, error } = await supabase.from("trainings").select("*");
+    const updateAvailability = async (nextAvailability) => {
+        setAvailability(nextAvailability);
+        setAvailabilityMessage({ type: "", text: "" });
 
-        if (error) {
-            setTrainings([]);
-            setTrainingError(error.message || "Could not load training resources.");
-            setTrainingLoading(false);
-            return;
-        }
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
-        setTrainings(data || []);
-        setTrainingLoading(false);
+        if (!user) return;
+
+        const { error } = await supabase
+            .from("users")
+            .update({ availability: nextAvailability })
+            .eq("id", user.id);
+
+        setAvailabilityMessage({
+            type: error ? "error" : "success",
+            text: error ? error.message : `Availability set to ${nextAvailability}.`,
+        });
     };
 
     const updateStatus = async (id, status) => {
@@ -304,14 +360,23 @@ export default function WorkerDashboard() {
             [id]: { type: "", text: "" },
         }));
 
-        const { error } = await supabase.from("tasks").update({ status }).eq("id", id);
+        const token = await getAuthToken();
+        const response = await fetch(`/api/tasks/${id}/action`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: status === "in_progress" ? "partner_start" : status }),
+        });
+        const result = await response.json();
 
-        if (error) {
+        if (!response.ok) {
             setStatusUpdatingId(null);
             setStatusUpdatingAction("");
             setStatusMessages((prev) => ({
                 ...prev,
-                [id]: { type: "error", text: error.message || "Could not update task status." },
+                [id]: { type: "error", text: result.error || "Could not update task status." },
             }));
             return;
         }
@@ -325,33 +390,109 @@ export default function WorkerDashboard() {
         setStatusUpdatingAction("");
     };
 
+    const setReviewDraft = (taskId, field, value) => {
+        setReviewDrafts((current) => ({
+            ...current,
+            [taskId]: {
+                output_attached: false,
+                notes_added: false,
+                deliverables_completed: false,
+                output: "",
+                notes: "",
+                ...(current[taskId] || {}),
+                [field]: value,
+            },
+        }));
+        setStatusMessages((prev) => ({ ...prev, [taskId]: { type: "", text: "" } }));
+    };
+
+    const submitForReview = async (taskId) => {
+        const draft = reviewDrafts[taskId] || {};
+        setStatusUpdatingId(taskId);
+        setStatusUpdatingAction("submitted_for_review");
+
+        const token = await getAuthToken();
+        const response = await fetch(`/api/tasks/${taskId}/action`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                action: "partner_submit",
+                output: draft.output,
+                notes: draft.notes,
+                checklist: {
+                    output_attached: Boolean(draft.output_attached),
+                    notes_added: Boolean(draft.notes_added || draft.notes),
+                    deliverables_completed: Boolean(draft.deliverables_completed),
+                },
+            }),
+        });
+        const result = await response.json();
+
+        setStatusMessages((prev) => ({
+            ...prev,
+            [taskId]: {
+                type: response.ok ? "success" : "error",
+                text: response.ok ? "Submitted to client for approval." : result.error || "Could not submit for review.",
+            },
+        }));
+
+        if (response.ok) await fetchTasks();
+        setStatusUpdatingId(null);
+        setStatusUpdatingAction("");
+    };
+
     const retryFetchTasks = () => {
         setLoading(true);
         fetchTasks();
     };
 
     useEffect(() => {
-        const loadDashboard = async () => {
-            await fetchTasks();
-            await fetchTrainings();
-        };
-
-        loadDashboard();
+        queueMicrotask(() => {
+            fetchTasks();
+        });
     }, []);
 
     return (
         <AuthGate allowedRoles="partner">
             <DashboardShell
                 role="partner"
-                eyebrow="Workboard"
-                title="IKIGAI Partner Dashboard"
-                description="Start assigned tasks, mark work complete, and keep client updates clearly documented."
+                eyebrow="Partner"
+                title="My Tasks"
+                description="See your tasks, send updates, and open tools quickly."
             >
                 <section id="overview" className="mb-10 scroll-mt-28">
                     <SectionHeading
-                        title="Today’s workboard"
-                        description="A calm view of your assigned work, progress, and learning resources."
+                        title="Today"
+                        description="Check your assigned work and send updates."
                     />
+                    <div className="dashboard-panel mb-5 p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-950">Availability</p>
+                                <p className="mt-1 text-sm text-slate-500">Auto-assignment sends new tasks only to available partners.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {["available", "busy", "unavailable"].map((option) => (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => updateAvailability(option)}
+                                        className={`rounded-2xl border px-4 py-2.5 text-sm font-semibold capitalize transition ${
+                                            availability === option
+                                                ? "border-slate-950 bg-slate-950 text-white"
+                                                : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700"
+                                        }`}
+                                    >
+                                        {option}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <FeedbackMessage type={availabilityMessage.type} className="mt-3">{availabilityMessage.text}</FeedbackMessage>
+                    </div>
                     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                         {overviewCards.map((card) => (
                             <StatCard key={card.label} {...card} />
@@ -361,10 +502,10 @@ export default function WorkerDashboard() {
 
                 <section id="tasks" className="scroll-mt-28">
                     <SectionHeading
-                        eyebrow="Assigned work"
+                        eyebrow="Tasks"
                         icon={Sparkles}
-                        title="Tasks assigned to you"
-                        description="Review the requirement, update status, and send clear progress notes."
+                        title="Tasks assigned to me"
+                        description="Open a task, update progress, and send a simple note."
                     />
 
                     {loading ? (
@@ -375,7 +516,7 @@ export default function WorkerDashboard() {
                         <EmptyState
                             icon={Target}
                             title="No tasks assigned yet"
-                            description="You are all caught up. New assignments will appear here when IKIGAI matches work to your availability."
+                            description="You are all caught up. New tasks will appear here."
                         />
                     ) : (
                         <div className="grid gap-6 lg:grid-cols-2">
@@ -384,6 +525,7 @@ export default function WorkerDashboard() {
                                 const noteMessage = noteMessages[task.id];
                                 const statusMessage = statusMessages[task.id];
                                 const isUpdatingStatus = statusUpdatingId === task.id;
+                                const reviewDraft = reviewDrafts[task.id] || {};
 
                                 return (
                                     <article
@@ -401,7 +543,10 @@ export default function WorkerDashboard() {
                                                 <ServiceBadge>
                                                     {serviceLabels[task.service_type] || task.service_type}
                                                 </ServiceBadge>
-                                                <StatusBadge status={status} />
+                                                <div className="flex flex-wrap gap-2">
+                                                    <StatusBadge status={status} />
+                                                    <SlaBadge status={task.sla_status || "on_time"} />
+                                                </div>
                                             </div>
                                             <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-slate-950">
                                                 {task.title}
@@ -419,25 +564,46 @@ export default function WorkerDashboard() {
                                             <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                                                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
                                                     <MessageSquareText className="h-4 w-4" />
-                                                    Client context
+                                                    Request details
                                                 </div>
                                                 <p className="mt-2 text-sm leading-6 text-slate-700">
                                                     {task.description || "No additional client context was provided."}
                                                 </p>
+                                                {canOpenWhatsAppTool(task) ? (
+                                                    <p className="mt-3 text-xs font-semibold text-blue-700">
+                                                        This task is ready for the WhatsApp Catalog Tool.
+                                                    </p>
+                                                ) : isWhatsAppServiceType(`${task.service_type || ""} ${task.title || ""}`) && task.payment_status !== "paid" ? (
+                                                    <p className="mt-3 text-xs font-semibold text-amber-700">
+                                                        Tool access opens after payment is marked paid.
+                                                    </p>
+                                                ) : null}
                                             </div>
 
                                             <div>
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                    Task actions
+                                                    Actions
                                                 </p>
-                                                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                                                {(() => {
+                                                    const toolAction = getToolAction(task);
+                                                    if (!toolAction?.available) return null;
+
+                                                    return (
+                                                        <div className="mt-3">
+                                                            <Link href={toolAction.href} className="btn-secondary inline-flex">
+                                                                {toolAction.label} <Wrench className="ml-2 h-4 w-4" />
+                                                            </Link>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                <div className="mt-3 grid gap-3 sm:grid-cols-2">
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateStatus(task.id, "assigned")}
-                                                        disabled={isUpdatingStatus}
+                                                        onClick={() => updateStatus(task.id, "in_progress")}
+                                                        disabled={isUpdatingStatus || status === "submitted_for_review"}
                                                         className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
-                                                        {isUpdatingStatus && statusUpdatingAction === "assigned" ? (
+                                                        {isUpdatingStatus && statusUpdatingAction === "in_progress" ? (
                                                             <span className="inline-flex items-center justify-center gap-2">
                                                                 <Loader2 className="h-4 w-4 animate-spin" />
                                                                 Updating
@@ -448,32 +614,17 @@ export default function WorkerDashboard() {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateStatus(task.id, "in_progress")}
-                                                        disabled={isUpdatingStatus}
-                                                        className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold text-yellow-800 transition hover:-translate-y-0.5 hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-60"
-                                                    >
-                                                        {isUpdatingStatus && statusUpdatingAction === "in_progress" ? (
-                                                            <span className="inline-flex items-center justify-center gap-2">
-                                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                                Updating
-                                                            </span>
-                                                        ) : (
-                                                            "Mark In Progress"
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateStatus(task.id, "completed")}
-                                                        disabled={isUpdatingStatus}
+                                                        onClick={() => submitForReview(task.id)}
+                                                        disabled={isUpdatingStatus || status === "submitted_for_review"}
                                                         className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 transition hover:-translate-y-0.5 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
-                                                        {isUpdatingStatus && statusUpdatingAction === "completed" ? (
+                                                        {isUpdatingStatus && statusUpdatingAction === "submitted_for_review" ? (
                                                             <span className="inline-flex items-center justify-center gap-2">
                                                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                                                Updating
+                                                                Submitting
                                                             </span>
                                                         ) : (
-                                                            "Mark Complete"
+                                                            "Submit for Review"
                                                         )}
                                                     </button>
                                                 </div>
@@ -486,6 +637,66 @@ export default function WorkerDashboard() {
                                                 <FeedbackMessage type={statusMessage?.type} className="mt-3">
                                                     {statusMessage?.text}
                                                 </FeedbackMessage>
+                                                {(() => {
+                                                    const toolAction = getToolAction(task);
+                                                    if (!toolAction) {
+                                                        return (
+                                                            <p className="mt-3 text-sm font-medium text-slate-500">
+                                                                No tool required for this task.
+                                                            </p>
+                                                        );
+                                                    }
+
+                                                    if (toolAction.available) {
+                                                        return null;
+                                                    }
+
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            disabled
+                                                            className="mt-3 inline-flex rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-400"
+                                                        >
+                                                            {toolAction.label}
+                                                        </button>
+                                                    );
+                                                })()}
+                                                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                    <p className="text-sm font-semibold text-slate-900">Review checklist</p>
+                                                    <p className="mt-1 text-xs leading-5 text-slate-500">Complete this before sending the delivery to the client.</p>
+                                                    <div className="mt-3 grid gap-2">
+                                                        {[
+                                                            ["output_attached", "Output attached"],
+                                                            ["notes_added", "Notes added"],
+                                                            ["deliverables_completed", "Service-specific deliverables completed"],
+                                                        ].map(([field, label]) => (
+                                                            <label key={field} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={Boolean(reviewDraft[field])}
+                                                                    onChange={(event) => setReviewDraft(task.id, field, event.target.checked)}
+                                                                    className="h-4 w-4 rounded border-slate-300"
+                                                                />
+                                                                {label}
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                    <input
+                                                        value={reviewDraft.output || ""}
+                                                        onChange={(event) => setReviewDraft(task.id, "output", event.target.value)}
+                                                        className="form-field mt-3 bg-white"
+                                                        placeholder="Delivery link or export note"
+                                                    />
+                                                    <textarea
+                                                        value={reviewDraft.notes || ""}
+                                                        onChange={(event) => {
+                                                            setReviewDraft(task.id, "notes", event.target.value);
+                                                            setReviewDraft(task.id, "notes_added", Boolean(event.target.value.trim()));
+                                                        }}
+                                                        className="form-field mt-3 min-h-24 bg-white"
+                                                        placeholder="Final delivery notes for client/admin"
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div className={`rounded-2xl border p-4 shadow-sm ${
@@ -498,7 +709,7 @@ export default function WorkerDashboard() {
                                                         task.notes ? "text-blue-700" : "text-slate-400"
                                                     }`}>
                                                         <FileText className="h-4 w-4" />
-                                                        Latest Update
+                                                        Latest update
                                                     </div>
                                                     <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
                                                         {task.notes ? formatUpdateTimestamp(task) : "No update sent"}
@@ -510,7 +721,7 @@ export default function WorkerDashboard() {
                                                     </p>
                                                 ) : (
                                                     <p className="mt-3 text-sm leading-6 text-slate-500">
-                                                        No updates yet. Send a concise status update when there is progress, a blocker, or a completion note.
+                                                        No updates yet.
                                                     </p>
                                                 )}
                                             </div>
@@ -519,18 +730,18 @@ export default function WorkerDashboard() {
                                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                                     <div>
                                                         <label className="block text-sm font-semibold text-slate-800">
-                                                            Send update to IKIGAI / Client
+                                                            Send update
                                                         </label>
                                                         <p className="mt-1 text-xs leading-5 text-slate-500">
-                                                            Use this for status updates only: progress made, information needed, blockers, or completion notes.
+                                                            Share short progress updates here.
                                                         </p>
                                                     </div>
                                                     <span className="inline-flex w-fit rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                                        Not a chat
+                                                        Update only
                                                     </span>
                                                 </div>
                                                 <p className="mt-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 text-xs leading-5 text-slate-500">
-                                                    Suggested format: what changed, what you need next, and whether the task is blocked or moving.
+                                                    Keep it short: progress, blocker, or done.
                                                 </p>
                                                 <textarea
                                                     placeholder="Example: Catalog images received. Starting product upload today. No blocker right now."
@@ -580,127 +791,6 @@ export default function WorkerDashboard() {
                             })}
                         </div>
                     )}
-                </section>
-
-                <section id="training" className="mt-12 scroll-mt-28">
-                    <div className="dashboard-panel">
-                        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-6 text-white">
-                            <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-                                <div>
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-blue-200">
-                                        <BookOpenCheck className="h-3.5 w-3.5" />
-                                        Learning center
-                                    </div>
-                                    <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em]">
-                                        Training resources
-                                    </h2>
-                                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-                                        Complete trainings to be better prepared for assigned tasks. Use these short resources as quick refreshers before starting new service types.
-                                    </p>
-                                </div>
-
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-                                        <p className="text-3xl font-semibold">{trainings.length}</p>
-                                        <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-300">
-                                            Total resources
-                                        </p>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-                                        <p className="text-3xl font-semibold">{trainingCategoriesCount}</p>
-                                        <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-300">
-                                            Categories
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-6">
-                            <div className="mb-6">
-                                <FilterTabs filters={trainingFilters} value={trainingFilter} onChange={setTrainingFilter} />
-                            </div>
-
-                            {trainingLoading ? (
-                                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                    {[1, 2, 3].map((item) => (
-                                        <div key={item} className="dashboard-card p-6">
-                                            <div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-100" />
-                                            <div className="mt-5 h-4 w-24 animate-pulse rounded-full bg-slate-100" />
-                                            <div className="mt-4 h-6 w-3/4 animate-pulse rounded-full bg-slate-100" />
-                                            <div className="mt-3 space-y-2">
-                                                <div className="h-3 w-full animate-pulse rounded-full bg-slate-100" />
-                                                <div className="h-3 w-5/6 animate-pulse rounded-full bg-slate-100" />
-                                            </div>
-                                            <div className="mt-6 h-11 animate-pulse rounded-2xl bg-slate-100" />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : trainingError ? (
-                                <ErrorState title="Could not load trainings" message={trainingError} onRetry={fetchTrainings} />
-                            ) : trainings.length === 0 ? (
-                                <EmptyState
-                                    icon={PlayCircle}
-                                    title="No training yet"
-                                    description="Training resources will appear here when IKIGAI adds them to your workspace."
-                                    className="bg-slate-50"
-                                />
-                            ) : filteredTrainings.length === 0 ? (
-                                <EmptyState
-                                    title="No resources in this category"
-                                    description="Try another category or switch back to all trainings."
-                                    className="bg-slate-50"
-                                />
-                            ) : (
-                                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                                    {filteredTrainings.map((training) => (
-                                        <article
-                                            key={training.id}
-                                            className="dashboard-card dashboard-card-hover group relative overflow-hidden bg-gradient-to-b from-white to-slate-50 p-6"
-                                        >
-                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-transparent" />
-                                            <div className="flex items-start gap-4">
-                                                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-300/60">
-                                                    <PlayCircle className="h-6 w-6" />
-                                                </span>
-                                                <div>
-                                                    <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold capitalize text-blue-700">
-                                                        {training.category || "general"}
-                                                    </span>
-                                                    <h3 className="mt-3 text-lg font-semibold tracking-[-0.02em] text-slate-950">
-                                                        {training.title}
-                                                    </h3>
-                                                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                                                        Quick micro-learning resource to help you understand expectations before starting related tasks.
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <a
-                                                href={training.link}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="btn-primary mt-6 w-full"
-                                            >
-                                                Open Training <ExternalLink className="ml-2 h-4 w-4" />
-                                            </a>
-                                        </article>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                <section id="updates" className="mt-12 scroll-mt-28">
-                    <div className="dashboard-panel p-6">
-                        <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-                            Updates
-                        </h2>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Use task cards to send concise updates that help IKIGAI and clients understand progress clearly.
-                        </p>
-                    </div>
                 </section>
             </DashboardShell>
         </AuthGate>

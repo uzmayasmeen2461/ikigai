@@ -17,7 +17,7 @@ function AuthLoading() {
                     Checking your workspace access
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                    IKIGAI is confirming your account and role before opening this page.
+                    ikigaidigital is confirming your account and role before opening this page.
                 </p>
             </div>
         </main>
@@ -92,7 +92,7 @@ export function AuthRedirectLoading() {
                     <ShieldCheck className="h-7 w-7" />
                 </div>
                 <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-                    Preparing your IKIGAI workspace
+                    Preparing your ikigaidigital workspace
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                     One moment while we check your session.

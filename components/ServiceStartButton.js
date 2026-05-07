@@ -12,15 +12,12 @@ import {
     X,
 } from "lucide-react";
 import { supabase } from "../app/lib/supabase";
-import { dashboardForRole, getUserRole } from "../app/lib/authRouting";
 import { calculatePricing, formatINR } from "../app/lib/pricing";
 import {
     buildRazorpayCheckoutOptions,
     loadRazorpayCheckout,
     reportPaymentFailure,
 } from "../app/lib/razorpayCheckout";
-
-const checkoutIntentKey = "ikigai_pending_service_checkout";
 
 function defaultForm(email = "") {
     return {
@@ -30,7 +27,6 @@ function defaultForm(email = "") {
         email,
         productCount: "",
         notes: "",
-        assetsNote: "",
     };
 }
 
@@ -49,6 +45,8 @@ export function ServiceStartButton({
     const [errors, setErrors] = useState({});
     const [message, setMessage] = useState({ type: "", text: "" });
     const [paymentLoading, setPaymentLoading] = useState(false);
+    const [appointmentLoading, setAppointmentLoading] = useState(false);
+    const [appointmentMode, setAppointmentMode] = useState(false);
 
     const pricing = useMemo(() => calculatePricing(serviceType), [serviceType]);
 
@@ -82,12 +80,55 @@ export function ServiceStartButton({
             nextErrors.title = "Add a short task title.";
         }
 
-        if (!form.notes.trim() || form.notes.trim().length < 10) {
-            nextErrors.notes = "Add a short requirement note.";
+        if (!appointmentMode && (!form.notes.trim() || form.notes.trim().length < 10)) {
+            nextErrors.notes = "Requirement details must be at least 10 characters.";
         }
 
         setErrors(nextErrors);
         return Object.keys(nextErrors).length === 0;
+    };
+
+    const bookAppointment = async () => {
+        setMessage({ type: "", text: "" });
+
+        if (!validate()) return;
+
+        setAppointmentLoading(true);
+
+        try {
+            const response = await fetch("/api/send", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    type: "appointment_request",
+                    serviceTitle,
+                    businessName: form.businessName.trim(),
+                    contactNumber: form.contactNumber.trim(),
+                    email: form.email.trim(),
+                    preferredNote: "",
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Could not book the appointment.");
+            }
+
+            setMessage({
+                type: "success",
+                text: "Appointment request sent. We will contact you using the phone number and email you shared.",
+            });
+            setAppointmentLoading(false);
+        } catch (error) {
+            setAppointmentLoading(false);
+            setMessage({
+                type: "error",
+                text: error.message || "Could not send the appointment request.",
+            });
+        }
     };
 
     const openCheckout = async ({ fromIntent = false } = {}) => {
@@ -98,34 +139,15 @@ export function ServiceStartButton({
             data: { user },
         } = await supabase.auth.getUser();
 
-        if (!user) {
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(
-                    checkoutIntentKey,
-                    JSON.stringify({ serviceType, from: "services" })
-                );
-            }
-            router.push(`/auth?next=/services?checkout=${serviceType}`);
-            return;
-        }
-
-        const role = await getUserRole(user.id);
-
-        if (role !== "client") {
-            router.push(dashboardForRole(role));
-            return;
-        }
-
         setForm((prev) => ({
             ...prev,
             title: prev.title || serviceTitle,
-            email: prev.email || user.email || "",
+            email: prev.email || user?.email || "",
         }));
         setCheckoutOpen(true);
         setCheckingAuth(false);
 
         if (fromIntent && typeof window !== "undefined") {
-            window.localStorage.removeItem(checkoutIntentKey);
             window.history.replaceState({}, "", "/services");
         }
     };
@@ -161,24 +183,20 @@ export function ServiceStartButton({
             return;
         }
 
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
         const token = await getToken();
 
-        if (!user || !token) {
-            setPaymentLoading(false);
-            router.push(`/auth?next=/services?checkout=${serviceType}`);
-            return;
-        }
-
         try {
+            const headers = {
+                "Content-Type": "application/json",
+            };
+
+            if (token) {
+                headers.Authorization = `Bearer ${token}`;
+            }
+
             const orderResponse = await fetch("/api/payments/create-order", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
+                headers,
                 body: JSON.stringify({
                     service_type: serviceType,
                     requirement: {
@@ -189,7 +207,7 @@ export function ServiceStartButton({
                         productCount: form.productCount,
                         description: form.notes.trim(),
                         notes: form.notes.trim(),
-                        assetsNote: form.assetsNote.trim(),
+                        assetsNote: "",
                     },
                 }),
             });
@@ -213,12 +231,17 @@ export function ServiceStartButton({
                 contact: form.contactNumber,
                 handler: async (paymentResponse) => {
                     try {
+                        const verifyHeaders = {
+                            "Content-Type": "application/json",
+                        };
+
+                        if (token) {
+                            verifyHeaders.Authorization = `Bearer ${token}`;
+                        }
+
                         const verifyResponse = await fetch("/api/payments/verify", {
                             method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                Authorization: `Bearer ${token}`,
-                            },
+                            headers: verifyHeaders,
                             body: JSON.stringify({
                                 task_id: taskId,
                                 razorpay_order_id: paymentResponse.razorpay_order_id,
@@ -237,7 +260,7 @@ export function ServiceStartButton({
                             type: "success",
                             text: "Payment verified successfully. Redirecting to confirmation...",
                         });
-                        router.push(`/payment/success?task_id=${taskId}`);
+                        router.push(`/payment/success?task_id=${taskId}&order_id=${encodeURIComponent(paymentResponse.razorpay_order_id)}`);
                     } catch (error) {
                         setPaymentLoading(false);
                         setMessage({
@@ -301,13 +324,13 @@ export function ServiceStartButton({
                             <div>
                                 <p className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
                                     <ShieldCheck className="h-3.5 w-3.5" />
-                                    Secure service checkout
+                                    Simple checkout
                                 </p>
                                 <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-slate-950">
                                     Start {serviceTitle}
                                 </h2>
                                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                                    Share your requirement, review pricing, and pay securely to begin managed execution.
+                                    Step 1: share details. Step 2: review price. Step 3: pay and start.
                                 </p>
                             </div>
                             <button
@@ -411,24 +434,28 @@ export function ServiceStartButton({
                                     </div>
 
                                     <div className="mt-4">
-                                        <label className="mb-2 block text-sm font-semibold text-slate-700">Notes / instructions</label>
+                                        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                                            <label className="block text-sm font-semibold text-slate-700">
+                                                Add requirement
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setAppointmentMode((current) => !current);
+                                                    setMessage({ type: "", text: "" });
+                                                }}
+                                                className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                                            >
+                                                {appointmentMode ? "Back to payment" : "Book appointment instead"}
+                                            </button>
+                                        </div>
                                         <textarea
                                             value={form.notes}
                                             onChange={(e) => setField("notes", e.target.value)}
-                                            placeholder="Tell us what you want IKIGAI to set up, list, or prepare."
+                                            placeholder="Tell us what you want ikigaidigital to set up, list, or prepare."
                                             className={`form-field min-h-28 ${errors.notes ? "border-red-300 focus:ring-red-100" : ""}`}
                                         />
-                                        {errors.notes && <p className="mt-1 text-xs text-red-600">{errors.notes}</p>}
-                                    </div>
-
-                                    <div className="mt-4">
-                                        <label className="mb-2 block text-sm font-semibold text-slate-700">Documents / assets placeholder</label>
-                                        <textarea
-                                            value={form.assetsNote}
-                                            onChange={(e) => setField("assetsNote", e.target.value)}
-                                            placeholder="Example: Logo ready, product images pending, FSSAI available, etc."
-                                            className="form-field min-h-24"
-                                        />
+                                        {errors.notes ? <p className="mt-1 text-xs text-red-600">{errors.notes}</p> : null}
                                     </div>
                                 </div>
                             </div>
@@ -467,20 +494,44 @@ export function ServiceStartButton({
                                     </div>
                                 )}
 
-                                <button type="submit" disabled={paymentLoading} className="btn-primary w-full py-4">
-                                    {paymentLoading ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Opening Checkout...
-                                        </>
-                                    ) : (
-                                        <>
-                                            Pay & Start Service <CreditCard className="ml-2 h-4 w-4" />
-                                        </>
-                                    )}
-                                </button>
+                                {!appointmentMode ? (
+                                    <button type="submit" disabled={paymentLoading} className="btn-primary w-full py-4">
+                                        {paymentLoading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Opening Checkout...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Pay & Start Service <CreditCard className="ml-2 h-4 w-4" />
+                                            </>
+                                        )}
+                                    </button>
+                                ) : null}
+                                {appointmentMode ? (
+                                    <button
+                                        type="button"
+                                        onClick={bookAppointment}
+                                        disabled={appointmentLoading}
+                                        className="btn-secondary w-full py-4"
+                                    >
+                                        {appointmentLoading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Booking Appointment...
+                                            </>
+                                        ) : (
+                                            <>
+                                                Book Appointment Instead <ArrowRight className="ml-2 h-4 w-4" />
+                                            </>
+                                        )}
+                                    </button>
+                                ) : null}
                                 <p className="text-center text-xs leading-5 text-slate-500">
-                                    Your task is created as unpaid first. It becomes ready for IKIGAI execution only after secure Razorpay verification.
+                                    {appointmentMode
+                                        ? "Appointment requests are sent to ikigaidigital so we can contact the customer later and help them complete the requirement."
+                                        : "Your task is created as unpaid first. It becomes ready for ikigaidigital execution only after secure Razorpay verification."}
+                                    {!appointmentMode ? " You can pay now without signup. Create an account later with this email to track progress." : ""}
                                 </p>
                             </div>
                         </form>

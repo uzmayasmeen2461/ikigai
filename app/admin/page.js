@@ -1,22 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
-    BriefcaseBusiness,
     CalendarDays,
     CheckCircle2,
     CircleDot,
     ClipboardList,
     Clock3,
     FileText,
-    GraduationCap,
     Loader2,
     ReceiptText,
     Search,
     Send,
+    Trash2,
     UserCheck,
-    UserRound,
-    UsersRound,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { calculatePricing, formatINR } from "../lib/pricing";
@@ -65,6 +63,16 @@ function formatDate(value) {
     }).format(new Date(value));
 }
 
+function getBusinessName(task) {
+    return (
+        task.client_business_name ||
+        task.business_name ||
+        task.client_name ||
+        task.title ||
+        "Business name not added"
+    );
+}
+
 function AdminSkeleton() {
     return (
         <div className="dashboard-panel">
@@ -92,6 +100,7 @@ export default function Admin() {
     const [search, setSearch] = useState("");
     const [assignmentDrafts, setAssignmentDrafts] = useState({});
     const [assigningTaskId, setAssigningTaskId] = useState(null);
+    const [deletingTaskId, setDeletingTaskId] = useState(null);
     const [assignmentMessages, setAssignmentMessages] = useState({});
     const [taskError, setTaskError] = useState("");
     const [partnerError, setPartnerError] = useState("");
@@ -165,15 +174,6 @@ export default function Admin() {
         });
     }, [search, statusFilter, tasks, workers]);
 
-    const partnerStats = useMemo(
-        () =>
-            workers.map((worker) => ({
-                ...worker,
-                assignedCount: tasks.filter((task) => task.worker_id === worker.id).length,
-            })),
-        [tasks, workers]
-    );
-
     const getWorkerName = (workerId) => {
         const worker = workers.find((item) => item.id === workerId);
         return worker?.name || "Unassigned";
@@ -201,11 +201,11 @@ export default function Admin() {
         const { data, error } = await supabase
             .from("users")
             .select("*")
-            .eq("role", "worker");
+            .in("role", ["worker", "partner"]);
 
         if (error) {
             setWorkers([]);
-            setPartnerError(error.message || "Could not load IKIGAI partners.");
+            setPartnerError(error.message || "Could not load ikigaidigital partners.");
             return;
         }
 
@@ -227,7 +227,7 @@ export default function Admin() {
         if (!workerId) {
             setAssignmentMessages((prev) => ({
                 ...prev,
-                [taskId]: { type: "error", text: "Select an IKIGAI partner first." },
+                [taskId]: { type: "error", text: "Select an ikigaidigital partner first." },
             }));
             return;
         }
@@ -268,6 +268,28 @@ export default function Admin() {
         fetchTasks();
     };
 
+    const deleteTask = async (taskId) => {
+        setDeletingTaskId(taskId);
+        setAssignmentMessages((prev) => ({
+            ...prev,
+            [taskId]: { type: "", text: "" },
+        }));
+
+        const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+
+        if (error) {
+            setDeletingTaskId(null);
+            setAssignmentMessages((prev) => ({
+                ...prev,
+                [taskId]: { type: "error", text: error.message || "Could not delete this order." },
+            }));
+            return;
+        }
+
+        setTasks((current) => current.filter((task) => task.id !== taskId));
+        setDeletingTaskId(null);
+    };
+
     useEffect(() => {
         const loadDashboard = async () => {
             await fetchTasks();
@@ -281,43 +303,20 @@ export default function Admin() {
         <AuthGate allowedRoles="admin">
             <DashboardShell
                 role="admin"
-                eyebrow="Operations"
-                title="Admin Dashboard"
-                description="Review incoming work, read partner updates, and assign tasks to available IKIGAI partners."
+                eyebrow="Admin"
+                title="Orders"
+                description="See orders, payments, and partner assignment in one place."
             >
                 <section id="overview" className="mb-10 scroll-mt-28">
                     <SectionHeading
-                        title="Operations overview"
-                        description="A live snapshot of requests moving through IKIGAI."
+                        title="Overview"
+                        description="A quick view of orders and payments."
                     />
                     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
                         {overviewCards.map((card) => (
                             <StatCard key={card.label} {...card} />
                         ))}
                     </div>
-                </section>
-
-                <section className="mb-8 grid gap-4 lg:grid-cols-4">
-                    {[
-                        { label: "Tasks", href: "#tasks", icon: ClipboardList },
-                        { label: "Partners", href: "#partners", icon: UsersRound },
-                        { label: "Clients", href: "#clients", icon: BriefcaseBusiness },
-                        { label: "Trainings", href: "#trainings", icon: GraduationCap },
-                    ].map((item) => {
-                        const Icon = item.icon;
-                        return (
-                            <a
-                                key={item.href}
-                                href={item.href}
-                                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:text-blue-700 hover:shadow-lg hover:shadow-blue-100/50"
-                            >
-                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                                    <Icon className="h-5 w-5" />
-                                </span>
-                                {item.label}
-                            </a>
-                        );
-                    })}
                 </section>
 
                 <section id="tasks" className="scroll-mt-28">
@@ -327,13 +326,13 @@ export default function Admin() {
                                 <div>
                                     <div className="dashboard-eyebrow">
                                         <ClipboardList className="h-3.5 w-3.5" />
-                                        Task management
+                                        Orders
                                     </div>
                                     <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-                                        Control center
+                                        Manage orders
                                     </h2>
                                     <p className="mt-1 text-sm leading-6 text-slate-500">
-                                        Search, filter, review notes, and assign requests to IKIGAI partners.
+                                        Search, check payment, and assign work.
                                     </p>
                                 </div>
 
@@ -343,7 +342,7 @@ export default function Admin() {
                                         <input
                                             value={search}
                                             onChange={(e) => setSearch(e.target.value)}
-                                            placeholder="Search by title, client, service, partner, or note"
+                                            placeholder="Search orders"
                                             className="form-field pl-12"
                                         />
                                     </div>
@@ -352,6 +351,14 @@ export default function Admin() {
                                 </div>
                             </div>
                         </div>
+
+                        {partnerError ? (
+                            <div className="border-b border-slate-100 px-6 py-4">
+                                <FeedbackMessage type="error">
+                                    {partnerError}
+                                </FeedbackMessage>
+                            </div>
+                        ) : null}
 
                         {loading ? (
                             <div className="p-6">
@@ -371,32 +378,33 @@ export default function Admin() {
                             </div>
                         ) : (
                             <div>
-                                <div className="hidden grid-cols-[1.2fr_0.75fr_0.8fr_0.8fr_0.85fr_1.15fr] gap-5 border-b border-slate-100 bg-slate-50/80 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-400 xl:grid">
-                                    <p>Task</p>
+                                <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)_minmax(0,0.85fr)_minmax(320px,1fr)] gap-6 border-b border-slate-100 bg-slate-50/80 px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-400 xl:grid">
+                                    <p>Order</p>
                                     <p>Client</p>
-                                    <p>Status</p>
-                                    <p>Payment</p>
-                                    <p>Partner</p>
+                                    <p>Status & Payment</p>
                                     <p>Assignment</p>
                                 </div>
 
-                                {filteredTasks.map((task) => {
-                                    const status = task.status || "pending";
-                                    const paymentStatus = task.payment_status || "pending";
-                                    const selectedPartner = assignmentDrafts[task.id] ?? task.worker_id ?? "";
-                                    const message = assignmentMessages[task.id];
-                                    const pricing = calculatePricing(task.service_type);
-                                    const totalAmount = task.total_amount || pricing.total_amount;
-                                    const canAssign = paymentStatus === "paid";
+                                <div className="space-y-4 bg-slate-50/40 p-4 sm:p-6">
+                                    {filteredTasks.map((task) => {
+                                        const status = task.status || "pending";
+                                        const paymentStatus = task.payment_status || "pending";
+                                        const selectedPartner = assignmentDrafts[task.id] ?? task.worker_id ?? "";
+                                        const message = assignmentMessages[task.id];
+                                        const pricing = calculatePricing(task.service_type);
+                                        const totalAmount = task.total_amount || pricing.total_amount;
+                                        const canAssign = paymentStatus === "paid";
+                                        const isDeletingTask = deletingTaskId === task.id;
+                                        const isAlreadyAssigned = Boolean(task.worker_id);
 
-                                    return (
-                                        <article
-                                            key={task.id}
-                                            className="grid gap-5 border-b border-slate-100 p-6 last:border-b-0 transition hover:bg-slate-50/60 xl:grid-cols-[1.2fr_0.75fr_0.8fr_0.8fr_0.85fr_1.15fr] xl:items-start"
-                                        >
+                                        return (
+                                            <article
+                                                key={task.id}
+                                                className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/50 transition hover:border-blue-200 hover:shadow-md hover:shadow-slate-200/70 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)_minmax(0,0.85fr)_minmax(320px,1fr)] xl:items-start"
+                                            >
                                             <div>
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 xl:hidden">
-                                                    Task
+                                                    Order
                                                 </p>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <ServiceBadge>
@@ -413,43 +421,51 @@ export default function Admin() {
                                                 <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500">
                                                     {task.description}
                                                 </p>
-                                                <div className={`mt-4 rounded-2xl border p-4 ${
-                                                    task.notes
-                                                        ? "border-blue-100 bg-blue-50"
-                                                        : "border-slate-200 bg-slate-50"
-                                                }`}>
-                                                    <div className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${
-                                                        task.notes ? "text-blue-700" : "text-slate-400"
+                                                <div className="mt-4 grid gap-4 2xl:grid-cols-2">
+                                                    <div className={`rounded-2xl border p-4 ${
+                                                        task.notes
+                                                            ? "border-blue-100 bg-blue-50"
+                                                            : "border-slate-200 bg-slate-50"
                                                     }`}>
+                                                        <div className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${
+                                                            task.notes ? "text-blue-700" : "text-slate-400"
+                                                        }`}>
                                                             <FileText className="h-4 w-4" />
-                                                            Latest Update
+                                                            Latest update
+                                                        </div>
+                                                        {task.notes ? (
+                                                            <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-700">
+                                                                {task.notes}
+                                                            </p>
+                                                        ) : (
+                                                            <p className="mt-2 text-sm leading-6 text-slate-500">
+                                                                No updates yet
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    {task.notes ? (
-                                                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-700">
-                                                            {task.notes}
-                                                        </p>
-                                                    ) : (
-                                                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                                                            No updates yet
-                                                        </p>
-                                                    )}
+                                                    <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                                <ReceiptText className="h-4 w-4 text-blue-600" />
+                                                                Payment refs
+                                                            </span>
+                                                            <span className="text-base font-semibold text-slate-950">
+                                                                {formatINR(totalAmount)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-3 space-y-2 text-xs text-slate-500">
+                                                            <p className="truncate">Order: {task.payment_order_id || "Not created"}</p>
+                                                            <p className="truncate">Payment: {task.payment_id || "Not paid"}</p>
+                                                            <p className="truncate">Invoice: {task.invoice_number || "Pending"}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                            <ReceiptText className="h-4 w-4 text-blue-600" />
-                                                            Payment
-                                                        </span>
-                                                        <span className="text-sm font-semibold text-slate-950">
-                                                            {formatINR(totalAmount)}
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-2 space-y-1 text-xs text-slate-500">
-                                                        <p className="break-all">Order: {task.payment_order_id || "Not created"}</p>
-                                                        <p className="break-all">Payment: {task.payment_id || "Not paid"}</p>
-                                                        <p>Invoice: {task.invoice_number || "Pending"}</p>
-                                                    </div>
-                                                </div>
+                                                <Link
+                                                    href={`/admin/orders/${task.id}`}
+                                                    className="btn-secondary mt-4 inline-flex px-4 py-2.5"
+                                                >
+                                                    View Details
+                                                </Link>
                                             </div>
 
                                             <div>
@@ -457,10 +473,12 @@ export default function Admin() {
                                                     Client
                                                 </p>
                                                 <div className="mt-2 rounded-2xl border border-slate-100 bg-white p-3 xl:mt-0">
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                        Client ID
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Business name</p>
+                                                    <p className="mt-2 break-words text-base font-semibold leading-6 text-slate-950">
+                                                        {getBusinessName(task)}
                                                     </p>
-                                                    <p className="mt-1 break-all text-sm font-medium text-slate-700">
+                                                    <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Client ID</p>
+                                                    <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-700">
                                                         {task.client_id || "Not available"}
                                                     </p>
                                                 </div>
@@ -468,37 +486,34 @@ export default function Admin() {
 
                                             <div>
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 xl:hidden">
-                                                    Status
+                                                    Status & Payment
                                                 </p>
-                                                <StatusBadge status={status} className="mt-2 xl:mt-0" />
-                                            </div>
-
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 xl:hidden">
-                                                    Payment
-                                                </p>
-                                                <div className="mt-2 space-y-2 xl:mt-0">
+                                                <div className="mt-2 space-y-3 xl:mt-0">
+                                                    <StatusBadge status={status} />
                                                     <PaymentStatusBadge status={paymentStatus} />
-                                                    <p className="text-sm font-semibold text-slate-950">
-                                                        {formatINR(totalAmount)}
-                                                    </p>
+                                                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Amount</p>
+                                                        <p className="mt-1 text-lg font-semibold text-slate-950">
+                                                            {formatINR(totalAmount)}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 xl:hidden">
-                                                    Partner
-                                                </p>
-                                                <p className="mt-2 text-sm font-semibold text-slate-950 xl:mt-0">
-                                                    {getWorkerName(task.worker_id)}
-                                                </p>
-                                            </div>
-
-                                            <div>
                                                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                    Assign partner
+                                                    Assign work
                                                 </label>
-                                                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] xl:grid-cols-1 2xl:grid-cols-[1fr_auto]">
+                                                <div className="mt-2 rounded-2xl border border-slate-100 bg-white p-4">
+                                                    <div className="mb-3">
+                                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            Current partner
+                                                        </p>
+                                                        <p className="mt-1 text-sm font-semibold text-slate-950">
+                                                            {getWorkerName(task.worker_id)}
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid gap-2 sm:grid-cols-[1fr_auto] xl:grid-cols-1 2xl:grid-cols-[1fr_auto]">
                                                     <select
                                                         value={selectedPartner}
                                                         onChange={(e) => {
@@ -513,122 +528,63 @@ export default function Admin() {
                                                         }}
                                                         className="form-field px-4 py-3 text-sm font-medium"
                                                     >
-                                                        <option value="">Select IKIGAI Partner</option>
-                                                        {workers.map((worker) => (
+                                                        <option value="">Select partner</option>
+                                                        {workers.filter((worker) => (worker.availability || "available") === "available").map((worker) => (
                                                             <option key={worker.id} value={worker.id}>
-                                                                {worker.name || worker.email || "IKIGAI Partner"}
+                                                                {worker.name || worker.email || "ikigaidigital Partner"}
                                                             </option>
                                                         ))}
                                                     </select>
                                                     <button
                                                         type="button"
                                                         onClick={() => assignTask(task.id)}
-                                                        disabled={assigningTaskId === task.id || !canAssign}
+                                                        disabled={assigningTaskId === task.id || !canAssign || isDeletingTask || isAlreadyAssigned}
                                                         className="btn-primary px-4 py-3 text-sm"
                                                     >
                                                         {assigningTaskId === task.id ? (
                                                             <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : isAlreadyAssigned ? (
+                                                            "Assigned"
                                                         ) : (
                                                             <>
                                                                 Assign <Send className="ml-2 h-4 w-4" />
                                                             </>
                                                         )}
                                                     </button>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => deleteTask(task.id)}
+                                                        disabled={assigningTaskId === task.id || isDeletingTask}
+                                                        className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:-translate-y-0.5 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        {isDeletingTask ? (
+                                                            <>
+                                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                Deleting order...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                Delete Order <Trash2 className="ml-2 h-4 w-4" />
+                                                            </>
+                                                        )}
+                                                    </button>
                                                 </div>
                                                 {!canAssign && (
                                                     <p className="mt-2 text-xs font-medium text-amber-700">
-                                                        Ready for assignment after payment.
+                                                        Wait for payment before assigning.
                                                     </p>
                                                 )}
                                                 <FeedbackMessage type={message?.type} className="mt-2 py-2 text-xs">
                                                     {message?.text}
                                                 </FeedbackMessage>
                                             </div>
-                                        </article>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </section>
-
-                <section className="mt-12 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                    <div id="partners" className="dashboard-panel scroll-mt-28 p-6">
-                        <div className="mb-6 flex items-center justify-between gap-4">
-                            <div>
-                                <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-                                    Partners
-                                </h2>
-                                <p className="mt-1 text-sm text-slate-500">
-                                    Basic partner availability and assignment visibility.
-                                </p>
-                            </div>
-                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
-                                {workers.length} partners
-                            </span>
-                        </div>
-
-                        {partnerError ? (
-                            <ErrorState title="Could not load partners" message={partnerError} onRetry={fetchWorkers} />
-                        ) : workers.length === 0 ? (
-                            <EmptyState title="No partners yet" description="Approved IKIGAI partners will appear here." />
-                        ) : (
-                            <div className="grid gap-4">
-                                {partnerStats.map((partner) => (
-                                    <div key={partner.id} className="grid gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:grid-cols-[1fr_auto_auto] md:items-center">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                                                <UserRound className="h-5 w-5" />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-slate-950">
-                                                    {partner.name || partner.email || "IKIGAI Partner"}
-                                                </p>
-                                                <p className="text-sm text-slate-500">{partner.email || "No email available"}</p>
-                                            </div>
-                                        </div>
-                                        <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                            Availability: Placeholder
-                                        </span>
-                                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                                            {partner.assignedCount} assigned
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid gap-6">
-                        <div id="clients" className="dashboard-panel scroll-mt-28 p-6">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                                    <BriefcaseBusiness className="h-5 w-5" />
-                                </span>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-slate-950">Clients</h2>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Client controls can be expanded here as the product grows.
-                                    </p>
+                                            </article>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                            <EmptyState className="mt-6 p-6" title="No client list yet" description="Client management will appear here once the client directory is connected." />
-                        </div>
-
-                        <div id="trainings" className="dashboard-panel scroll-mt-28 p-6">
-                            <div className="flex items-center gap-3">
-                                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                                    <GraduationCap className="h-5 w-5" />
-                                </span>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-slate-950">Trainings</h2>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Training resources for IKIGAI partners can be organized here.
-                                    </p>
-                                </div>
-                            </div>
-                            <EmptyState className="mt-6 p-6" title="No training controls yet" description="Training management can be added here when admin training tools are ready." />
-                        </div>
+                        )}
                     </div>
                 </section>
             </DashboardShell>

@@ -14,7 +14,7 @@
     <circle cx="640" cy="318" r="76" fill="white"/>
   </g>
   <path d="M623 286L676 318L623 350V286Z" fill="#2563EB"/>
-  <text x="640" y="456" fill="white" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" text-anchor="middle" letter-spacing="-2.5">See How IKIGAI Works</text>
+  <text x="640" y="456" fill="white" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" text-anchor="middle" letter-spacing="-2.5">See How ikigaidigital Works</text>
   <text x="640" y="506" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="500" text-anchor="middle">Digital setup, listings, tasks, and partner support</text>
   <g opacity="0.95">
     <rect x="285" y="566" width="164" height="44" rx="22" fill="white" fill-opacity="0.1" stroke="white" stroke-opacity="0.12"/>

@@ -5,8 +5,8 @@ export function HowItWorks() {
             desc: "Share the service, details, and outcome you need.",
         },
         {
-            title: "IKIGAI assigns partner",
-            desc: "A trained IKIGAI partner is matched to the task and brief.",
+            title: "ikigaidigital assigns partner",
+            desc: "A trained ikigaidigital partner is matched to the task and brief.",
         },
         {
             title: "Task completed",

@@ -36,12 +36,12 @@ const benefits = [
     },
     {
         title: "Be part of a curated network",
-        desc: "IKIGAI brings together reliable partners who care about clarity, consistency, and quality.",
+        desc: "ikigaidigital brings together reliable partners who care about clarity, consistency, and quality.",
         icon: UsersRound,
     },
     {
         title: "Work with structure",
-        desc: "Tasks are guided through IKIGAI so expectations, updates, and completion steps stay clear.",
+        desc: "Tasks are guided through ikigaidigital so expectations, updates, and completion steps stay clear.",
         icon: Layers3,
     },
 ];
@@ -68,7 +68,7 @@ const support = [
     },
     {
         title: "Managed quality process",
-        desc: "IKIGAI keeps the network professional through review, task structure, and communication expectations.",
+        desc: "ikigaidigital keeps the network professional through review, task structure, and communication expectations.",
         icon: ShieldCheck,
     },
 ];
@@ -77,7 +77,7 @@ const flexibility = [
     "Remote-first digital contribution",
     "Assignments based on task fit and availability",
     "Progress at a pace that supports reliable delivery",
-    "Professional communication through IKIGAI’s managed flow",
+    "Professional communication through ikigaidigital’s managed flow",
 ];
 
 function IconBadge({ icon: Icon }) {
@@ -114,10 +114,10 @@ export default function PartnersPage() {
                             Curated partner network
                         </div>
                         <h1 className="mt-6 max-w-4xl text-5xl font-semibold leading-tight tracking-[-0.045em] text-slate-950 md:text-7xl">
-                            Earn with IKIGAI, at your own pace.
+                            Earn with ikigaidigital, at your own pace.
                         </h1>
                         <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600 md:text-xl">
-                            Join IKIGAI as a partner and contribute to meaningful digital setup tasks for small
+                            Join ikigaidigital as a partner and contribute to meaningful digital setup tasks for small
                             businesses through a professional, guided, and flexible network.
                         </p>
                         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -139,7 +139,7 @@ export default function PartnersPage() {
                                 "Respectful digital assignments",
                                 "Training before client tasks",
                                 "Remote-friendly task flow",
-                                "Professional IKIGAI-managed process",
+                                "Professional ikigaidigital-managed process",
                             ].map((point) => (
                                 <div key={point} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                                     <CheckCircle2 className="h-5 w-5 text-blue-600" />
@@ -155,7 +155,7 @@ export default function PartnersPage() {
                 <SectionHeader
                     eyebrow="Why Become A Partner"
                     title="A professional way to earn through digital contribution"
-                    desc="IKIGAI partners support real business execution while working through a clear, managed, and respectful task system."
+                    desc="ikigaidigital partners support real business execution while working through a clear, managed, and respectful task system."
                 />
 
                 <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -210,7 +210,7 @@ export default function PartnersPage() {
                                 Guidance before assignments, clarity during execution.
                             </h2>
                             <p className="mt-5 text-lg leading-8 text-slate-300">
-                                IKIGAI supports partners with expectations, training, and structured task flow so the
+                                ikigaidigital supports partners with expectations, training, and structured task flow so the
                                 work feels focused rather than confusing.
                             </p>
                         </div>
@@ -238,7 +238,7 @@ export default function PartnersPage() {
                             Flexible work, handled professionally.
                         </h2>
                         <p className="mt-5 text-lg leading-8 text-slate-600">
-                            IKIGAI is for people who want flexible earning opportunities without losing the dignity
+                            ikigaidigital is for people who want flexible earning opportunities without losing the dignity
                             of professional standards. You contribute when your availability and task fit align.
                         </p>
                     </div>
@@ -259,12 +259,12 @@ export default function PartnersPage() {
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200/50">
                         <Handshake className="h-7 w-7" />
                     </div>
-                    <p className="eyebrow mt-6">Join IKIGAI</p>
+                    <p className="eyebrow mt-6">Join ikigaidigital</p>
                     <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.03em] text-slate-950 md:text-5xl">
                         Become part of a curated partner network.
                     </h2>
                     <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-                        Apply to join IKIGAI and start with guided digital tasks that match your skills, reliability,
+                        Apply to join ikigaidigital and start with guided digital tasks that match your skills, reliability,
                         and availability.
                     </p>
                     <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
@@ -276,7 +276,7 @@ export default function PartnersPage() {
                         </a>
                     </div>
                     <p className="mt-4 text-sm text-slate-500">
-                        Training and task guidance are part of the IKIGAI partner experience.
+                        Training and task guidance are part of the ikigaidigital partner experience.
                     </p>
                 </div>
             </section>

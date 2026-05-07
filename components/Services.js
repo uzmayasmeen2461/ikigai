@@ -42,7 +42,7 @@ export function Services() {
                     Services
                 </p>
                 <h2 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-gray-950 md:text-5xl">
-                    Digital tasks handled by trained IKIGAI partners
+                    Digital tasks handled by trained ikigaidigital partners
                 </h2>
                 <p className="mt-4 text-lg leading-8 text-gray-600">
                     Start with the work that slows your team down and get it moving with a clear task flow.

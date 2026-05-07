@@ -9,15 +9,25 @@ import {
 
 const statusStyles = {
     pending: "bg-gray-100 text-gray-700 ring-gray-200",
+    needs_admin_assignment: "bg-red-50 text-red-700 ring-red-200",
     assigned: "bg-blue-50 text-blue-700 ring-blue-200",
     in_progress: "bg-amber-50 text-amber-800 ring-amber-200",
+    submitted_for_review: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+    revision_requested: "bg-orange-50 text-orange-800 ring-orange-200",
+    client_approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    auto_approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
     completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
 };
 
 const statusLabels = {
     pending: "Pending",
+    needs_admin_assignment: "Needs admin assignment",
     assigned: "Assigned",
     in_progress: "In progress",
+    submitted_for_review: "Submitted for review",
+    revision_requested: "Revision requested",
+    client_approved: "Client approved",
+    auto_approved: "Auto-approved",
     completed: "Completed",
 };
 
@@ -104,6 +114,25 @@ export function PaymentStatusBadge({ status = "pending", className = "" }) {
     return (
         <span className={`dashboard-badge ${paymentStatusStyles[status] || paymentStatusStyles.pending} ${className}`}>
             {paymentStatusLabels[status] || status}
+        </span>
+    );
+}
+
+export function SlaBadge({ status = "on_time", className = "" }) {
+    const styles = {
+        on_time: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+        due_soon: "bg-amber-50 text-amber-800 ring-amber-200",
+        overdue: "bg-red-50 text-red-700 ring-red-200",
+    };
+    const labels = {
+        on_time: "On time",
+        due_soon: "Due soon",
+        overdue: "Overdue",
+    };
+
+    return (
+        <span className={`dashboard-badge ${styles[status] || styles.on_time} ${className}`}>
+            {labels[status] || status}
         </span>
     );
 }
