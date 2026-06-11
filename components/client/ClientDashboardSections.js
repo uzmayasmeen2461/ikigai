@@ -257,7 +257,7 @@ export function useClientDashboard(router) {
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
             user.email?.split("@")[0] ||
-            "ikigaidigital Client";
+            "ORVA Client";
 
         const { error } = await supabase.from("tasks").insert([
             {
@@ -291,7 +291,7 @@ export function useClientDashboard(router) {
         setErrors({});
         setFormMessage({
             type: "success",
-            text: "Request submitted. Complete payment so ikigaidigital can start work.",
+            text: "Request submitted. Complete payment so ORVA can start work.",
         });
         setSubmitting(false);
         fetchTasks();
@@ -454,7 +454,7 @@ export function useClientDashboard(router) {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `${task.invoice_number || "ikigaidigital-Invoice"}.pdf`;
+            link.download = `${task.invoice_number || "ORVA-Invoice"}.pdf`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -997,7 +997,7 @@ export function ClientHelpSection() {
                 <h3 className="text-xl font-semibold text-slate-950">Support</h3>
                 <div className="mt-5 space-y-3 text-sm text-slate-600">
                     <div className="rounded-2xl border border-slate-200 px-4 py-3">
-                        Email: <span className="font-semibold text-slate-900">support@ikigaidigital.in</span>
+                        Email: <span className="font-semibold text-slate-900">support@orva.digital</span>
                     </div>
                     <div className="rounded-2xl border border-slate-200 px-4 py-3">
                         City: <span className="font-semibold text-slate-900">Hyderabad, India</span>

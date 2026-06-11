@@ -24,8 +24,8 @@ export function LegalPage({ eyebrow, title, updated, intro, sections }) {
 
                 <div className="mt-8 rounded-3xl border border-blue-100 bg-blue-50/80 p-6 text-sm leading-7 text-slate-700">
                     For policy questions, contact{" "}
-                    <a href="mailto:support@ikigaidigital.in" className="font-semibold text-blue-700">
-                        support@ikigaidigital.in
+                    <a href="mailto:support@orva.digital" className="font-semibold text-blue-700">
+                        support@orva.digital
                     </a>
                     .
                 </div>

@@ -1,7 +1,7 @@
 export const BRAND = {
-    name: "ikigaidigital",
+    name: "ORVA",
     tagline: "Make digital work simple",
-    supportEmail: "support@ikigaidigital.in",
-    website: "https://ikigaidigital.in",
-    companyName: "ikigaidigital Digital Services",
+    supportEmail: "support@orva.digital",
+    website: "https://www.orva.digital",
+    companyName: "ORVA Services",
 };

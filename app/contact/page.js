@@ -11,14 +11,14 @@ import {
 const contactCards = [
     {
         title: "Business Support Email",
-        value: "support@ikigaidigital.in",
-        href: "mailto:support@ikigaidigital.in",
+        value: "support@orva.digital",
+        href: "mailto:support@orva.digital",
         icon: Mail,
     },
     {
         title: "Website",
-        value: "ikigaidigital.in",
-        href: "https://ikigaidigital.in",
+        value: "orva.digital",
+        href: "https://www.orva.digital",
         icon: Globe2,
     },
     {
@@ -51,7 +51,7 @@ export default function ContactPage() {
                         <div>
                             <p className="eyebrow">Contact Us</p>
                             <h1 className="mt-6 text-5xl font-semibold leading-tight tracking-[-0.05em] text-slate-950 md:text-6xl">
-                                Talk to ikigaidigital support
+                                Talk to ORVA support
                             </h1>
                             <p className="mt-5 text-lg leading-8 text-slate-600">
                                 Need help before starting a service? Reach us for business setup, payments, invoices, and task updates.

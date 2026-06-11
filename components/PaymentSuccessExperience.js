@@ -72,7 +72,7 @@ function SuccessHero({ task }) {
                     Your Payment Has Been Confirmed
                 </h1>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500 md:text-lg">
-                    Thank you for choosing ikigaidigital. Your task is now being prepared for managed execution.
+                    Thank you for choosing ORVA. Your task is now being prepared for managed execution.
                 </p>
 
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -140,8 +140,8 @@ function OrderSummary({ task }) {
 function NextSteps() {
     const steps = [
         ["Payment received", "Your Razorpay payment was verified securely."],
-        ["ikigaidigital reviews your request", "We structure your task into clear execution steps."],
-        ["Task assigned to the right partner", "A trained ikigaidigital Partner begins managed execution."],
+        ["ORVA reviews your request", "We structure your task into clear execution steps."],
+        ["Task assigned to the right partner", "A trained ORVA Partner begins managed execution."],
         ["Track progress in your dashboard", "Follow status, notes, and completion updates anytime."],
     ];
 
@@ -244,10 +244,10 @@ function SupportCard() {
                 <div>
                     <h2 className="text-lg font-semibold text-slate-950">Need help with your request?</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                        Contact ikigaidigital support and we’ll help you with invoice, payment, or task updates.
+                        Contact ORVA support and we’ll help you with invoice, payment, or task updates.
                     </p>
-                    <a href="mailto:support@ikigaidigital.in" className="mt-3 inline-flex text-sm font-semibold text-blue-700">
-                        support@ikigaidigital.in
+                    <a href="mailto:support@orva.digital" className="mt-3 inline-flex text-sm font-semibold text-blue-700">
+                        support@orva.digital
                     </a>
                 </div>
             </div>
@@ -356,7 +356,7 @@ export function PaymentSuccessExperience() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = `${data.task.invoice_number || "ikigaidigital-Invoice"}.pdf`;
+            link.download = `${data.task.invoice_number || "ORVA-Invoice"}.pdf`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -391,7 +391,7 @@ export function PaymentSuccessExperience() {
                             <p className="mt-2 text-sm leading-6 text-slate-500">
                                 {data.guest
                                     ? "Your payment is complete. Sign up or login with the same email to track progress from your dashboard."
-                                    : "You can track progress anytime from your ikigaidigital dashboard or create another service request."}
+                                    : "You can track progress anytime from your ORVA dashboard or create another service request."}
                             </p>
                             <div className="mt-6 grid gap-3 sm:grid-cols-2">
                                 <Link href={data.guest ? "/signup" : "/dashboard"} className="btn-primary w-full">

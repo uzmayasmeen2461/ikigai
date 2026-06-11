@@ -38,7 +38,7 @@ export function ComingSoonPage() {
 
                         <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                             <Link
-                                href="mailto:support@ikigaidigital.in?subject=ORVA%20early%20access"
+                                href="mailto:support@orva.digital?subject=ORVA%20early%20access"
                                 className="btn-primary min-h-12 px-6 text-base"
                             >
                                 Request early access
