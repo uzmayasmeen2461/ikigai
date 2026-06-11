@@ -11,9 +11,7 @@ import { BrandLogo } from "./BrandLogo";
 
 const navItems = [
     { label: "Home", href: "/", match: "/" },
-    { label: "Services", href: "/services", match: "/services", primary: true },
     { label: "Pricing", href: "/pricing", match: "/pricing" },
-    { label: "Partner", href: "/partners", match: "/partners", subtle: true },
 ];
 
 export default function Navbar() {
@@ -80,13 +78,13 @@ export default function Navbar() {
     const navLinkClass = (item) => {
         const active = isActive(item);
         return [
-            "rounded-full px-4 py-2 text-sm font-medium transition duration-200",
+            "rounded-lg px-3.5 py-2 text-sm font-medium transition duration-150",
             active
-                ? "bg-slate-950 text-white shadow-sm"
+                ? "bg-white/10 text-white"
                 : item.primary
-                    ? "text-slate-800 hover:bg-blue-50 hover:text-blue-700"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
-            item.subtle && !active ? "lg:text-slate-500" : "",
+                    ? "text-white/80 hover:bg-white/10 hover:text-white"
+                    : "text-white/50 hover:bg-white/10 hover:text-white",
+            item.subtle && !active ? "lg:text-white/45" : "",
         ].join(" ");
     };
 
@@ -96,7 +94,7 @@ export default function Navbar() {
         <div className={mobile ? "grid gap-3" : "hidden items-center gap-3 lg:flex"}>
             {user ? (
                 <>
-                    <span className="hidden max-w-48 truncate text-sm text-slate-500 xl:block">
+                    <span className="hidden max-w-48 truncate text-sm text-white/45 xl:block">
                         {user.email}
                     </span>
                     <Link
@@ -108,7 +106,7 @@ export default function Navbar() {
                     </Link>
                     <button
                         onClick={logout}
-                        className="rounded-full border border-slate-200 bg-white/80 px-5 py-2.5 text-sm font-medium text-slate-600 shadow-sm transition duration-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+                        className="rounded-lg border border-white/15 bg-transparent px-5 py-2.5 text-sm font-medium text-white/70 transition duration-150 hover:border-white/35 hover:text-white"
                     >
                         Logout
                     </button>
@@ -118,16 +116,16 @@ export default function Navbar() {
                     <Link
                         href="/auth"
                         onClick={closeMenu}
-                        className="rounded-full border border-slate-200 bg-white/80 px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition duration-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                        className="rounded-lg border border-white/15 bg-transparent px-5 py-2.5 text-sm font-medium text-white/75 transition duration-150 hover:border-white/35 hover:text-white"
                     >
                         Login
                     </Link>
                     <Link
-                        href="/services"
+                        href="/auth"
                         onClick={closeMenu}
                         className="btn-primary justify-center px-5 py-2.5 text-sm"
                     >
-                        Start
+                        Get started
                     </Link>
                 </>
             )}
@@ -136,22 +134,22 @@ export default function Navbar() {
 
     return (
         <header
-            className={`sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-2xl transition duration-300 ${
-                scrolled ? "shadow-lg shadow-slate-200/60" : "shadow-sm shadow-slate-100/50"
+            className={`sticky top-0 z-50 bg-[var(--ink)] transition duration-300 ${
+                scrolled ? "shadow-lg shadow-slate-950/15" : ""
             }`}
         >
-            <div className="mx-auto max-w-[1440px] px-4 sm:px-6">
-                <div className="flex items-center justify-between gap-4 py-3">
+            <div className="mx-auto max-w-[1440px] px-4 sm:px-8">
+                <div className="flex h-14 items-center justify-between gap-4">
                     <Link
                         href="/"
                         onClick={closeMenu}
-                        className="group inline-flex items-center gap-3 rounded-full pr-3 transition"
+                        className="group inline-flex items-center gap-3 pr-3 transition"
                         aria-label={`${BRAND.name} home`}
                     >
                         <BrandLogo size="compact" />
                     </Link>
 
-                    <nav className="hidden items-center rounded-full border border-slate-200/80 bg-white/70 p-1 shadow-sm shadow-slate-100/80 lg:flex">
+                    <nav className="hidden items-center gap-1 lg:flex">
                         {navItems.map((item) => (
                             <Link key={item.href} href={item.href} className={navLinkClass(item)}>
                                 {item.label}
@@ -164,7 +162,7 @@ export default function Navbar() {
                         <button
                             type="button"
                             onClick={() => setMenuOpen((open) => !open)}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/85 text-slate-700 shadow-sm transition duration-200 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 lg:hidden"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-transparent text-white/80 transition duration-150 hover:border-white/35 hover:text-white lg:hidden"
                             aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
                             aria-expanded={menuOpen}
                         >
@@ -175,7 +173,7 @@ export default function Navbar() {
 
                 {menuOpen && (
                     <div className="pb-4 lg:hidden">
-                        <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-3 shadow-xl shadow-slate-200/70">
+                        <div className="rounded-xl border border-white/10 bg-[var(--ink2)] p-3 shadow-xl shadow-slate-950/20">
                             <nav className="grid gap-1">
                                 {navItems.map((item) => (
                                     <Link
@@ -183,12 +181,12 @@ export default function Navbar() {
                                         href={item.href}
                                         onClick={closeMenu}
                                         className={[
-                                            "rounded-2xl px-4 py-3 text-sm font-medium transition duration-200",
+                                            "rounded-lg px-4 py-3 text-sm font-medium transition duration-150",
                                             isActive(item)
-                                                ? "bg-slate-950 text-white"
+                                                ? "bg-white/10 text-white"
                                                 : item.primary
-                                                    ? "text-slate-900 hover:bg-blue-50 hover:text-blue-700"
-                                                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+                                                    ? "text-white/80 hover:bg-white/10 hover:text-white"
+                                                    : "text-white/50 hover:bg-white/10 hover:text-white",
                                         ].join(" ")}
                                     >
                                         {item.label}
@@ -196,7 +194,7 @@ export default function Navbar() {
                                 ))}
                             </nav>
 
-                            <div className="mt-3 border-t border-slate-100 pt-3">
+                            <div className="mt-3 border-t border-white/10 pt-3">
                                 {renderAuthActions(true)}
                             </div>
                         </div>
