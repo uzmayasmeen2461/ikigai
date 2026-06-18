@@ -101,7 +101,7 @@ function buildKit(draft = {}) {
     const hashtagSets = [
         [`#${category.replace(/\s+/g, "")}`, `#${city.replace(/\s+/g, "")}`, "#smallbusinessindia", "#supportlocal"],
         ["#newbusiness", "#instagramforbusiness", "#localbrand", "#madeinindia"],
-        ["#whatsappbusiness", "#onlinebusiness", "#digitalsetup", "#ikigai"],
+        ["#whatsappbusiness", "#onlinebusiness", "#digitalsetup", "#orva"],
     ];
     const replies = [
         "Thanks for reaching out. Please share what you need and your preferred budget.",

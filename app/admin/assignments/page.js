@@ -1,5 +1,5 @@
-import { AdminAssignmentsPage } from "../../../components/admin/AdminOperationsPages";
+import { AdminOperationsTasksPage } from "../../../components/operations/OperationsTasksPage";
 
 export default function AssignmentsPage() {
-    return <AdminAssignmentsPage />;
+    return <AdminOperationsTasksPage />;
 }

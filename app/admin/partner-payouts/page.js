@@ -1,5 +1,5 @@
-import { AdminPartnerPayoutsPage } from "../../../components/admin/AdminOperationsPages";
+import { AdminOperationsTasksPage } from "../../../components/operations/OperationsTasksPage";
 
 export default function PartnerPayoutsPage() {
-    return <AdminPartnerPayoutsPage />;
+    return <AdminOperationsTasksPage />;
 }

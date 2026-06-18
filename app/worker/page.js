@@ -12,6 +12,7 @@ import {
     Send,
     Sparkles,
     Target,
+    WalletCards,
     Wrench,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
@@ -42,12 +43,40 @@ const serviceLabels = {
     whatsapp: "WhatsApp Business",
     instagram: "Social Media Setup",
     social: "Social Media Setup",
+    facebook: "Facebook Page Setup",
+    account_setup: "Digital Account Setup",
+    digital_presence_setup: "Digital Presence Setup",
+    inventory_photo_conversion: "Inventory Photo Conversion",
     zomato: "Restaurant Listing",
     restaurant: "Restaurant Listing",
     cloud_kitchen: "Cloud Kitchen Setup",
     listing: "Product Listing",
     website: "Website / Store Setup",
 };
+
+const channelSetupCards = [
+    {
+        title: "WhatsApp Business",
+        channel: "WhatsApp",
+        description: "Create or organize WhatsApp Business profile, catalog access, business info, and customer message flow.",
+        checklist: ["Confirm business phone and display name", "Set profile, address, hours, and description", "Prepare catalog products or hand off catalog sync", "Record access notes for admin"],
+        href: "https://business.whatsapp.com/",
+    },
+    {
+        title: "Instagram Business",
+        channel: "Instagram",
+        description: "Create or convert Instagram profile, write bio, connect to page, and prepare product-ready posts.",
+        checklist: ["Confirm username and business category", "Add bio, contact details, and profile image", "Connect to Facebook Page when required", "Record login/access status for admin"],
+        href: "https://www.instagram.com/",
+    },
+    {
+        title: "Facebook Page",
+        channel: "Facebook",
+        description: "Create or manage Facebook Page, add business details, connect Meta assets, and publish approved products.",
+        checklist: ["Create or claim client page", "Set category, bio, phone, and website/store preview", "Connect page to Meta Business tools", "Record page URL and publishing status"],
+        href: "https://www.facebook.com/pages/creation/",
+    },
+];
 
 const priorityOrder = {
     assigned: 1,
@@ -57,6 +86,10 @@ const priorityOrder = {
     pending: 3,
     completed: 4,
 };
+
+function isValidUpiId(value = "") {
+    return /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(value.trim());
+}
 
 function canOpenWhatsAppTool(task) {
     const status = task.status || "assigned";
@@ -82,26 +115,75 @@ function canOpenInstagramTool(task) {
     );
 }
 
+function canOpenInventoryConverter(task) {
+    const status = task.status || "assigned";
+    return (
+        task.service_type === "inventory_photo_conversion" &&
+        task.payment_status === "paid" &&
+        status !== "completed" &&
+        status !== "cancelled"
+    );
+}
+
+function isAccountSetupTask(task = {}) {
+    const value = `${task.service_type || ""} ${task.title || ""} ${task.description || ""}`.toLowerCase();
+    return [
+        "account_setup",
+        "digital_presence",
+        "whatsapp business",
+        "instagram",
+        "facebook",
+        "page setup",
+        "business profile",
+        "meta",
+    ].some((keyword) => value.includes(keyword));
+}
+
+function setupCardsForTask(task = {}) {
+    const value = `${task.service_type || ""} ${task.title || ""} ${task.description || ""}`.toLowerCase();
+    const matched = channelSetupCards.filter((card) => value.includes(card.channel.toLowerCase()) || value.includes(card.title.toLowerCase()));
+    if (matched.length) return matched;
+    if (isAccountSetupTask(task)) return channelSetupCards;
+    return [];
+}
+
 function getToolAction(task) {
+    if (canOpenInventoryConverter(task)) {
+        return {
+            label: "Open Inventory Converter",
+            href: `/partner/tools/inventory-converter?taskId=${task.id}`,
+            available: true,
+        };
+    }
+
     if (canOpenWhatsAppTool(task)) {
         return {
-            label: "Open WhatsApp Catalog Tool",
-            href: `/partner/tools/whatsapp-catalog?taskId=${task.id}`,
+            label: "Open WhatsApp Catalog Export",
+            href: `/partner/tools/whatsapp-catalog?taskId=${task.id}&channel=whatsapp`,
             available: true,
         };
     }
 
     if (canOpenInstagramTool(task)) {
         return {
-            label: "Open Instagram Setup Tool",
-            href: `/partner/tools/instagram-setup?taskId=${task.id}`,
+            label: "Open Instagram Post Export",
+            href: `/partner/tools/instagram-setup?taskId=${task.id}&channel=instagram`,
             available: true,
         };
     }
 
     const normalizedService = `${task.service_type || ""} ${task.title || ""}`.toLowerCase();
-    if (normalizedService.includes("listing")) {
-        return { label: "Product Listing Tool Coming Soon", available: false };
+    if (
+        normalizedService.includes("listing") ||
+        normalizedService.includes("product studio") ||
+        normalizedService.includes("marketplace") ||
+        normalizedService.includes("product content")
+    ) {
+        return {
+            label: "Open Product Studio",
+            href: `/partner/tools/product-studio?taskId=${task.id}`,
+            available: task.payment_status === "paid",
+        };
     }
 
     if (
@@ -162,6 +244,11 @@ export default function WorkerDashboard() {
     const [noteUpdatingId, setNoteUpdatingId] = useState(null);
     const [availability, setAvailability] = useState("available");
     const [availabilityMessage, setAvailabilityMessage] = useState({ type: "", text: "" });
+    const [upiId, setUpiId] = useState("");
+    const [upiDraft, setUpiDraft] = useState("");
+    const [payoutMessage, setPayoutMessage] = useState({ type: "", text: "" });
+    const [payoutSaving, setPayoutSaving] = useState(false);
+    const [payoutEditing, setPayoutEditing] = useState(false);
     const [reviewDrafts, setReviewDrafts] = useState({});
     const [loading, setLoading] = useState(true);
     const [taskError, setTaskError] = useState("");
@@ -188,6 +275,12 @@ export default function WorkerDashboard() {
                 value: tasks.filter((task) => task.status === "in_progress").length,
                 icon: Clock3,
                 accent: "bg-yellow-500",
+            },
+            {
+                label: "Setup tasks",
+                value: tasks.filter(isAccountSetupTask).length,
+                icon: Wrench,
+                accent: "bg-indigo-500",
             },
             {
                 label: "In review",
@@ -261,16 +354,30 @@ export default function WorkerDashboard() {
             [id]: { type: "", text: "" },
         }));
 
-        const { error } = await supabase
-            .from("tasks")
-            .update({ notes: note })
-            .eq("id", id);
+        try {
+            const { error } = await supabase
+                .from("tasks")
+                .update({ notes: note })
+                .eq("id", id);
 
-        if (error) {
+            if (error) {
+                setNoteUpdatingId(null);
+                setNoteMessages((prev) => ({
+                    ...prev,
+                    [id]: { type: "error", text: error.message || "Could not save update." },
+                }));
+                return;
+            }
+        } catch (error) {
             setNoteUpdatingId(null);
             setNoteMessages((prev) => ({
                 ...prev,
-                [id]: { type: "error", text: error.message || "Could not save update." },
+                [id]: {
+                    type: "error",
+                    text: error?.message === "Failed to fetch"
+                        ? "Could not reach ORVA workspace service."
+                        : error?.message || "Could not save update.",
+                },
             }));
             return;
         }
@@ -291,39 +398,60 @@ export default function WorkerDashboard() {
 
     const fetchTasks = async () => {
         setTaskError("");
+        setLoading(true);
 
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
+        try {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
 
-        if (!user) {
-            setTasks([]);
+            if (!user) {
+                setTasks([]);
+                setLoading(false);
+                return;
+            }
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token || "";
+            const profileResponse = await fetch("/api/partner/payout-profile", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const profile = await profileResponse.json();
+
+            if (!profileResponse.ok) {
+                console.warn("Could not load partner profile.", profile.error);
+            }
+
+            setAvailability(profile?.availability || "available");
+            setUpiId(profile?.upi_id || "");
+            setUpiDraft(profile?.upi_id || "");
+            setPayoutEditing(!profile?.upi_id);
+
+            const { data, error } = await supabase
+                .from("tasks")
+                .select("*")
+                .eq("worker_id", user.id);
+
+            if (error) {
+                setTasks([]);
+                setTaskError(error.message || "Could not load your assigned tasks.");
+                setLoading(false);
+                return;
+            }
+
+            setTasks(data || []);
             setLoading(false);
-            return;
-        }
-
-        const { data: profile } = await supabase
-            .from("users")
-            .select("availability")
-            .eq("id", user.id)
-            .single();
-
-        setAvailability(profile?.availability || "available");
-
-        const { data, error } = await supabase
-            .from("tasks")
-            .select("*")
-            .eq("worker_id", user.id);
-
-        if (error) {
+        } catch (error) {
             setTasks([]);
-            setTaskError(error.message || "Could not load your assigned tasks.");
+            setTaskError(
+                error?.message === "Failed to fetch"
+                    ? "Could not reach ORVA workspace service. Check your connection and try again."
+                    : error?.message || "Could not load your assigned tasks."
+            );
             setLoading(false);
-            return;
         }
-
-        setTasks(data || []);
-        setLoading(false);
     };
 
     const getAuthToken = async () => {
@@ -341,15 +469,83 @@ export default function WorkerDashboard() {
 
         if (!user) return;
 
-        const { error } = await supabase
-            .from("users")
-            .update({ availability: nextAvailability })
-            .eq("id", user.id);
+        try {
+            const { error } = await supabase
+                .from("users")
+                .update({ availability: nextAvailability })
+                .eq("id", user.id);
 
-        setAvailabilityMessage({
-            type: error ? "error" : "success",
-            text: error ? error.message : `Availability set to ${nextAvailability}.`,
-        });
+            setAvailabilityMessage({
+                type: error ? "error" : "success",
+                text: error ? error.message : `Availability set to ${nextAvailability}.`,
+            });
+        } catch (error) {
+            setAvailabilityMessage({
+                type: "error",
+                text: error?.message === "Failed to fetch"
+                    ? "Could not reach ORVA workspace service."
+                    : error?.message || "Could not update availability.",
+            });
+        }
+    };
+
+    const updateUpiId = async (event) => {
+        event.preventDefault();
+        const normalizedUpiId = upiDraft.trim().toLowerCase();
+        setPayoutMessage({ type: "", text: "" });
+
+        if (!isValidUpiId(normalizedUpiId)) {
+            setPayoutMessage({
+                type: "error",
+                text: "Enter a valid UPI ID, like name@bank.",
+            });
+            return;
+        }
+
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        setPayoutSaving(true);
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const response = await fetch("/api/partner/payout-profile", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${sessionData.session?.access_token || ""}`,
+                },
+                body: JSON.stringify({ upi_id: normalizedUpiId }),
+            });
+            const data = await response.json();
+
+            setPayoutSaving(false);
+
+            if (!response.ok) {
+                setPayoutMessage({
+                    type: "error",
+                    text: data.error || "Could not save payout details.",
+                });
+                return;
+            }
+
+            setUpiId(data.upi_id || normalizedUpiId);
+            setUpiDraft(data.upi_id || normalizedUpiId);
+            setAvailability(data.availability || availability);
+            setPayoutEditing(false);
+            setPayoutMessage({ type: "success", text: "UPI payout details saved." });
+        } catch (error) {
+            setPayoutSaving(false);
+            setPayoutMessage({
+                type: "error",
+                text: error?.message === "Failed to fetch"
+                    ? "Could not reach ORVA workspace service."
+                    : error?.message || "Could not save payout details.",
+            });
+        }
     };
 
     const updateStatus = async (id, status) => {
@@ -360,34 +556,48 @@ export default function WorkerDashboard() {
             [id]: { type: "", text: "" },
         }));
 
-        const token = await getAuthToken();
-        const response = await fetch(`/api/tasks/${id}/action`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ action: status === "in_progress" ? "partner_start" : status }),
-        });
-        const result = await response.json();
+        try {
+            const token = await getAuthToken();
+            const response = await fetch(`/api/tasks/${id}/action`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ action: status === "in_progress" ? "partner_start" : status }),
+            });
+            const result = await response.json();
 
-        if (!response.ok) {
+            if (!response.ok) {
+                setStatusUpdatingId(null);
+                setStatusUpdatingAction("");
+                setStatusMessages((prev) => ({
+                    ...prev,
+                    [id]: { type: "error", text: result.error || "Could not update task status." },
+                }));
+                return;
+            }
+
+            setStatusMessages((prev) => ({
+                ...prev,
+                [id]: { type: "success", text: `Status updated to ${statusLabels[status] || status}.` },
+            }));
+            await fetchTasks();
+            setStatusUpdatingId(null);
+            setStatusUpdatingAction("");
+        } catch (error) {
             setStatusUpdatingId(null);
             setStatusUpdatingAction("");
             setStatusMessages((prev) => ({
                 ...prev,
-                [id]: { type: "error", text: result.error || "Could not update task status." },
+                [id]: {
+                    type: "error",
+                    text: error?.message === "Failed to fetch"
+                        ? "Could not reach ORVA workspace service."
+                        : error?.message || "Could not update task status.",
+                },
             }));
-            return;
         }
-
-        setStatusMessages((prev) => ({
-            ...prev,
-            [id]: { type: "success", text: `Status updated to ${statusLabels[status] || status}.` },
-        }));
-        await fetchTasks();
-        setStatusUpdatingId(null);
-        setStatusUpdatingAction("");
     };
 
     const setReviewDraft = (taskId, field, value) => {
@@ -411,37 +621,51 @@ export default function WorkerDashboard() {
         setStatusUpdatingId(taskId);
         setStatusUpdatingAction("submitted_for_review");
 
-        const token = await getAuthToken();
-        const response = await fetch(`/api/tasks/${taskId}/action`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                action: "partner_submit",
-                output: draft.output,
-                notes: draft.notes,
-                checklist: {
-                    output_attached: Boolean(draft.output_attached),
-                    notes_added: Boolean(draft.notes_added || draft.notes),
-                    deliverables_completed: Boolean(draft.deliverables_completed),
+        try {
+            const token = await getAuthToken();
+            const response = await fetch(`/api/tasks/${taskId}/action`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
-            }),
-        });
-        const result = await response.json();
+                body: JSON.stringify({
+                    action: "partner_submit",
+                    output: draft.output,
+                    notes: draft.notes,
+                    checklist: {
+                        output_attached: Boolean(draft.output_attached),
+                        notes_added: Boolean(draft.notes_added || draft.notes),
+                        deliverables_completed: Boolean(draft.deliverables_completed),
+                    },
+                }),
+            });
+            const result = await response.json();
 
-        setStatusMessages((prev) => ({
-            ...prev,
-            [taskId]: {
-                type: response.ok ? "success" : "error",
-                text: response.ok ? "Submitted to client for approval." : result.error || "Could not submit for review.",
-            },
-        }));
+            setStatusMessages((prev) => ({
+                ...prev,
+                [taskId]: {
+                    type: response.ok ? "success" : "error",
+                    text: response.ok ? "Submitted to client for approval." : result.error || "Could not submit for review.",
+                },
+            }));
 
-        if (response.ok) await fetchTasks();
-        setStatusUpdatingId(null);
-        setStatusUpdatingAction("");
+            if (response.ok) await fetchTasks();
+            setStatusUpdatingId(null);
+            setStatusUpdatingAction("");
+        } catch (error) {
+            setStatusMessages((prev) => ({
+                ...prev,
+                [taskId]: {
+                    type: "error",
+                    text: error?.message === "Failed to fetch"
+                        ? "Could not reach ORVA workspace service."
+                        : error?.message || "Could not submit for review.",
+                },
+            }));
+            setStatusUpdatingId(null);
+            setStatusUpdatingAction("");
+        }
     };
 
     const retryFetchTasks = () => {
@@ -459,20 +683,20 @@ export default function WorkerDashboard() {
         <AuthGate allowedRoles="partner">
             <DashboardShell
                 role="partner"
-                eyebrow="Partner"
-                title="My Tasks"
-                description="See your tasks, send updates, and open tools quickly."
+                eyebrow="Digital Setup Specialist"
+                title="Setup Workspace"
+                description="Create client digital accounts, publish approved products, and keep every manual update tracked."
             >
-                <section id="overview" className="mb-10 scroll-mt-28">
+                <section id="overview" className="animate-fade-up mb-10 scroll-mt-28">
                     <SectionHeading
                         title="Today"
-                        description="Check your assigned work and send updates."
+                        description="Set availability, confirm payout details, then work through assigned setup and publishing tasks."
                     />
-                    <div className="dashboard-panel mb-5 p-5">
+                    <div className="dashboard-panel interactive-tile mb-5 p-5">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <p className="text-sm font-semibold text-slate-950">Availability</p>
-                                <p className="mt-1 text-sm text-slate-500">Auto-assignment sends new tasks only to available partners.</p>
+                                <p className="mt-1 text-sm text-slate-500">Auto-assignment sends new work only to available specialists.</p>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 {["available", "busy", "unavailable"].map((option) => (
@@ -493,19 +717,121 @@ export default function WorkerDashboard() {
                         </div>
                         <FeedbackMessage type={availabilityMessage.type} className="mt-3">{availabilityMessage.text}</FeedbackMessage>
                     </div>
+                    <form onSubmit={updateUpiId} className="dashboard-panel interactive-tile mb-5 p-5">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <WalletCards className="h-4 w-4 text-slate-500" />
+                                    <p className="text-sm font-semibold text-slate-950">Payout setup</p>
+                                </div>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    {upiId
+                                        ? "Your UPI ID is saved for completed task payouts."
+                                        : "Add your UPI ID so admin can initiate payout after completed work."}
+                                </p>
+                            </div>
+                            {upiId && !payoutEditing ? (
+                                <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+                                    <div className="interactive-tile rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Saved UPI ID</p>
+                                        <p className="mt-1 font-semibold text-emerald-950">{upiId}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setPayoutEditing(true);
+                                            setPayoutMessage({ type: "", text: "" });
+                                        }}
+                                        className="btn-secondary whitespace-nowrap"
+                                    >
+                                        Change UPI
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-xl">
+                                    <input
+                                        value={upiDraft}
+                                        onChange={(event) => {
+                                            setUpiDraft(event.target.value);
+                                            setPayoutMessage({ type: "", text: "" });
+                                        }}
+                                        placeholder="yourname@upi"
+                                        className="form-field min-w-0 flex-1"
+                                        autoComplete="off"
+                                        inputMode="email"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button type="submit" disabled={payoutSaving} className="btn-primary whitespace-nowrap">
+                                            {payoutSaving ? "Saving..." : "Save UPI"}
+                                        </button>
+                                        {upiId ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setUpiDraft(upiId);
+                                                    setPayoutEditing(false);
+                                                    setPayoutMessage({ type: "", text: "" });
+                                                }}
+                                                className="btn-secondary whitespace-nowrap"
+                                            >
+                                                Cancel
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <FeedbackMessage type={payoutMessage.type} className="mt-3">{payoutMessage.text}</FeedbackMessage>
+                    </form>
                     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                        {overviewCards.map((card) => (
-                            <StatCard key={card.label} {...card} />
+                        {overviewCards.map((card, index) => (
+                            <div key={card.label} className="animate-fade-up" style={{ animationDelay: `${index * 80}ms` }}>
+                                <StatCard {...card} />
+                            </div>
                         ))}
                     </div>
                 </section>
 
-                <section id="tasks" className="scroll-mt-28">
+                <section id="channel-setup" className="animate-fade-up mb-10 scroll-mt-28">
+                    <SectionHeading
+                        eyebrow="Manual setup"
+                        icon={Wrench}
+                        title="Account setup work"
+                        description="When APIs cannot complete the job, specialists create and manage the client's channel accounts manually."
+                    />
+                    <div className="grid gap-5 lg:grid-cols-3">
+                        {channelSetupCards.map((card) => (
+                            <article key={card.title} className="dashboard-card dashboard-card-hover interactive-tile p-5">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{card.channel}</p>
+                                        <h3 className="mt-2 text-lg font-semibold text-slate-950">{card.title}</h3>
+                                    </div>
+                                    <Wrench className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <p className="mt-3 text-sm leading-6 text-slate-600">{card.description}</p>
+                                <ul className="mt-4 space-y-2 text-sm text-slate-600">
+                                    {card.checklist.slice(0, 3).map((item) => (
+                                        <li key={item} className="flex gap-2">
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <a href={card.href} target="_blank" rel="noreferrer" className="btn-secondary mt-5 inline-flex w-full justify-center">
+                                    Open setup site
+                                </a>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+
+                <section id="tasks" className="animate-fade-up scroll-mt-28">
                     <SectionHeading
                         eyebrow="Tasks"
                         icon={Sparkles}
                         title="Tasks assigned to me"
-                        description="Open a task, update progress, and send a simple note."
+                        description="Open a service task, update progress, and send a simple note."
                     />
 
                     {loading ? (
@@ -520,7 +846,7 @@ export default function WorkerDashboard() {
                         />
                     ) : (
                         <div className="grid gap-6 lg:grid-cols-2">
-                            {sortedTasks.map((task) => {
+                            {sortedTasks.map((task, index) => {
                                 const status = task.status || "assigned";
                                 const noteMessage = noteMessages[task.id];
                                 const statusMessage = statusMessages[task.id];
@@ -530,15 +856,16 @@ export default function WorkerDashboard() {
                                 return (
                                     <article
                                         key={task.id}
-                                        className={`dashboard-card dashboard-card-hover overflow-hidden ${
+                                        className={`dashboard-card dashboard-card-hover interactive-tile animate-fade-up overflow-hidden ${
                                             status === "assigned"
                                                 ? "border-blue-200 ring-1 ring-blue-100"
                                                 : status === "completed"
                                                     ? "border-slate-200 opacity-80"
                                                     : "border-slate-200"
                                         }`}
+                                        style={{ animationDelay: `${index * 90}ms` }}
                                     >
-                                        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white p-6">
+                                        <div className="hero-noise border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white p-6">
                                             <div className="flex flex-wrap items-center justify-between gap-3">
                                                 <ServiceBadge>
                                                     {serviceLabels[task.service_type] || task.service_type}
@@ -557,11 +884,11 @@ export default function WorkerDashboard() {
                                         </div>
 
                                         <div className="space-y-5 p-6">
-                                            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+                                            <div className="interactive-tile rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                                                 {renderProgressIndicator(status)}
                                             </div>
 
-                                            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                                            <div className="interactive-tile rounded-2xl border border-blue-100 bg-blue-50 p-4">
                                                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
                                                     <MessageSquareText className="h-4 w-4" />
                                                     Request details
@@ -579,6 +906,38 @@ export default function WorkerDashboard() {
                                                     </p>
                                                 ) : null}
                                             </div>
+
+                                            {setupCardsForTask(task).length ? (
+                                                <div className="interactive-tile rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                                                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                                                        <Wrench className="h-4 w-4" />
+                                                        Account setup checklist
+                                                    </div>
+                                                    <div className="mt-3 grid gap-3">
+                                                        {setupCardsForTask(task).map((card) => (
+                                                            <div key={card.title} className="rounded-2xl border border-white/80 bg-white p-4">
+                                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                                    <div>
+                                                                        <p className="font-semibold text-slate-950">{card.title}</p>
+                                                                        <p className="mt-1 text-xs leading-5 text-slate-500">{card.description}</p>
+                                                                    </div>
+                                                                    <a href={card.href} target="_blank" rel="noreferrer" className="btn-secondary whitespace-nowrap px-3 py-2 text-xs">
+                                                                        Open
+                                                                    </a>
+                                                                </div>
+                                                                <ul className="mt-3 grid gap-2 text-xs text-slate-600 sm:grid-cols-2">
+                                                                    {card.checklist.map((item) => (
+                                                                        <li key={item} className="flex gap-2">
+                                                                            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-600" />
+                                                                            <span>{item}</span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : null}
 
                                             <div>
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -661,7 +1020,7 @@ export default function WorkerDashboard() {
                                                         </button>
                                                     );
                                                 })()}
-                                                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="interactive-tile mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                     <p className="text-sm font-semibold text-slate-900">Review checklist</p>
                                                     <p className="mt-1 text-xs leading-5 text-slate-500">Complete this before sending the delivery to the client.</p>
                                                     <div className="mt-3 grid gap-2">
@@ -699,7 +1058,7 @@ export default function WorkerDashboard() {
                                                 </div>
                                             </div>
 
-                                            <div className={`rounded-2xl border p-4 shadow-sm ${
+                                            <div className={`interactive-tile rounded-2xl border p-4 shadow-sm ${
                                                 task.notes
                                                     ? "border-blue-100 bg-blue-50"
                                                     : "border-slate-200 bg-white"
@@ -726,7 +1085,7 @@ export default function WorkerDashboard() {
                                                 )}
                                             </div>
 
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                                            <div className="interactive-tile rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                                     <div>
                                                         <label className="block text-sm font-semibold text-slate-800">

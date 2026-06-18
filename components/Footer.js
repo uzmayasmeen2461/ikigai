@@ -1,24 +1,23 @@
 import { BRAND } from "../config/branding";
 import { BrandLogo } from "./BrandLogo";
+import { FooterCreditBar } from "./FooterCreditBar";
 
 const footerGroups = [
     {
         title: "Company",
         links: [
             { label: "Home", href: "/" },
-            { label: "For Business", href: "/business" },
-            { label: "Pricing", href: "/pricing" },
-            { label: "Partner With Us", href: "/partners" },
+            { label: "Dashboard", href: "/dashboard" },
             { label: "Contact Us", href: "/contact" },
         ],
     },
     {
-        title: "Services",
+        title: "Platform",
         links: [
-            { label: "WhatsApp Business Setup", href: "/services" },
-            { label: "Product Listing", href: "/services" },
-            { label: "Restaurant Listing", href: "/services" },
-            { label: "Website / Store Setup", href: "/services" },
+            { label: "Products", href: "/dashboard/products" },
+            { label: "Upload Inventory", href: "/dashboard/upload-inventory" },
+            { label: "Connections", href: "/dashboard/connections" },
+            { label: "Settings", href: "/dashboard/settings" },
         ],
     },
     {
@@ -33,42 +32,40 @@ const footerGroups = [
         title: "Contact",
         links: [
             { label: BRAND.supportEmail, href: `mailto:${BRAND.supportEmail}` },
-            { label: "ikigaidigital.in", href: BRAND.website },
             { label: "Hyderabad, Telangana, India", href: "/contact" },
-            { label: "GST invoice available", href: "/services" },
+            { label: "Open Connections", href: "/dashboard/connections" },
         ],
     },
 ];
 
 export function Footer() {
     return (
-        <footer id="contact" className="mt-20 border-t border-slate-200/80 bg-white/85 backdrop-blur-2xl">
-            <div className="mx-auto max-w-[1440px] px-6 py-12">
+        <footer id="contact" className="bg-[var(--ink2)]">
+            <div className="mx-auto max-w-5xl px-6 py-10 md:px-10">
                 <div className="grid gap-10 lg:grid-cols-[1.1fr_1.5fr] lg:items-start">
                     <div>
                         <BrandLogo showTagline />
-                        <p className="mt-5 max-w-md text-sm leading-6 text-slate-500">
-                            Premium digital setup and execution support for Indian small businesses,
-                            restaurants, cloud kitchens, retailers, and home brands.
+                        <p className="mt-5 max-w-md text-sm font-light leading-6 text-white/35">
+                            Upload a product list, or send photos with prices. ORVA prepares your inventory,
+                            storefront preview, social content, and channel update workflow.
                         </p>
-                        <div className="mt-5 grid gap-2 text-sm text-slate-600">
+                        <div className="mt-5 grid gap-2 text-sm text-white/35">
                             <span>Business support: {BRAND.supportEmail}</span>
-                            <span>Website: ikigaidigital.in</span>
                             <span>Address: Hyderabad, Telangana, India</span>
-                            <span>Secure payments via Razorpay. GST invoice available.</span>
+                            <span>Manual today. API-ready as channel access becomes available.</span>
                         </div>
                         <a
-                            href="/services"
-                            className="mt-6 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-300/60 transition duration-300 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-200"
+                            href="/auth"
+                            className="btn btn-primary mt-6"
                         >
-                            Start Your First Service
+                            Start Demo
                         </a>
                     </div>
 
                     <nav className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
                         {footerGroups.map((group) => (
                             <div key={group.title}>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/25">
                                     {group.title}
                                 </p>
                                 <div className="mt-4 grid gap-3">
@@ -76,7 +73,7 @@ export function Footer() {
                                         <a
                                             key={`${group.title}-${link.label}`}
                                             href={link.href}
-                                            className="text-sm font-medium text-slate-600 transition duration-200 hover:text-blue-700"
+                                            className="text-sm font-medium text-white/45 transition duration-150 hover:text-white"
                                         >
                                             {link.label}
                                         </a>
@@ -87,12 +84,7 @@ export function Footer() {
                     </nav>
                 </div>
 
-                <div className="mt-10 flex flex-col gap-3 border-t border-slate-200/80 pt-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                    <span>© {BRAND.name}. All rights reserved.</span>
-                    <span>
-                        Designed by <span className="font-semibold text-slate-900">UY</span>
-                    </span>
-                </div>
+                <FooterCreditBar className="mt-10 border-t border-white/10 pt-6" />
             </div>
         </footer>
     );

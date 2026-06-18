@@ -8,15 +8,15 @@ import {
 } from "lucide-react";
 
 const statusStyles = {
-    pending: "bg-gray-100 text-gray-700 ring-gray-200",
-    needs_admin_assignment: "bg-red-50 text-red-700 ring-red-200",
-    assigned: "bg-blue-50 text-blue-700 ring-blue-200",
-    in_progress: "bg-amber-50 text-amber-800 ring-amber-200",
-    submitted_for_review: "bg-indigo-50 text-indigo-700 ring-indigo-200",
-    revision_requested: "bg-orange-50 text-orange-800 ring-orange-200",
-    client_approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    auto_approved: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    pending: "badge-gray",
+    needs_admin_assignment: "badge-red",
+    assigned: "badge-blue",
+    in_progress: "badge-warn",
+    submitted_for_review: "badge-purple",
+    revision_requested: "badge-warn",
+    client_approved: "badge-green",
+    auto_approved: "badge-green",
+    completed: "badge-green",
 };
 
 const statusLabels = {
@@ -32,10 +32,10 @@ const statusLabels = {
 };
 
 const paymentStatusStyles = {
-    pending: "bg-amber-50 text-amber-800 ring-amber-200",
-    paid: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    failed: "bg-red-50 text-red-700 ring-red-200",
-    refunded: "bg-slate-100 text-slate-700 ring-slate-200",
+    pending: "badge-warn",
+    paid: "badge-green",
+    failed: "badge-red",
+    refunded: "badge-gray",
 };
 
 const paymentStatusLabels = {
@@ -87,17 +87,17 @@ export function SectionHeading({ eyebrow, icon: Icon, title, description, action
 
 export function StatCard({ label, value, icon: Icon, accent = "bg-blue-500" }) {
     return (
-        <DashboardCard className="p-5">
+        <DashboardCard className="stat-card p-5">
             <div className="flex items-center justify-between gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-blue-700 ring-1 ring-slate-100">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-light)] text-[var(--accent)]">
                     {Icon && <Icon className="h-5 w-5" />}
                 </div>
                 <span className={`h-2.5 w-2.5 rounded-full ${accent}`} />
             </div>
-            <p className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-slate-950">
+            <p className="stat-val">
                 {value}
             </p>
-            <p className="mt-1 text-sm font-medium text-slate-500">{label}</p>
+            <p className="stat-lbl">{label}</p>
         </DashboardCard>
     );
 }
@@ -120,9 +120,9 @@ export function PaymentStatusBadge({ status = "pending", className = "" }) {
 
 export function SlaBadge({ status = "on_time", className = "" }) {
     const styles = {
-        on_time: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-        due_soon: "bg-amber-50 text-amber-800 ring-amber-200",
-        overdue: "bg-red-50 text-red-700 ring-red-200",
+        on_time: "badge-green",
+        due_soon: "badge-warn",
+        overdue: "badge-red",
     };
     const labels = {
         on_time: "On time",
@@ -139,7 +139,7 @@ export function SlaBadge({ status = "on_time", className = "" }) {
 
 export function ServiceBadge({ children, className = "" }) {
     return (
-        <span className={`inline-flex rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white ${className}`}>
+        <span className={`badge badge-blue ${className}`}>
             {children}
         </span>
     );
@@ -152,10 +152,10 @@ export function FeedbackMessage({ type = "success", children, className = "" }) 
 
     return (
         <div
-            className={`flex gap-3 rounded-2xl border p-4 text-sm leading-6 ${
+            className={`flex gap-3 rounded-xl border p-4 text-sm leading-6 ${
                 isError
-                    ? "border-red-200 bg-red-50 text-red-700"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    ? "border-[rgba(122,21,21,0.18)] bg-[var(--danger-bg)] text-[var(--danger)]"
+                    : "border-[rgba(14,122,82,0.2)] bg-[var(--success-bg)] text-[var(--success)]"
             } ${className}`}
         >
             {isError ? (
@@ -178,17 +178,17 @@ export function EmptyState({
 }) {
     const toneClass =
         tone === "blue"
-            ? "border-blue-200 bg-blue-50"
-            : "border-slate-300 bg-white";
+            ? "border-[rgba(27,79,216,0.25)] bg-[var(--accent-light)]"
+            : "border-[var(--border)] bg-white";
 
     return (
-        <div className={`rounded-2xl border border-dashed ${toneClass} p-10 text-center shadow-sm ${className}`}>
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+        <div className={`rounded-xl border border-dashed ${toneClass} p-10 text-center ${className}`}>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-light)] text-[var(--accent)]">
                 <Icon className="h-7 w-7" />
             </div>
-            <h3 className="mt-5 text-xl font-semibold text-slate-950">{title}</h3>
+            <h3 className="mt-5 text-xl font-bold text-[var(--ink)]">{title}</h3>
             {description && (
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--mid)]">
                     {description}
                 </p>
             )}
@@ -199,12 +199,12 @@ export function EmptyState({
 
 export function ErrorState({ title, message, onRetry, className = "" }) {
     return (
-        <div className={`rounded-2xl border border-red-100 bg-red-50 p-10 text-center shadow-sm ${className}`}>
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-red-600 ring-1 ring-red-100">
+        <div className={`rounded-xl border border-[rgba(122,21,21,0.18)] bg-[var(--danger-bg)] p-10 text-center ${className}`}>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[var(--danger)]">
                 <AlertCircle className="h-7 w-7" />
             </div>
-            <h3 className="mt-5 text-xl font-semibold text-slate-950">{title}</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-red-700">{message}</p>
+            <h3 className="mt-5 text-xl font-bold text-[var(--ink)]">{title}</h3>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--danger)]">{message}</p>
             {onRetry && (
                 <button type="button" onClick={onRetry} className="btn-secondary mt-6 bg-white">
                     Try again
@@ -217,16 +217,16 @@ export function ErrorState({ title, message, onRetry, className = "" }) {
 export function FilterTabs({ filters, value, onChange }) {
     return (
         <div className="dashboard-filter-tabs">
-            <Filter className="ml-2 h-4 w-4 text-slate-400" />
+            <Filter className="ml-2 h-4 w-4 text-[var(--muted)]" />
             {filters.map((filter) => (
                 <button
                     key={filter.value}
                     type="button"
                     onClick={() => onChange(filter.value)}
-                    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                         value === filter.value
-                            ? "bg-slate-950 text-white shadow-sm"
-                            : "text-slate-500 hover:bg-white hover:text-slate-950"
+                            ? "bg-[var(--ink)] text-white"
+                            : "text-[var(--mid)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
                     }`}
                 >
                     {filter.label}

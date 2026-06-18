@@ -95,7 +95,7 @@ export async function createNotification(supabase, notification = {}) {
             role: notification.role || null,
             task_id: notification.task_id ? String(notification.task_id) : null,
             type: notification.type || "info",
-            title: notification.title || "IKIGAI update",
+            title: notification.title || "ORVA update",
             message: notification.message || "",
             read_at: null,
         },
@@ -180,7 +180,7 @@ export async function autoAssignPaidTask(supabase, task) {
         userId: best.id,
         taskId: task.id,
         type: "task_assigned",
-        title: "New IKIGAI task assigned",
+        title: "New ORVA task assigned",
         message: `${task.title || "A client task"} has been auto-assigned to you. Due ${new Date(dueAt).toLocaleDateString("en-IN")}.`,
         email: best.email,
     });

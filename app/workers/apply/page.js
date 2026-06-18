@@ -9,6 +9,7 @@ export default function Apply() {
         email: "",
         skills: "",
         availability: "",
+        upiId: "",
     });
 
     const [errors, setErrors] = useState({});
@@ -61,6 +62,10 @@ export default function Apply() {
             newErrors.availability = "Select availability";
         }
 
+        if (!/^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(form.upiId.trim())) {
+            newErrors.upiId = "Enter a valid UPI ID";
+        }
+
         // Anti-dummy check
         const dummyWords = ["test", "abc", "asdf", "qwerty"];
         if (dummyWords.includes(form.name.toLowerCase())) {
@@ -107,6 +112,7 @@ export default function Apply() {
                     email: "",
                     skills: "",
                     availability: "",
+                    upiId: "",
                 });
             } else {
                 setSubmitMessage({
@@ -129,7 +135,7 @@ export default function Apply() {
         <main className="gradient-page">
             <section className="max-w-[800px] mx-auto py-20 px-6">
                 <div className="text-center">
-                    <p className="eyebrow">ikigaidigital Partner Application</p>
+                    <p className="eyebrow">ORVA Partner Application</p>
                     <h1 className="mt-5 text-4xl font-semibold tracking-[-0.03em] text-slate-950 md:text-5xl">
                         Start Earning From Home
                     </h1>
@@ -199,6 +205,21 @@ export default function Apply() {
                             )}
                         </div>
 
+                        <div>
+                            <input
+                                name="upiId"
+                                placeholder="UPI ID for payouts (example: name@bank)"
+                                value={form.upiId}
+                                onChange={handleChange}
+                                className={`form-field ${errors.upiId ? "border-red-500" : ""}`}
+                                autoComplete="off"
+                                inputMode="email"
+                            />
+                            {errors.upiId && (
+                                <p className="text-red-500 text-sm mt-1">{errors.upiId}</p>
+                            )}
+                        </div>
+
                         {/* Availability */}
                         <div>
                             <select
@@ -248,7 +269,7 @@ export default function Apply() {
                             Thank you! We will contact you soon
                         </h2>
                         <p className="text-gray-500 mt-2">
-                            Your ikigaidigital partner application has been received. Our team will review it and reach out shortly.
+                            Your ORVA partner application has been received. Our team will review it and reach out shortly.
                         </p>
                     </div>
                 )}

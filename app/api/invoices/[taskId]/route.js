@@ -38,7 +38,7 @@ export async function GET(request, { params }) {
         return new Response(pdf, {
             headers: {
                 "Content-Type": "application/pdf",
-                "Content-Disposition": `attachment; filename="${task.invoice_number || "ikigaidigital-Invoice"}.pdf"`,
+                "Content-Disposition": `attachment; filename="${task.invoice_number || "ORVA-Invoice"}.pdf"`,
             },
         });
     } catch (error) {

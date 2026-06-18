@@ -6,15 +6,13 @@
     <circle cx="690" cy="330" r="360" fill="#38BDF8" fill-opacity="0.12"/>
   </g>
   <rect x="48" y="48" width="1184" height="624" rx="32" fill="white" fill-opacity="0.06" stroke="white" stroke-opacity="0.12"/>
-  <rect x="88" y="88" width="214" height="44" rx="22" fill="white" fill-opacity="0.1" stroke="white" stroke-opacity="0.12"/>
-  <text x="116" y="116" fill="#BFDBFE" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700" letter-spacing="2.5">HINDI / URDU GUIDE</text>
   <rect x="1080" y="88" width="112" height="44" rx="22" fill="white" fill-opacity="0.1" stroke="white" stroke-opacity="0.12"/>
   <text x="1118" y="116" fill="white" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">1:10</text>
   <g filter="url(#shadow)">
     <circle cx="640" cy="318" r="76" fill="white"/>
   </g>
   <path d="M623 286L676 318L623 350V286Z" fill="#2563EB"/>
-  <text x="640" y="456" fill="white" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" text-anchor="middle" letter-spacing="-2.5">See How ikigaidigital Works</text>
+  <text x="640" y="456" fill="white" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="800" text-anchor="middle" letter-spacing="-2.5">See How orva.digital Works</text>
   <text x="640" y="506" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="500" text-anchor="middle">Digital setup, listings, tasks, and partner support</text>
   <g opacity="0.95">
     <rect x="285" y="566" width="164" height="44" rx="22" fill="white" fill-opacity="0.1" stroke="white" stroke-opacity="0.12"/>

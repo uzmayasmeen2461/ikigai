@@ -6,8 +6,8 @@ import { BRAND } from "../config/branding";
 export default function RootLayout({ children }) {
 
   return (
-    <html lang="en">
-      <body className="text-gray-900">
+    <html lang="en" suppressHydrationWarning>
+      <body className="text-gray-900" suppressHydrationWarning>
         <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
@@ -15,5 +15,5 @@ export default function RootLayout({ children }) {
 }
 export const metadata = {
   title: BRAND.name,
-  description: "ikigaidigital helps small businesses grow digitally using WhatsApp, catalog setup, and online presence.",
+  description: "ORVA helps small businesses grow digitally using WhatsApp, catalog setup, and online presence.",
 };

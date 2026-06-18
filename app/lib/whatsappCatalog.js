@@ -643,7 +643,7 @@ export function buildChecklistText({ business, checklist, generatedProducts }) {
     const missingItems = checklist.filter((item) => !item.complete);
 
     return [
-        "ikigaidigital WhatsApp Catalog Assistant",
+        "ORVA WhatsApp Catalog Assistant",
         `Business: ${sanitizeText(business.businessName || "Not provided")}`,
         `Category: ${sanitizeText(business.businessCategory || "Not provided")}`,
         `Phone: ${sanitizeText(business.phone || "Not provided")}`,
@@ -812,7 +812,7 @@ export function buildWhatsAppKitCatalogCsv(generatedProducts = [], imageFilename
 
 export function buildFullKitText({ business, generatedProfile, generatedProducts, checklist, status, completionScore }) {
     return [
-        `ikigaidigital WhatsApp Catalog Kit`,
+        `ORVA WhatsApp Catalog Kit`,
         `Business: ${sanitizeText(business.businessName || "Not provided")}`,
         `Category: ${sanitizeText(business.businessCategory || "Not provided")}`,
         `Status: ${status || "draft"}`,
@@ -929,7 +929,7 @@ function escapeHtml(value = "") {
 }
 
 export function buildPrintableMiniCatalogHtml({ business, generatedProducts = [] }) {
-    const businessName = sanitizeText(business.businessName || "ikigaidigital Catalog");
+    const businessName = sanitizeText(business.businessName || "ORVA Catalog");
     const category = sanitizeText(business.businessCategory || "WhatsApp Catalog");
     const productCards = generatedProducts
         .map(
@@ -985,7 +985,7 @@ export function buildPrintableMiniCatalogHtml({ business, generatedProducts = []
   <div class="header">
     <div>
       <div class="brand">${escapeHtml(businessName)}</div>
-      <div class="sub">${escapeHtml(category)} mini catalog prepared by ikigaidigital for WhatsApp-ready sharing.</div>
+      <div class="sub">${escapeHtml(category)} mini catalog prepared by ORVA for WhatsApp-ready sharing.</div>
     </div>
     <div class="pill">Send product code + address</div>
   </div>

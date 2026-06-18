@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { InstagramSetupAssistant } from "../../../../components/partner/InstagramSetupAssistant";
+import { PartnerProductStudio } from "../../../../components/product-studio/ProductStudioRoute";
 
 export default function InstagramSetupToolPage() {
     return (
         <Suspense fallback={null}>
-            <InstagramSetupAssistant />
+            <PartnerProductStudio defaultChannel="instagram" />
         </Suspense>
     );
 }

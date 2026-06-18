@@ -1,5 +1,5 @@
-import WorkerDashboard from "../../worker/page";
+import { SpecialistOperationsTasksPage } from "../../../components/operations/OperationsTasksPage";
 
 export default function PartnerTasksPage() {
-    return <WorkerDashboard />;
+    return <SpecialistOperationsTasksPage />;
 }

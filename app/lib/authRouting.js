@@ -18,14 +18,36 @@ export function dashboardForRole(role) {
     return "/dashboard";
 }
 
+function withFallbackTimeout(promise, timeoutMs, fallback) {
+    return Promise.race([
+        promise,
+        new Promise((resolve) => {
+            setTimeout(() => resolve(fallback), timeoutMs);
+        }),
+    ]);
+}
+
 export async function getUserRole(userId) {
     if (!userId) return "client";
 
-    const { data } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", userId)
-        .single();
+    try {
+        const { data, error } = await withFallbackTimeout(
+            supabase
+                .from("users")
+                .select("role")
+                .eq("id", userId)
+                .maybeSingle(),
+            2000,
+            { data: null, error: null }
+        );
 
-    return normalizeRole(data?.role);
+        if (error) {
+            console.warn("Could not load user role.", error.message);
+        }
+
+        return normalizeRole(data?.role);
+    } catch (error) {
+        console.warn("Could not fetch user role.", error?.message || error);
+        return "client";
+    }
 }

@@ -1,157 +1,185 @@
 import {
-    BadgeCheck,
     CheckCircle2,
-    CreditCard,
-    MessageCircle,
     PackageCheck,
+    RefreshCw,
+    Send,
     Sparkles,
-    Store,
-    Globe2,
-    Camera,
-    Utensils,
 } from "lucide-react";
-import { formatINR } from "../app/lib/pricing";
-import { ServiceStartButton } from "./ServiceStartButton";
 
-const services = [
-    { title: "WhatsApp Catalog", serviceType: "whatsapp", price: 2000, benefit: "Sell on WhatsApp faster.", icon: MessageCircle },
-    { title: "Product Listing", serviceType: "listing", price: 1999, benefit: "Get products ready to publish.", icon: PackageCheck },
-    { title: "Restaurant Setup", serviceType: "restaurant", price: 3499, benefit: "Start online delivery setup.", icon: Utensils },
-    { title: "Cloud Kitchen Setup", serviceType: "cloud_kitchen", price: 4999, benefit: "Launch your kitchen online.", icon: Store },
-    { title: "Social Media Setup", serviceType: "instagram", price: 2499, benefit: "Make your page look business-ready.", icon: Camera },
-    { title: "Website Setup", serviceType: "website", price: 7999, benefit: "Get a simple business website.", icon: Globe2 },
-];
+const homeVideo = {
+    src: "/ikigai-explainer.mp4",
+    poster: "/ikigai-explainer-poster.svg",
+};
 
-const trust = ["Secure payments", "Invoice available", "Hyderabad support", "Fast delivery"];
+const channels = ["WhatsApp Catalog", "Instagram posts", "Facebook Page", "Online store preview"];
+const trust = ["CSV upload if you have it", "Photos + prices if you do not", "Review before publishing", "Human help where APIs are limited"];
 
 const steps = [
-    { title: "Choose service", detail: "Pick what you need." },
-    { title: "Share details", detail: "Add your business info." },
-    { title: "Pay & track", detail: "We start after payment." },
+    { title: "Add your products", detail: "Upload a CSV, or send product photos with prices so ORVA can build the inventory." },
+    { title: "Check the customer view", detail: "Preview a mobile catalog before anything goes live." },
+    { title: "Publish product updates", detail: "Send reviewed product posts to Facebook, Instagram, and WhatsApp where connected." },
+    { title: "Keep stock accurate", detail: "When price or stock changes, ORVA tracks what needs updating." },
 ];
 
 export function SimpleHomeLanding() {
     return (
         <main className="gradient-page overflow-hidden">
-            <section className="px-6 pb-14 pt-10 md:pb-20 md:pt-16">
-                <div className="mx-auto max-w-[1440px]">
-                    <div className="grid items-center gap-10 rounded-[2rem] border border-slate-200/80 bg-white/85 p-8 shadow-2xl shadow-slate-200/45 backdrop-blur-xl lg:grid-cols-[1.05fr_0.95fr] lg:p-12">
-                        <div>
-                            <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-                                <Sparkles className="h-4 w-4" />
-                                Simple business setup
-                            </div>
-                            <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-0.05em] text-slate-950 md:text-7xl">
-                                Get Your Business Online, Without Stress
-                            </h1>
-                            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-                                WhatsApp catalogs, product listings, restaurant setup, websites, and digital support — done for you.
-                            </p>
+            <section className="hero-section px-6 py-16 md:px-10 md:py-20">
+                <div className="hero-grid-bg" />
+                <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_0.82fr]">
+                    <div className="animate-fade-up">
+                        <div className="hero-pill">
+                            <div className="hero-pulse" />
+                            For local shops, boutiques, kitchens, and catalog sellers
+                        </div>
+                        <h1 className="hero-h1 max-w-4xl md:text-6xl">
+                            Add products once.<br />
+                            <span>Sell everywhere faster.</span>
+                        </h1>
+                        <p className="hero-sub max-w-xl">
+                            ORVA turns your product list, or even product photos with prices, into a clean digital catalog, social-ready posts, and update tasks for WhatsApp, Instagram, Facebook, and your online store preview.
+                        </p>
 
-                            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                                <a href="/services" className="btn-primary px-7 py-4">
-                                    Start a Service
-                                </a>
-                                <a href="/services#pricing" className="btn-secondary px-7 py-4">
-                                    View Pricing
-                                </a>
-                            </div>
-
-                            <div className="mt-8 flex flex-wrap gap-3">
-                                {trust.map((item) => (
-                                    <span key={item} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                                        {item}
-                                    </span>
-                                ))}
-                            </div>
+                        <div className="mb-14 flex flex-col gap-3 sm:flex-row">
+                            <a href="/auth" className="btn btn-primary">
+                                Start Demo
+                            </a>
+                            <a href="/dashboard/preview-studio" className="btn border border-white/15 bg-transparent text-white/60 hover:border-white/35 hover:text-white">
+                                View Preview
+                            </a>
                         </div>
 
-                        <div className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-300/40">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-200">Start quickly</p>
-                            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                                {services.slice(0, 4).map((service) => {
-                                    const Icon = service.icon;
+                        <div className="stats-strip">
+                            {[
+                                ["2", "Ways to start"],
+                                ["3", "Social channels"],
+                                ["0", "ERP complexity"],
+                            ].map(([value, label]) => (
+                                <div key={label} className="stats-cell">
+                                    <div className="stats-n">{value}</div>
+                                    <div className="stats-l">{label}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="premium-stage animate-fade-up-delay">
+                        <div className="premium-float product-os-card rounded-2xl p-5">
+                            <div className="mb-5 flex items-center justify-between">
+                                <div>
+                                    <p className="section-tag text-[#7BA7F0]">ORVA Digital Presence</p>
+                                    <p className="mt-2 text-xl font-bold text-white">Inventory, preview, publish</p>
+                                </div>
+                                <div className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-[var(--accent)]">
+                                    Hybrid
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3">
+                                {[
+                                    { icon: PackageCheck, title: "Products captured", meta: "CSV import or photo conversion" },
+                                    { icon: Sparkles, title: "Preview ready", meta: "See the mobile storefront first" },
+                                    { icon: Send, title: "Publish after review", meta: "Facebook, Instagram, WhatsApp" },
+                                ].map((item) => {
+                                    const Icon = item.icon;
                                     return (
-                                        <div key={service.title} className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                                            <Icon className="h-5 w-5 text-blue-200" />
-                                            <p className="mt-3 font-semibold">{service.title}</p>
-                                            <p className="mt-1 text-sm text-slate-300">{formatINR(service.price)}</p>
+                                        <div key={item.title} className="interactive-tile rounded-xl border border-white/10 bg-white/[0.06] p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[var(--accent)]">
+                                                    <Icon className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-white">{item.title}</p>
+                                                    <p className="mt-1 text-xs text-white/40">{item.meta}</p>
+                                                </div>
+                                            </div>
                                         </div>
                                     );
                                 })}
                             </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-3">
+                                {channels.map((channel) => (
+                                    <div key={channel} className="interactive-tile rounded-xl border border-white/10 bg-white/[0.05] p-3">
+                                        <p className="text-xs font-semibold text-white">{channel}</p>
+                                        <p className="mt-1 text-xs text-white/35">Review-ready workflow</p>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-white/55">
+                                        <RefreshCw className="h-4 w-4 text-[#7BA7F0]" />
+                                        Stock and channel update trail
+                                    </div>
+                                    <span className="h-2 w-20 overflow-hidden rounded-full bg-white/10">
+                                        <span className="block h-full w-3/4 rounded-full bg-[#7BA7F0]" />
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section className="mx-auto max-w-[1440px] px-6 py-16">
-                <div className="flex items-end justify-between gap-4">
-                    <div>
-                        <p className="eyebrow">Popular services</p>
-                        <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-slate-950">Start with one service</h2>
+            <section className="border-b border-[var(--border)] bg-white">
+                <div className="mx-auto max-w-5xl px-6 py-16 md:px-10">
+                    <div className="glass-panel overflow-hidden rounded-2xl p-3">
+                        <video
+                            className="block aspect-video w-full rounded-xl bg-[var(--ink)] object-cover"
+                            src={homeVideo.src}
+                            poster={homeVideo.poster}
+                            controls
+                            playsInline
+                            preload="metadata"
+                        />
                     </div>
-                    <a href="/services" className="hidden text-sm font-semibold text-blue-700 md:inline-flex">
-                        View all
-                    </a>
-                </div>
-
-                <div id="pricing" className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    {services.map((service) => {
-                        const Icon = service.icon;
-                        return (
-                            <div key={service.title} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/40">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                                        <Icon className="h-5 w-5" />
-                                    </div>
-                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                                        From {formatINR(service.price)}
-                                    </span>
-                                </div>
-                                <h3 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{service.title}</h3>
-                                <p className="mt-2 text-sm leading-6 text-slate-600">{service.benefit}</p>
-                                <div className="mt-5">
-                                    <ServiceStartButton
-                                        serviceType={service.serviceType}
-                                        serviceTitle={service.title}
-                                        className="w-full"
-                                    />
-                                </div>
-                            </div>
-                        );
-                    })}
                 </div>
             </section>
 
-            <section className="mx-auto max-w-[1440px] px-6 py-16">
-                <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/35">
-                    <p className="eyebrow">How it works</p>
-                    <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <section className="border-b border-[var(--border)] bg-[var(--surface)]">
+                <div className="mx-auto max-w-5xl px-6 py-16 md:px-10">
+                    <p className="section-tag">How it works</p>
+                    <h2 className="mt-2 text-4xl font-bold text-[var(--ink)]">A simple flow business owners understand</h2>
+                    <div className="mt-10 grid gap-px overflow-hidden rounded-xl bg-[var(--border)] md:grid-cols-4">
                         {steps.map((step, index) => (
-                            <div key={step.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                            <div key={step.title} className="bg-white p-8">
+                                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Step 0{index + 1}</p>
+                                <div className="mt-4 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">
                                     {index + 1}
-                                </span>
-                                <p className="mt-4 text-xl font-semibold text-slate-950">{step.title}</p>
-                                <p className="mt-2 text-sm text-slate-600">{step.detail}</p>
+                                </div>
+                                <p className="mt-4 text-lg font-bold text-[var(--ink)]">{step.title}</p>
+                                <p className="mt-2 text-sm font-light leading-6 text-[var(--mid)]">{step.detail}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            <section className="mx-auto max-w-[1440px] px-6 py-16">
-                <div className="grid gap-6 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/35 md:grid-cols-[1fr_auto] md:items-center">
+            <section className="bg-white">
+                <div className="mx-auto grid max-w-5xl gap-10 px-6 py-16 md:grid-cols-[1fr_0.7fr] md:items-center md:px-10">
                     <div>
-                        <p className="eyebrow">Partner</p>
-                        <h2 className="mt-4 text-4xl font-semibold tracking-[-0.04em] text-slate-950">Want to earn with ikigaidigital?</h2>
-                        <p className="mt-3 text-base text-slate-600">Join as a Partner and complete simple digital tasks.</p>
+                        <p className="section-tag">Start simple</p>
+                        <h2 className="mt-2 text-4xl font-bold text-[var(--ink)]">Built for businesses that sell products, with or without a spreadsheet.</h2>
+                        <p className="mt-3 text-sm font-light leading-6 text-[var(--mid)]">ORVA is not a complicated ERP. It is a practical workspace for shops that need product catalogs, social posts, and stock updates to stay consistent online. If you only have photos and prices, ORVA can help create the inventory first.</p>
+                        <div className="mt-7 flex flex-wrap gap-3">
+                            {trust.map((item) => (
+                                <span key={item} className="badge badge-blue">
+                                    <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                                    {item}
+                                </span>
+                            ))}
+                        </div>
                     </div>
-                    <a href="/partners" className="btn-secondary px-7 py-4">
-                        Join as Partner
-                    </a>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-7">
+                        <Sparkles className="h-8 w-8 text-[var(--accent)]" />
+                        <p className="mt-4 text-base font-semibold text-[var(--ink)]">No inventory list? We can build it.</p>
+                        <p className="mt-2 text-sm leading-6 text-[var(--mid)]">Send product or shelf photos with prices and stock notes. ORVA creates clean product records that can be previewed and published to your digital channels.</p>
+                        <a href="/auth" className="btn btn-primary mt-6">
+                            Open ORVA
+                        </a>
+                    </div>
                 </div>
             </section>
         </main>

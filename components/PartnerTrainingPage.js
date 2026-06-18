@@ -116,7 +116,7 @@ export function PartnerTrainingPage() {
                 role="partner"
                 eyebrow="Training"
                 title="Training"
-                description="Learn how to complete ikigaidigital service tasks."
+                description="Learn how to complete ORVA service tasks."
             >
                 <section className="mb-10">
                     <SectionHeading

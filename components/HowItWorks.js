@@ -5,8 +5,8 @@ export function HowItWorks() {
             desc: "Share the service, details, and outcome you need.",
         },
         {
-            title: "ikigaidigital assigns partner",
-            desc: "A trained ikigaidigital partner is matched to the task and brief.",
+            title: "ORVA assigns partner",
+            desc: "A trained ORVA partner is matched to the task and brief.",
         },
         {
             title: "Task completed",

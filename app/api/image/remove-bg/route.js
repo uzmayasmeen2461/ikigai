@@ -1,9 +1,44 @@
 import { NextResponse } from "next/server";
-import { getAuthenticatedUser, getUserRole } from "../../../lib/supabaseServer";
+import { isWhatsAppServiceType } from "../../../lib/whatsappCatalog";
+import { createSupabaseAdmin, getAuthenticatedUser, getUserRole } from "../../../lib/supabaseServer";
 
 export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+function sanitizeText(value = "") {
+    return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+async function validateInternalTaskAccess({ role, taskId, userId }) {
+    if (role === "admin") return null;
+    if (!["partner", "worker"].includes(role)) {
+        return "Only internal users can clean catalog images.";
+    }
+    if (!taskId) {
+        return "Open this tool from an assigned paid WhatsApp task.";
+    }
+
+    const supabase = createSupabaseAdmin();
+    const { data: task, error } = await supabase
+        .from("tasks")
+        .select("id, worker_id, payment_status, status, service_type, title")
+        .eq("id", taskId)
+        .maybeSingle();
+
+    if (
+        error ||
+        !task ||
+        task.worker_id !== userId ||
+        task.payment_status !== "paid" ||
+        ["completed", "cancelled"].includes(task.status || "assigned") ||
+        !isWhatsAppServiceType(`${task.service_type || ""} ${task.title || ""}`)
+    ) {
+        return "This tool is available only for paid WhatsApp tasks assigned to you.";
+    }
+
+    return null;
+}
 
 export async function POST(request) {
     try {
@@ -13,16 +48,22 @@ export async function POST(request) {
             return NextResponse.json({ error: authError || "Unauthorized" }, { status: 401 });
         }
 
-        const role = await getUserRole(user.id);
-        if (!["admin", "partner", "worker"].includes(role)) {
-            return NextResponse.json({ error: "Only internal users can clean catalog images." }, { status: 403 });
-        }
-
         if (!process.env.REMOVEBG_API_KEY) {
             return NextResponse.json({ error: "Missing REMOVEBG_API_KEY." }, { status: 500 });
         }
 
         const formData = await request.formData();
+        const role = await getUserRole(user.id);
+        const accessError = await validateInternalTaskAccess({
+            role,
+            taskId: sanitizeText(formData.get("taskId")),
+            userId: user.id,
+        });
+
+        if (accessError) {
+            return NextResponse.json({ error: accessError }, { status: 403 });
+        }
+
         const image = formData.get("image");
 
         if (!(image instanceof File)) {

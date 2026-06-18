@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
     BarChart3,
@@ -67,6 +67,21 @@ function payoutMath(task = {}) {
     const platformMargin = Math.max(Number(task.platform_fee || 0), Math.round(base * 0.2));
     const payoutAmount = Math.max(0, total - Number(task.gst_amount || 0) - platformMargin);
     return { payoutAmount, platformMargin };
+}
+
+const payoutReadyStatuses = ["completed", "client_approved", "auto_approved"];
+
+function getPartnerName(partner) {
+    return partner?.name || partner?.email || "ORVA Partner";
+}
+
+function getPartnerUpi(partner) {
+    return partner?.upi_id || partner?.upiId || "";
+}
+
+function partnerSelectLabel(partner) {
+    const upiId = getPartnerUpi(partner);
+    return `${getPartnerName(partner)}${upiId ? ` - UPI: ${upiId}` : " - UPI missing"}`;
 }
 
 function useAdminData() {
@@ -186,7 +201,7 @@ export function AdminAssignmentsPage() {
                                         <select value={drafts[task.id] || ""} onChange={(event) => setDrafts((current) => ({ ...current, [task.id]: event.target.value }))} className="form-field">
                                             <option value="">Select partner</option>
                                             {partners.filter((partner) => (partner.availability || "available") === "available").map((partner) => (
-                                                <option key={partner.id} value={partner.id}>{partner.name || partner.email || "IKIGAI Partner"}</option>
+                                                <option key={partner.id} value={partner.id}>{partnerSelectLabel(partner)}</option>
                                             ))}
                                         </select>
                                         <button type="button" onClick={() => assignTask(task)} disabled={savingId === task.id} className="btn-primary">
@@ -340,7 +355,12 @@ export function AdminPartnerPayoutsPage() {
             generated: false,
         }));
         const missing = tasks
-            .filter((task) => task.payment_status === "paid" && task.worker_id && !existingTaskIds.has(String(task.id)))
+            .filter((task) =>
+                task.payment_status === "paid" &&
+                task.worker_id &&
+                payoutReadyStatuses.includes(task.status) &&
+                !existingTaskIds.has(String(task.id))
+            )
             .map((task) => {
                 const { payoutAmount, platformMargin } = payoutMath(task);
                 return {
@@ -357,18 +377,70 @@ export function AdminPartnerPayoutsPage() {
         return [...fromTable, ...missing];
     }, [payouts, tasks]);
 
-    const updatePayout = async (payout, status) => {
-        if (payout.generated) {
-            setMessages((current) => ({ ...current, [payout.id]: { type: "error", text: "Apply the payout migration before updating generated payout rows." } }));
+    const updatePayout = async (payout, status, partner) => {
+        const upiId = partner?.upi_id || partner?.upiId || "";
+
+        if (!upiId && status !== "pending_approval") {
+            setMessages((current) => ({
+                ...current,
+                [payout.id]: {
+                    type: "error",
+                    text: "Ask this partner to add a UPI ID before initiating payout.",
+                },
+            }));
             return;
         }
+
+        const timestamp = new Date().toISOString();
+        if (payout.generated) {
+            setSavingId(payout.id);
+            const { error: insertError } = await supabase
+                .from("partner_payouts")
+                .insert({
+                    task_id: payout.task_id,
+                    partner_id: payout.partner_id,
+                    payout_amount: payout.payout_amount,
+                    platform_margin: payout.platform_margin,
+                    status,
+                    approved_at: ["approved", "paid"].includes(status) ? timestamp : null,
+                    paid_at: status === "paid" ? timestamp : null,
+                });
+
+            setSavingId("");
+
+            if (insertError) {
+                setMessages((current) => ({
+                    ...current,
+                    [payout.id]: {
+                        type: "error",
+                        text: insertError.message?.includes("partner_payouts")
+                            ? "Apply the partner_payouts migration before saving payout records."
+                            : insertError.message || "Could not create payout record.",
+                    },
+                }));
+                return;
+            }
+
+            setMessages((current) => ({
+                ...current,
+                [payout.id]: {
+                    type: "success",
+                    text: status === "paid"
+                        ? `Payout marked paid. UPI: ${upiId}.`
+                        : `Payout approved. Initiate UPI transfer to ${upiId}.`,
+                },
+            }));
+            fetchData();
+            return;
+        }
+
         setSavingId(payout.id);
         const { error: updateError } = await supabase
             .from("partner_payouts")
             .update({
                 status,
-                approved_at: status === "approved" ? new Date().toISOString() : payout.approved_at || null,
-                paid_at: status === "paid" ? new Date().toISOString() : payout.paid_at || null,
+                approved_at: ["approved", "paid"].includes(status) ? (payout.approved_at || timestamp) : payout.approved_at || null,
+                paid_at: status === "paid" ? timestamp : payout.paid_at || null,
             })
             .eq("id", payout.id);
 
@@ -377,7 +449,15 @@ export function AdminPartnerPayoutsPage() {
             setMessages((current) => ({ ...current, [payout.id]: { type: "error", text: updateError.message } }));
             return;
         }
-        setMessages((current) => ({ ...current, [payout.id]: { type: "success", text: `Payout marked ${status}.` } }));
+        setMessages((current) => ({
+            ...current,
+            [payout.id]: {
+                type: "success",
+                text: status === "paid"
+                    ? `Payout marked paid. UPI: ${upiId}.`
+                    : `Payout approved. Initiate UPI transfer to ${upiId}.`,
+            },
+        }));
         fetchData();
     };
 
@@ -391,18 +471,29 @@ export function AdminPartnerPayoutsPage() {
                 ) : error ? (
                     <ErrorState title="Could not load payouts" message={error} onRetry={fetchData} />
                 ) : generatedPayouts.length === 0 ? (
-                    <EmptyState title="No payouts yet" description="Assigned paid tasks will appear here." />
+                    <EmptyState title="No payouts yet" description="Completed paid tasks will appear here." />
                 ) : (
                     <div className="grid gap-4">
                         {generatedPayouts.map((payout) => {
                             const partner = partners.find((item) => item.id === payout.partner_id);
+                            const upiId = getPartnerUpi(partner);
+                            const needsUpi = !upiId;
                             return (
                                 <article key={payout.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                         <div>
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{partner?.name || partner?.email || "Partner"}</p>
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Worker payout</p>
+                                            <div className="mt-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                                <p className="font-semibold text-slate-950">{getPartnerName(partner)}</p>
+                                                <p className={`mt-1 text-sm font-semibold ${needsUpi ? "text-red-600" : "text-emerald-700"}`}>
+                                                    UPI: {upiId || "Not provided"}
+                                                </p>
+                                            </div>
                                             <h3 className="mt-2 text-lg font-semibold text-slate-950">{payout.task?.title || `Task ${payout.task_id}`}</h3>
                                             <p className="mt-1 text-sm text-slate-500">Status: {payout.status || "pending"}</p>
+                                            {needsUpi ? (
+                                                <p className="mt-1 text-xs text-slate-500">Ask the partner to add UPI from the worker dashboard before payout.</p>
+                                            ) : null}
                                         </div>
                                         <div className="grid gap-2 text-sm sm:grid-cols-3">
                                             <Amount label="Payout" value={payout.payout_amount} />
@@ -411,8 +502,8 @@ export function AdminPartnerPayoutsPage() {
                                         </div>
                                     </div>
                                     <div className="mt-4 flex flex-wrap gap-3">
-                                        <button type="button" onClick={() => updatePayout(payout, "approved")} disabled={savingId === payout.id} className="btn-secondary">Approve payout</button>
-                                        <button type="button" onClick={() => updatePayout(payout, "paid")} disabled={savingId === payout.id} className="btn-primary">Mark paid manually</button>
+                                        <button type="button" onClick={() => updatePayout(payout, "approved", partner)} disabled={savingId === payout.id || needsUpi} className="btn-secondary">Initiate UPI payout</button>
+                                        <button type="button" onClick={() => updatePayout(payout, "paid", partner)} disabled={savingId === payout.id || needsUpi} className="btn-primary">Mark paid manually</button>
                                     </div>
                                     <FeedbackMessage type={messages[payout.id]?.type} className="mt-3">{messages[payout.id]?.text}</FeedbackMessage>
                                 </article>
@@ -500,7 +591,12 @@ export function AdminReportsPage() {
                                 <EmptyState title="No partner data yet" description="Partner performance appears after assignments." />
                             ) : partnerPerformance.map(({ partner, total, completed, rate }) => (
                                 <div key={partner.id} className="grid gap-3 rounded-2xl border border-slate-100 bg-white px-5 py-4 md:grid-cols-[1fr_auto_auto] md:items-center">
-                                    <span className="font-semibold text-slate-900">{partner.name || partner.email || "Partner"}</span>
+                                    <span>
+                                        <span className="block font-semibold text-slate-900">{getPartnerName(partner)}</span>
+                                        <span className={`mt-1 block text-xs font-semibold ${getPartnerUpi(partner) ? "text-emerald-700" : "text-red-600"}`}>
+                                            UPI: {getPartnerUpi(partner) || "missing"}
+                                        </span>
+                                    </span>
                                     <span className="text-sm text-slate-500">{completed}/{total} completed</span>
                                     <span className="dashboard-badge bg-emerald-50 text-emerald-700 ring-emerald-100">{rate}%</span>
                                 </div>
@@ -521,6 +617,8 @@ export function AdminOrderDetailsPage() {
     const partner = partners.find((item) => item.id === task?.worker_id);
     const [message, setMessage] = useState("");
     const [saving, setSaving] = useState(false);
+    const [conversion, setConversion] = useState(null);
+    const [conversionLoading, setConversionLoading] = useState(false);
 
     const markCompleted = async () => {
         setSaving(true);
@@ -541,6 +639,40 @@ export function AdminOrderDetailsPage() {
         }
         setMessage("Task marked completed. Payout record is pending approval.");
         fetchData();
+    };
+
+    const loadConversion = useCallback(async () => {
+        if (!task || task.service_type !== "inventory_photo_conversion") return;
+        setConversionLoading(true);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const response = await fetch(`/api/inventory/conversion/${task.id}`, {
+            headers: { Authorization: `Bearer ${sessionData.session?.access_token || ""}` },
+        });
+        const result = await response.json().catch(() => ({}));
+        setConversion(response.ok ? result : null);
+        setConversionLoading(false);
+    }, [task]);
+
+    useEffect(() => {
+        queueMicrotask(loadConversion);
+    }, [loadConversion]);
+
+    const approveConversion = async () => {
+        setSaving(true);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const response = await fetch(`/api/inventory/conversion/${task.id}/approve`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${sessionData.session?.access_token || ""}` },
+        });
+        const result = await response.json().catch(() => ({}));
+        setSaving(false);
+        if (!response.ok) {
+            setMessage(result.error || "Could not approve inventory.");
+            return;
+        }
+        setMessage(`${result.products?.length || 0} products approved and added to client inventory.`);
+        fetchData();
+        loadConversion();
     };
 
     return (
@@ -579,9 +711,44 @@ export function AdminOrderDetailsPage() {
                             <Info label="Invoice URL" value={task.invoice_url || "Pending"} />
                         </Panel>
                         <Panel title="Assignment">
-                            <Info label="Partner" value={partner?.name || partner?.email || "Unassigned"} />
+                            <Info label="Partner" value={partner ? `${getPartnerName(partner)}${getPartnerUpi(partner) ? ` - UPI: ${getPartnerUpi(partner)}` : " - UPI missing"}` : "Unassigned"} />
                             <Info label="Latest partner update" value={task.notes || "No update submitted yet"} />
                         </Panel>
+                        {task.service_type === "inventory_photo_conversion" ? (
+                            <Panel title="Inventory Conversion">
+                                {conversionLoading ? (
+                                    <LoadingRow label="Loading converted inventory..." />
+                                ) : (
+                                    <>
+                                        <Info label="Uploaded photos" value={`${conversion?.batch?.photos?.length || 0} photo(s)`} />
+                                        <Info label="Converted rows" value={`${conversion?.items?.length || 0} product row(s)`} />
+                                        {conversion?.batch?.photos?.length ? (
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {conversion.batch.photos.slice(0, 6).map((photo, index) => (
+                                                    <div
+                                                        key={`${photo.name || "photo"}-${index}`}
+                                                        aria-label={photo.name || `Uploaded photo ${index + 1}`}
+                                                        className="aspect-square rounded-2xl border border-slate-100 bg-slate-100 bg-cover bg-center"
+                                                        style={{ backgroundImage: `url(${photo.url})` }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                        <div className="grid gap-2">
+                                            {(conversion?.items || []).map((item) => (
+                                                <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                                    <p className="font-semibold text-slate-900">{item.product_name}</p>
+                                                    <p className="text-sm text-slate-500">{item.category || "No category"} · ₹{item.price || 0} · Stock {item.stock || 0} · {item.status}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <button type="button" onClick={approveConversion} disabled={saving || !conversion?.items?.length} className="btn-primary w-full">
+                                            Approve Converted Inventory
+                                        </button>
+                                    </>
+                                )}
+                            </Panel>
+                        ) : null}
                         <div className="dashboard-panel p-5">
                             <button type="button" onClick={markCompleted} disabled={saving || task.status === "completed"} className="btn-primary w-full">
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -656,7 +823,7 @@ export function ClientInvoicesPage() {
             }
 
             const blob = await response.blob();
-            downloadBlob(`${task.invoice_number || "IKIGAI-Invoice"}.pdf`, blob);
+            downloadBlob(`${task.invoice_number || "ORVA-Invoice"}.pdf`, blob);
         } catch (downloadError) {
             setError(downloadError.message || "Could not download invoice.");
         } finally {
@@ -666,7 +833,7 @@ export function ClientInvoicesPage() {
 
     return (
         <AuthGate allowedRoles="client">
-            <DashboardShell role="client" eyebrow="Business Owner" title="Invoices" description="Download invoices for paid IKIGAI services.">
+            <DashboardShell role="client" eyebrow="Business Owner" title="Invoices" description="Download invoices for paid ORVA services.">
                 <section className="dashboard-panel p-6">
                     <SectionHeading title="My invoices" description="Paid service invoices appear here." />
                     {loading ? (

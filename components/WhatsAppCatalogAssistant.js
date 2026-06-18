@@ -586,7 +586,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
 
         if (!queryTaskId) {
             setTaskContext(null);
-            setAccessLockedMessage("This tool is available only for paid ikigaidigital client tasks assigned to you.");
+            setAccessLockedMessage("This tool is available only for paid ORVA client tasks assigned to you.");
             setAccessChecking(false);
             return;
         }
@@ -618,7 +618,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
 
         if (!isValidTask) {
             setTaskContext(null);
-            setAccessLockedMessage("This tool is available only for paid ikigaidigital client tasks assigned to you.");
+            setAccessLockedMessage("This tool is available only for paid ORVA client tasks assigned to you.");
             setAccessChecking(false);
             return;
         }
@@ -742,7 +742,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
                 taskContext.client_business_name ||
                 taskContext.business_name ||
                 taskContext.title ||
-                "ikigaidigital Client",
+                "ORVA Client",
             businessCategory: "WhatsApp Catalog",
             phone: taskContext.client_phone || "",
             address: taskContext.client_address || "",
@@ -761,7 +761,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
         });
 
         const payload = {
-            client_name: draftBusiness.clientName || "ikigaidigital client",
+            client_name: draftBusiness.clientName || "ORVA client",
             business_name: draftBusiness.businessName,
             business_category: draftBusiness.businessCategory,
             phone: normalizeNullable(draftBusiness.phone),
@@ -1134,6 +1134,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
             const formData = new FormData();
             formData.append("image", file);
             formData.append("provider", provider);
+            if (queryTaskId) formData.append("taskId", queryTaskId);
 
             const response = await fetch("/api/image/clean-background", {
                 method: "POST",
@@ -1327,7 +1328,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
         });
 
         return {
-            client_name: normalizeNullable(normalizedBusiness.clientName || normalizedBusiness.businessName) || "ikigaidigital client",
+            client_name: normalizeNullable(normalizedBusiness.clientName || normalizedBusiness.businessName) || "ORVA client",
             business_name: normalizedBusiness.businessName,
             business_category: normalizedBusiness.businessCategory,
             phone: normalizeNullable(normalizedBusiness.phone),
@@ -1436,7 +1437,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
         if (roleKey === "partner" && !taskContext?.id) {
             setFeedback({
                 type: "error",
-                text: "You can export only ikigaidigital client projects assigned to you.",
+                text: "You can export only ORVA client projects assigned to you.",
             });
             return;
         }
@@ -1468,20 +1469,20 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
         setExporting(kind);
 
         if (kind === "csv") {
-            downloadFile("ikigaidigital-whatsapp-catalog.csv", buildCatalogCsv(computedKit.generatedProducts), "text/csv;charset=utf-8;");
+            downloadFile("ORVA-whatsapp-catalog.csv", buildCatalogCsv(computedKit.generatedProducts), "text/csv;charset=utf-8;");
         }
 
         if (kind === "profile") {
-            downloadFile("ikigaidigital-whatsapp-profile.txt", buildProfileText(computedKit.generatedProfile), "text/plain;charset=utf-8;");
+            downloadFile("ORVA-whatsapp-profile.txt", buildProfileText(computedKit.generatedProfile), "text/plain;charset=utf-8;");
         }
 
         if (kind === "replies") {
-            downloadFile("ikigaidigital-whatsapp-quick-replies.txt", buildQuickRepliesText(computedKit.generatedProfile), "text/plain;charset=utf-8;");
+            downloadFile("ORVA-whatsapp-quick-replies.txt", buildQuickRepliesText(computedKit.generatedProfile), "text/plain;charset=utf-8;");
         }
 
         if (kind === "checklist") {
             downloadFile(
-                "ikigaidigital-whatsapp-setup-checklist.txt",
+                "ORVA-whatsapp-setup-checklist.txt",
                 buildChecklistText({
                     business,
                     checklist: computedKit.checklist,
@@ -1493,7 +1494,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
 
         if (kind === "bulk-replies") {
             downloadFile(
-                "ikigaidigital-whatsapp-bulk-replies.txt",
+                "ORVA-whatsapp-bulk-replies.txt",
                 buildBulkQuickRepliesText({
                     business,
                     generatedProducts: computedKit.generatedProducts,
@@ -1512,7 +1513,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
                 status: computedKit.status,
                 completionScore: computedKit.completionScore,
             });
-            downloadBlob("ikigaidigital-whatsapp-kit.zip", zipBlob);
+            downloadBlob("ORVA-whatsapp-kit.zip", zipBlob);
         }
 
         if (kind === "mini-catalog-pdf") {
@@ -1609,7 +1610,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
                     <EmptyState
                         icon={AlertCircle}
                         title="This tool is locked"
-                        description={accessLockedMessage || "This tool is available only for paid ikigaidigital client tasks assigned to you."}
+                        description={accessLockedMessage || "This tool is available only for paid ORVA client tasks assigned to you."}
                         action={
                             <Link href="/partner/tasks" className="btn-primary mt-6 inline-flex">
                                 Go to My Tasks
@@ -2205,6 +2206,7 @@ export function WhatsAppCatalogAssistant({ role = "admin" }) {
 
                     {(currentStep === "photos" || currentStep === "crop") && (
                         <ImageWorkspace
+                            taskId={queryTaskId}
                             businessCategory={business.businessCategory}
                             existingProducts={products}
                             shelfImages={shelfImages}

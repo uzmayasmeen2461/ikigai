@@ -452,7 +452,7 @@ export function ServiceStartButton({
                                         <textarea
                                             value={form.notes}
                                             onChange={(e) => setField("notes", e.target.value)}
-                                            placeholder="Tell us what you want ikigaidigital to set up, list, or prepare."
+                                            placeholder="Tell us what you want ORVA to set up, list, or prepare."
                                             className={`form-field min-h-28 ${errors.notes ? "border-red-300 focus:ring-red-100" : ""}`}
                                         />
                                         {errors.notes ? <p className="mt-1 text-xs text-red-600">{errors.notes}</p> : null}
@@ -529,8 +529,8 @@ export function ServiceStartButton({
                                 ) : null}
                                 <p className="text-center text-xs leading-5 text-slate-500">
                                     {appointmentMode
-                                        ? "Appointment requests are sent to ikigaidigital so we can contact the customer later and help them complete the requirement."
-                                        : "Your task is created as unpaid first. It becomes ready for ikigaidigital execution only after secure Razorpay verification."}
+                                        ? "Appointment requests are sent to ORVA so we can contact the customer later and help them complete the requirement."
+                                        : "Your task is created as unpaid first. It becomes ready for ORVA execution only after secure Razorpay verification."}
                                     {!appointmentMode ? " You can pay now without signup. Create an account later with this email to track progress." : ""}
                                 </p>
                             </div>

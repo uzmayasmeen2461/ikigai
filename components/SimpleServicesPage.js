@@ -92,19 +92,24 @@ function ServiceIcon({ service }) {
 export function SimpleServicesPage() {
     return (
         <main className="gradient-page overflow-hidden">
-            <section className="px-6 pb-12 pt-10 md:pb-16 md:pt-14">
-                <div className="mx-auto max-w-[1440px] rounded-[2rem] border border-slate-200 bg-white/85 p-8 shadow-2xl shadow-slate-200/40 backdrop-blur-xl md:p-12">
-                    <p className="eyebrow">Services</p>
-                    <h1 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.05em] text-slate-950 md:text-6xl">
-                        Pick a service and start quickly
+            <section className="hero-section px-6 py-16 md:px-10 md:py-20">
+                <div className="hero-grid-bg" />
+                <div className="relative mx-auto max-w-5xl">
+                    <div className="hero-pill">
+                        <div className="hero-pulse" />
+                        Services
+                    </div>
+                    <h1 className="hero-h1 max-w-4xl md:text-6xl">
+                        Pick a service and<br />
+                        <span>start quickly.</span>
                     </h1>
-                    <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
+                    <p className="hero-sub max-w-xl">
                         Clear pricing, simple steps, and secure payment.
                     </p>
                     <div className="mt-8 flex flex-wrap gap-3">
                         {["GST invoice available", "Secure Razorpay payments", "Fast turnaround", "Hyderabad support"].map((item) => (
-                            <span key={item} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                                <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                            <span key={item} className="badge badge-blue bg-white/10 text-[#7BA7F0]">
+                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                                 {item}
                             </span>
                         ))}
@@ -112,62 +117,62 @@ export function SimpleServicesPage() {
                 </div>
             </section>
 
-            <section className="mx-auto max-w-[1440px] px-6 py-8">
-                <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/30">
-                    <p className="text-sm font-semibold text-slate-500">Simple flow</p>
-                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <section className="border-b border-[var(--border)] bg-white">
+                <div className="mx-auto max-w-5xl px-6 py-12 md:px-10">
+                    <p className="section-tag">Simple flow</p>
+                    <div className="mt-5 grid gap-px overflow-hidden rounded-xl bg-[var(--border)] md:grid-cols-3">
                         {steps.map((step, index) => (
-                            <div key={step} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p className="text-sm font-semibold text-blue-700">Step {index + 1}</p>
-                                <p className="mt-2 text-xl font-semibold text-slate-950">{step}</p>
+                            <div key={step} className="bg-white p-5">
+                                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Step 0{index + 1}</p>
+                                <p className="mt-2 text-xl font-bold text-[var(--ink)]">{step}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            <section className="mx-auto max-w-[1440px] px-6 py-12">
+            <section className="mx-auto max-w-5xl px-6 py-12 md:px-10">
                 <div className="grid gap-5 xl:grid-cols-2">
                     {services.map((service) => {
                         return (
                             <div
                                 key={service.title}
-                                className={`rounded-[1.75rem] border bg-white p-6 shadow-lg shadow-slate-200/35 ${
+                                className={`card-hover p-6 ${
                                     service.featured
-                                        ? "border-blue-200 bg-gradient-to-br from-white via-blue-50/50 to-white xl:col-span-2"
-                                        : "border-slate-200"
+                                        ? "border-[var(--accent)] xl:col-span-2"
+                                        : ""
                                 }`}
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div className="flex items-start gap-4">
                                         <div className={`flex items-center justify-center border shadow-sm ${
-                                            service.tileClassName || "h-16 w-16 rounded-[1.35rem]"
+                                            service.tileClassName || "h-16 w-16 rounded-xl"
                                         } ${
                                             service.featured
-                                                ? "border-blue-200 bg-white text-blue-700 shadow-blue-100/70"
-                                                : "border-slate-200 bg-slate-50 text-blue-700 shadow-slate-200/70"
+                                                ? "border-[var(--accent)] bg-[var(--accent-light)] text-[var(--accent)]"
+                                                : "border-[var(--border)] bg-[var(--surface)] text-[var(--accent)]"
                                         }`}>
                                             <ServiceIcon service={service} />
                                         </div>
                                         <div>
                                             {service.featured ? (
-                                                <span className="inline-flex rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">
+                                                <span className="badge badge-blue mb-2 uppercase tracking-[0.14em]">
                                                     Featured service
                                                 </span>
                                             ) : null}
-                                            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">{service.title}</h2>
-                                            <p className="mt-2 text-sm leading-6 text-slate-600">{service.benefit}</p>
+                                            <h2 className="text-2xl font-bold text-[var(--ink)]">{service.title}</h2>
+                                            <p className="mt-2 text-sm leading-6 text-[var(--mid)]">{service.benefit}</p>
                                         </div>
                                     </div>
-                                    <div className={`rounded-2xl px-4 py-3 text-right ${
+                                    <div className={`rounded-xl px-4 py-3 text-right ${
                                         service.featured
-                                            ? "border border-blue-200 bg-white shadow-sm shadow-blue-100/50"
-                                            : "border border-blue-100 bg-blue-50"
+                                            ? "border border-[var(--accent)] bg-white"
+                                            : "border border-[rgba(27,79,216,0.15)] bg-[var(--accent-light)]"
                                     }`}>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Starting at</p>
-                                        <p className="mt-1 text-2xl font-semibold text-slate-950">{formatINR(service.price)}</p>
-                                        <p className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
-                                            <Clock3 className="h-3.5 w-3.5 text-blue-600" />
+                                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Starting at</p>
+                                        <p className="mt-1 text-2xl font-bold text-[var(--ink)]">{formatINR(service.price)}</p>
+                                        <p className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-[var(--mid)]">
+                                            <Clock3 className="h-3.5 w-3.5 text-[var(--accent)]" />
                                             {service.turnaround}
                                         </p>
                                     </div>
@@ -175,18 +180,18 @@ export function SimpleServicesPage() {
 
                                 <div className="mt-5 grid gap-2">
                                     {service.included.map((item) => (
-                                        <p key={item} className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                                        <p key={item} className="flex items-center gap-2 text-sm font-medium text-[var(--ink3)]">
+                                            <CheckCircle2 className="h-4 w-4 text-[var(--success)]" />
                                             {item}
                                         </p>
                                     ))}
                                 </div>
 
-                                <details className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <summary className="cursor-pointer text-sm font-semibold text-slate-900">View details</summary>
+                                <details className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                                    <summary className="cursor-pointer text-sm font-semibold text-[var(--ink)]">View details</summary>
                                     <div className="mt-3 flex flex-wrap gap-2">
                                         {service.details.map((item) => (
-                                            <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                                            <span key={item} className="badge badge-gray bg-white">
                                                 {item}
                                             </span>
                                         ))}

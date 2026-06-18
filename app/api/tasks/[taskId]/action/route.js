@@ -66,7 +66,7 @@ export async function POST(request, context) {
                 userId: task.client_id,
                 taskId: task.id,
                 type: "task_started",
-                title: "Your IKIGAI task has started",
+                title: "Your ORVA task has started",
                 message: `${task.title || "Your task"} is now in progress.`,
                 email: task.client_email,
             });
@@ -105,7 +105,7 @@ export async function POST(request, context) {
                 userId: task.client_id,
                 taskId: task.id,
                 type: "task_submitted",
-                title: "Your IKIGAI delivery is ready",
+                title: "Your ORVA delivery is ready",
                 message: `${task.title || "Your task"} is ready for approval. You can approve or request changes within 3 days.`,
                 email: task.client_email,
             });
@@ -163,7 +163,7 @@ export async function POST(request, context) {
                 userId: task.worker_id,
                 taskId: task.id,
                 type: "changes_requested",
-                title: "Changes requested on your IKIGAI task",
+                title: "Changes requested on your ORVA task",
                 message: revisionNote,
             });
 

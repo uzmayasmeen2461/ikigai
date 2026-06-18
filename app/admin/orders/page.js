@@ -1,5 +1,5 @@
-import Admin from "../page";
+import { AdminOperationsTasksPage } from "../../../components/operations/OperationsTasksPage";
 
 export default function AdminOrdersPage() {
-    return <Admin />;
+    return <AdminOperationsTasksPage />;
 }

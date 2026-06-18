@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ArrowRight,
     BadgeCheck,
@@ -31,8 +31,8 @@ const roleOptions = [
     },
     {
         value: "worker",
-        title: "I want to Earn with ikigaidigital",
-        helper: "I want to complete tasks and get trained.",
+        title: "I want to Earn with ORVA",
+        helper: "I want to work as a digital setup specialist.",
         icon: UsersRound,
     },
 ];
@@ -54,6 +54,38 @@ function isValidEmail(value = "") {
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(normalizedEmail);
 }
 
+function withTimeout(promise, timeoutMs, message) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            window.setTimeout(() => reject(new Error(message)), timeoutMs);
+        }),
+    ]);
+}
+
+function withFallbackTimeout(promise, timeoutMs, fallback) {
+    return Promise.race([
+        promise,
+        new Promise((resolve) => {
+            window.setTimeout(() => resolve(fallback), timeoutMs);
+        }),
+    ]);
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 7000) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        return await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        });
+    } finally {
+        window.clearTimeout(timeout);
+    }
+}
+
 function checkoutIntentPath(role) {
     if (typeof window === "undefined" || role !== "client") return "";
 
@@ -68,6 +100,17 @@ function checkoutIntentPath(role) {
     } catch {
         return "";
     }
+}
+
+function redirectToPath(router, path) {
+    router.replace(path);
+
+    window.setTimeout(() => {
+        const targetPath = path.split("?")[0];
+        if (window.location.pathname !== targetPath) {
+            window.location.assign(path);
+        }
+    }, 700);
 }
 
 function Message({ type, children }) {
@@ -125,6 +168,40 @@ export function AuthExperience({ mode = "login", unified = false }) {
     const [errors, setErrors] = useState({});
     const [message, setMessage] = useState({ type: "", text: "" });
 
+    useEffect(() => {
+        let cancelled = false;
+
+        async function redirectExistingSession() {
+            try {
+                const { data } = await supabase.auth.getSession();
+                const userId = data.session?.user?.id;
+
+                if (!userId || cancelled) return;
+
+                setLoading(true);
+                setMessage({ type: "success", text: "Opening your workspace..." });
+
+                const userRole = await withFallbackTimeout(
+                    getUserRole(userId),
+                    2000,
+                    "client"
+                );
+
+                if (!cancelled) {
+                    redirectToPath(router, dashboardForRole(userRole));
+                }
+            } catch {
+                if (!cancelled) setLoading(false);
+            }
+        }
+
+        redirectExistingSession();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [router]);
+
     const validate = () => {
         const nextErrors = {};
         const normalizedEmail = normalizeEmail(email);
@@ -156,28 +233,57 @@ export function AuthExperience({ mode = "login", unified = false }) {
         setMessage({ type: "", text: "" });
         const normalizedEmail = normalizeEmail(email);
 
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: normalizedEmail,
-            password,
-        });
+        try {
+            const response = await fetchWithTimeout("/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: normalizedEmail,
+                    password,
+                }),
+            });
+            const data = await response.json();
 
-        if (error) {
-            setLoading(false);
-            setMessage({ type: "error", text: error.message });
-            return;
-        }
+            if (!response.ok) {
+                setLoading(false);
+                setMessage({ type: "error", text: data.error || "Could not login. Please try again." });
+                return;
+            }
 
-        const user = data.user;
+            const { error: sessionError } = await withTimeout(
+                supabase.auth.setSession({
+                    access_token: data.session.access_token,
+                    refresh_token: data.session.refresh_token,
+                }),
+                5000,
+                "Saving login session took too long."
+            );
 
-        const userRole = await getUserRole(user.id);
+            if (sessionError) {
+                setLoading(false);
+                setMessage({ type: "error", text: sessionError.message || "Could not save login session." });
+                return;
+            }
 
-        setLoading(false);
-        setMessage({ type: "success", text: "Login successful. Opening your workspace..." });
+            const userRole = data.role || "client";
 
-        window.setTimeout(() => {
+            setMessage({ type: "success", text: "Login successful. Opening your workspace..." });
+
             const pendingCheckoutPath = checkoutIntentPath(userRole);
-            router.push(pendingCheckoutPath || dashboardForRole(userRole));
-        }, 500);
+            redirectToPath(router, pendingCheckoutPath || dashboardForRole(userRole));
+        } catch (error) {
+            setLoading(false);
+            setMessage({
+                type: "error",
+                text: error?.name === "AbortError"
+                    ? "Login is taking too long. Check your Supabase connection and try again."
+                    : error?.message === "Failed to fetch"
+                    ? "Could not reach ORVA login service. Check your connection and try again."
+                    : error?.message || "Could not login. Please try again.",
+            });
+        }
     };
 
     const handleSignup = async () => {
@@ -187,55 +293,65 @@ export function AuthExperience({ mode = "login", unified = false }) {
         setMessage({ type: "", text: "" });
         const normalizedEmail = normalizeEmail(email);
 
-        const { data, error } = await supabase.auth.signUp({
-            email: normalizedEmail,
-            password,
-        });
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email: normalizedEmail,
+                password,
+            });
 
-        if (error) {
-            setLoading(false);
-            setMessage({ type: "error", text: error.message });
-            return;
-        }
+            if (error) {
+                setLoading(false);
+                setMessage({ type: "error", text: error.message });
+                return;
+            }
 
-        if (!data.user) {
+            if (!data.user) {
+                setLoading(false);
+                setMessage({
+                    type: "success",
+                    text: "Please check your email to complete signup.",
+                });
+                return;
+            }
+
+            const { error: insertError } = await supabase.from("users").insert([
+                {
+                    id: data.user.id,
+                    role,
+                    name: normalizedEmail,
+                },
+            ]);
+
+            if (insertError) {
+                setLoading(false);
+                setMessage({ type: "error", text: insertError.message });
+                return;
+            }
+
+            const nextPath = checkoutIntentPath(role) || dashboardForRole(role);
+
+            setEmail("");
+            setPassword("");
+            setRole("client");
+            setErrors({});
             setLoading(false);
             setMessage({
                 type: "success",
-                text: "Please check your email to complete signup.",
+                text: "Account created. Opening your ORVA workspace...",
             });
-            return;
-        }
 
-        const { error: insertError } = await supabase.from("users").insert([
-            {
-                id: data.user.id,
-                role,
-                name: normalizedEmail,
-            },
-        ]);
-
-        if (insertError) {
+            window.setTimeout(() => {
+                redirectToPath(router, nextPath);
+            }, 650);
+        } catch (error) {
             setLoading(false);
-            setMessage({ type: "error", text: insertError.message });
-            return;
+            setMessage({
+                type: "error",
+                text: error?.message === "Failed to fetch"
+                    ? "Could not reach ORVA signup service. Check your connection and try again."
+                    : error?.message || "Could not create account. Please try again.",
+            });
         }
-
-        const nextPath = checkoutIntentPath(role) || dashboardForRole(role);
-
-        setEmail("");
-        setPassword("");
-        setRole("client");
-        setErrors({});
-        setLoading(false);
-        setMessage({
-            type: "success",
-            text: "Account created. Opening your ikigaidigital workspace...",
-        });
-
-        window.setTimeout(() => {
-            router.push(nextPath);
-        }, 650);
     };
 
     const submit = (event) => {
@@ -250,7 +366,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
     return (
         <main className="gradient-page min-h-[calc(100vh-80px)] px-6 py-10 md:py-16">
             <section className="mx-auto grid max-w-[1440px] overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white/70 shadow-2xl shadow-blue-100/50 backdrop-blur-2xl lg:grid-cols-[1.02fr_0.98fr]">
-                <div className="premium-dark-panel hero-noise relative m-3 overflow-hidden p-8 text-white md:p-12">
+                <div className="auth-brand-panel relative m-3 overflow-hidden p-8 text-white md:p-12">
                     <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
                     <div className="absolute bottom-0 right-0 h-96 w-96 translate-x-28 translate-y-28 rounded-full bg-indigo-500/20 blur-3xl" />
                     <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/50 to-transparent" />
@@ -258,7 +374,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                     <div className="relative">
                         <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/30 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-blue-200">
                             <Sparkles className="h-4 w-4" />
-                            Start with ikigaidigital
+                            Start with ORVA
                         </div>
 
                         <h1 className="mt-8 max-w-2xl text-5xl font-semibold leading-tight tracking-[-0.05em] md:text-6xl">
@@ -287,9 +403,9 @@ export function AuthExperience({ mode = "login", unified = false }) {
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-white">Partner</p>
+                                    <p className="font-semibold text-white">Digital Setup Specialist</p>
                                     <p className="mt-1 text-sm leading-6 text-slate-300">
-                                        View tasks, use tools, and send updates.
+                                        Complete assigned digital setup work and send updates.
                                     </p>
                                 </div>
                             </div>
@@ -329,7 +445,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                         <div className="mb-7">
                             <p className="eyebrow">{isSignup ? "Create account" : "Welcome back"}</p>
                             <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-slate-950 md:text-4xl">
-                                {isSignup ? "Create your account" : "Login to ikigaidigital"}
+                                {isSignup ? "Create your account" : "Login to ORVA"}
                             </h2>
                             <p className="mt-3 text-sm leading-6 text-slate-500">
                                 {isSignup
@@ -456,7 +572,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                         </form>
 
                         <p className="mt-6 text-center text-sm text-slate-500">
-                            {isSignup ? "Already have an account?" : "New to ikigaidigital?"}{" "}
+                            {isSignup ? "Already have an account?" : "New to ORVA?"}{" "}
                             {unified ? (
                                 <button
                                     type="button"
@@ -486,7 +602,7 @@ export function AuthExperience({ mode = "login", unified = false }) {
                             </span>
                             <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5">
                                 <UserRound className="h-3.5 w-3.5 text-blue-600" />
-                                Partner onboarding
+                                Specialist onboarding
                             </span>
                         </div>
                     </div>

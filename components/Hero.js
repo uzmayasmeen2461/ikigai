@@ -3,7 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 export function Hero() {
     const trustItems = [
         "No hiring needed",
-        "Verified ikigaidigital partners",
+        "Verified ORVA partners",
         "Fast turnaround",
     ];
 
@@ -45,7 +45,7 @@ export function Hero() {
                     className="animate-fade-up-delay mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600 md:text-xl"
                 >
                     Stop worrying about operations. Focus on growth.
-                    ikigaidigital handles your digital execution with trained partners — fast, reliable, and hassle-free.
+                    ORVA handles your digital execution with trained partners — fast, reliable, and hassle-free.
                 </p>
 
                 <div
@@ -62,7 +62,7 @@ export function Hero() {
                         href="/workers"
                         className="btn-secondary px-8 py-4 text-lg"
                     >
-                        Earn with ikigaidigital
+                        Earn with ORVA
                     </a>
                 </div>
 

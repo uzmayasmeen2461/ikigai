@@ -12,6 +12,10 @@ function isValidEmail(value = "") {
     return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(value);
 }
 
+function isValidUpiId(value = "") {
+    return /^[a-zA-Z0-9._-]{2,256}@[a-zA-Z]{2,64}$/.test(value);
+}
+
 export async function POST(req) {
     try {
         const body = await req.json();
@@ -20,6 +24,7 @@ export async function POST(req) {
         const email = cleanText(body.email).toLowerCase();
         const skills = cleanText(body.skills);
         const availability = cleanText(body.availability);
+        const upiId = cleanText(body.upiId).toLowerCase();
 
         // Server-side validation
         if (!name || name.length < 3) {
@@ -38,6 +43,10 @@ export async function POST(req) {
             return Response.json({ error: "Invalid skills" }, { status: 400 });
         }
 
+        if (!isValidUpiId(upiId)) {
+            return Response.json({ error: "Invalid UPI ID" }, { status: 400 });
+        }
+
         await resend.emails.send({
             from: `${BRAND.name} <onboarding@resend.dev>`,
             to: adminInbox,
@@ -49,6 +58,7 @@ export async function POST(req) {
         <p><b>Email:</b> ${email}</p>
         <p><b>Skills:</b> ${skills}</p>
         <p><b>Availability:</b> ${availability}</p>
+        <p><b>UPI ID:</b> ${upiId}</p>
       `,
         });
 
@@ -63,6 +73,7 @@ export async function POST(req) {
         <p><b>Phone:</b> ${phone}</p>
         <p><b>Skills:</b> ${skills}</p>
         <p><b>Availability:</b> ${availability || "Not specified"}</p>
+        <p><b>UPI ID:</b> ${upiId}</p>
         <p>For support, contact ${BRAND.supportEmail}.</p>
       `,
             text: [
@@ -72,6 +83,7 @@ export async function POST(req) {
                 `Phone: ${phone}`,
                 `Skills: ${skills}`,
                 `Availability: ${availability || "Not specified"}`,
+                `UPI ID: ${upiId}`,
                 `Support: ${BRAND.supportEmail}`,
             ].join("\n\n"),
         });

@@ -7,6 +7,26 @@ import { AuthRedirectLoading } from "../../components/AuthGate";
 import { supabase } from "../lib/supabase";
 import { dashboardForRole, getUserRole } from "../lib/authRouting";
 
+function withTimeout(promise, timeoutMs, fallback) {
+    return Promise.race([
+        promise,
+        new Promise((resolve) => {
+            window.setTimeout(() => resolve(fallback), timeoutMs);
+        }),
+    ]);
+}
+
+function redirectToPath(router, path) {
+    router.replace(path);
+
+    window.setTimeout(() => {
+        const targetPath = path.split("?")[0];
+        if (window.location.pathname !== targetPath) {
+            window.location.assign(path);
+        }
+    }, 700);
+}
+
 export default function AuthPage() {
     const router = useRouter();
     const [checking, setChecking] = useState(true);
@@ -15,22 +35,27 @@ export default function AuthPage() {
         let isMounted = true;
 
         const checkSession = async () => {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            try {
+                const { data } = await supabase.auth.getSession();
+                const user = data.session?.user;
 
-            if (!isMounted) return;
+                if (!isMounted) return;
 
-            if (!user) {
+                if (!user) {
+                    setChecking(false);
+                    return;
+                }
+
+                const role = await withTimeout(getUserRole(user.id), 2000, "client");
+
+                if (!isMounted) return;
+
+                redirectToPath(router, dashboardForRole(role));
+            } catch (error) {
+                console.warn("Could not check existing auth session.", error?.message || error);
+                if (!isMounted) return;
                 setChecking(false);
-                return;
             }
-
-            const role = await getUserRole(user.id);
-
-            if (!isMounted) return;
-
-            router.replace(dashboardForRole(role));
         };
 
         checkSession();
@@ -41,8 +66,13 @@ export default function AuthPage() {
                 return;
             }
 
-            const role = await getUserRole(session.user.id);
-            router.replace(dashboardForRole(role));
+            try {
+                const role = await withTimeout(getUserRole(session.user.id), 2000, "client");
+                redirectToPath(router, dashboardForRole(role));
+            } catch (error) {
+                console.warn("Could not redirect after auth change.", error?.message || error);
+                setChecking(false);
+            }
         });
 
         return () => {

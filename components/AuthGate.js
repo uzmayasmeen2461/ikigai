@@ -17,8 +17,29 @@ function AuthLoading() {
                     Checking your workspace access
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                    ikigaidigital is confirming your account and role before opening this page.
+                    ORVA is confirming your account and role before opening this page.
                 </p>
+            </div>
+        </main>
+    );
+}
+
+function AuthError({ onRetry }) {
+    return (
+        <main className="flex min-h-screen items-center justify-center bg-[#f6f7fb] px-6">
+            <div className="w-full max-w-md rounded-[2rem] border border-red-100 bg-white p-8 text-center shadow-2xl shadow-slate-200/70">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-700">
+                    <ShieldCheck className="h-7 w-7" />
+                </div>
+                <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
+                    Could not check access
+                </h1>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                    We could not reach the workspace service. Please retry in a moment.
+                </p>
+                <button type="button" onClick={onRetry} className="btn-primary mt-6">
+                    Retry
+                </button>
             </div>
         </main>
     );
@@ -37,27 +58,33 @@ export function AuthGate({ allowedRoles, children }) {
             const allowedRoleList = allowedRoleKey.split("|");
             setStatus("checking");
 
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            try {
+                const {
+                    data: { user },
+                } = await supabase.auth.getUser();
 
-            if (!isMounted) return;
+                if (!isMounted) return;
 
-            if (!user) {
-                router.replace("/auth");
-                return;
+                if (!user) {
+                    router.replace("/auth");
+                    return;
+                }
+
+                const role = await getUserRole(user.id);
+
+                if (!isMounted) return;
+
+                if (!allowedRoleList.includes(role)) {
+                    router.replace(dashboardForRole(role));
+                    return;
+                }
+
+                setStatus("ready");
+            } catch (error) {
+                if (!isMounted) return;
+                console.warn("Could not check workspace access.", error?.message || error);
+                setStatus("error");
             }
-
-            const role = await getUserRole(user.id);
-
-            if (!isMounted) return;
-
-            if (!allowedRoleList.includes(role)) {
-                router.replace(dashboardForRole(role));
-                return;
-            }
-
-            setStatus("ready");
         };
 
         checkAccess();
@@ -78,6 +105,10 @@ export function AuthGate({ allowedRoles, children }) {
     }, [allowedRoleKey, pathname, router]);
 
     if (status !== "ready") {
+        if (status === "error") {
+            return <AuthError onRetry={() => window.location.reload()} />;
+        }
+
         return <AuthLoading />;
     }
 
@@ -92,7 +123,7 @@ export function AuthRedirectLoading() {
                     <ShieldCheck className="h-7 w-7" />
                 </div>
                 <h1 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
-                    Preparing your ikigaidigital workspace
+                    Preparing your ORVA workspace
                 </h1>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                     One moment while we check your session.

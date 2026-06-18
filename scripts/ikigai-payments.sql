@@ -39,6 +39,7 @@ alter table public.tasks
 
 alter table public.users
     add column if not exists availability text default 'available',
+    add column if not exists upi_id text,
     add column if not exists skills text[] default '{}'::text[],
     add column if not exists service_skills text[] default '{}'::text[],
     add column if not exists last_assigned_at timestamptz,
@@ -108,6 +109,8 @@ alter table public.partner_payouts
     add column if not exists partner_id uuid,
     add column if not exists payout_amount integer default 0,
     add column if not exists platform_margin integer default 0,
+    add column if not exists payout_method text default 'upi',
+    add column if not exists payout_reference text,
     add column if not exists status text default 'pending',
     add column if not exists approved_at timestamptz,
     add column if not exists paid_at timestamptz,

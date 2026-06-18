@@ -15,12 +15,17 @@ const tools = [
         description: "Open from a paid assigned Instagram or Social Media task.",
         href: "/partner/tools/instagram-setup",
     },
+    {
+        title: "Product Studio",
+        description: "Open from a paid assigned catalog, listing, or marketplace task.",
+        href: "/partner/tools/product-studio",
+    },
 ];
 
 export default function PartnerToolsPage() {
     return (
         <AuthGate allowedRoles="partner">
-            <DashboardShell role="partner" eyebrow="Partner" title="Tools" description="Internal tools stay locked unless opened from an assigned paid task.">
+            <DashboardShell role="partner" eyebrow="Digital Setup Specialist" title="Tools" description="Internal tools stay locked unless opened from an assigned paid task.">
                 <SectionHeading title="Internal tools" description="Start from My Tasks so each project is linked to client work." />
                 <div className="grid gap-5 md:grid-cols-2">
                     {tools.map((tool) => (

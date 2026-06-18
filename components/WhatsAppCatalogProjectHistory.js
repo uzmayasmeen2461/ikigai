@@ -377,7 +377,7 @@ export function WhatsAppCatalogProjectHistory({ role = "partner" }) {
 
         const { business, products } = buildProjectPayload(project);
         const payload = {
-            client_name: business.clientName || business.businessName || "ikigaidigital client",
+            client_name: business.clientName || business.businessName || "ORVA client",
             business_name: `${business.businessName || "WhatsApp Project"} Copy`,
             business_category: business.businessCategory,
             phone: business.phone || null,
@@ -440,7 +440,7 @@ export function WhatsAppCatalogProjectHistory({ role = "partner" }) {
         if (role !== "admin" && !project.task_id) {
             setFeedback({
                 type: "error",
-                text: "You can export only ikigaidigital client projects assigned to you.",
+                text: "You can export only ORVA client projects assigned to you.",
             });
             return;
         }
@@ -454,10 +454,10 @@ export function WhatsAppCatalogProjectHistory({ role = "partner" }) {
         setExportingKey(`${project.id}:${kind}`);
 
         if (kind === "csv") {
-            downloadFile(`${project.business_name || "ikigaidigital"}-catalog.csv`, buildCatalogCsv(kit.generatedProducts), "text/csv;charset=utf-8;");
+            downloadFile(`${project.business_name || "ORVA"}-catalog.csv`, buildCatalogCsv(kit.generatedProducts), "text/csv;charset=utf-8;");
         }
         if (kind === "replies") {
-            downloadFile(`${project.business_name || "ikigaidigital"}-quick-replies.txt`, buildQuickRepliesText(kit.generatedProfile), "text/plain;charset=utf-8;");
+            downloadFile(`${project.business_name || "ORVA"}-quick-replies.txt`, buildQuickRepliesText(kit.generatedProfile), "text/plain;charset=utf-8;");
         }
         if (kind === "full-kit") {
             const zipBlob = await buildWhatsAppKitZip({
@@ -468,7 +468,7 @@ export function WhatsAppCatalogProjectHistory({ role = "partner" }) {
                 status: kit.status,
                 completionScore: kit.completionScore,
             });
-            downloadBlob(`${project.business_name || "ikigaidigital"}-whatsapp-kit.zip`, zipBlob);
+            downloadBlob(`${project.business_name || "ORVA"}-whatsapp-kit.zip`, zipBlob);
         }
         if (kind === "mini-catalog-pdf") {
             openPrintCatalog(buildPrintableMiniCatalogHtml({ business, generatedProducts: kit.generatedProducts }));

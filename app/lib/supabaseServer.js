@@ -12,6 +12,27 @@ export function createSupabaseAdmin() {
     });
 }
 
+export function hasSupabaseServiceRoleKey() {
+    return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+export function createSupabaseServiceRole() {
+    if (!hasSupabaseServiceRoleKey()) {
+        throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured on the server.");
+    }
+
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+            },
+        }
+    );
+}
+
 export function createSupabaseAuthClient() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,6 +41,24 @@ export function createSupabaseAuthClient() {
             auth: {
                 persistSession: false,
                 autoRefreshToken: false,
+            },
+        }
+    );
+}
+
+export function createSupabaseUserClient(token) {
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+            },
+            global: {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
         }
     );

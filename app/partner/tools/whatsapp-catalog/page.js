@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { WhatsAppCatalogAssistant } from "../../../../components/WhatsAppCatalogAssistant";
+import { PartnerProductStudio } from "../../../../components/product-studio/ProductStudioRoute";
 
 export default function PartnerWhatsAppCatalogAliasPage() {
     return (
         <Suspense fallback={null}>
-            <WhatsAppCatalogAssistant role="partner" />
+            <PartnerProductStudio defaultChannel="whatsapp" />
         </Suspense>
     );
 }

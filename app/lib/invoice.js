@@ -162,7 +162,7 @@ export function buildInvoiceData(task) {
         task.users?.name,
         task.user?.name,
         task.client_email?.split("@")[0],
-        "ikigaidigital Client"
+        "ORVA Client"
     );
     const clientEmail = firstAvailable(task.client_email, task.users?.email, task.user?.email, "Email not provided");
     const clientPhone = firstAvailable(task.client_phone, task.phone, "Phone not provided");

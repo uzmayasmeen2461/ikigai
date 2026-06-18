@@ -155,6 +155,7 @@ function formatCleanupError(errorMessage = "") {
 }
 
 export function ImageWorkspace({
+    taskId,
     businessCategory,
     existingProducts,
     shelfImages,
@@ -377,6 +378,7 @@ export function ImageWorkspace({
         const formData = new FormData();
         formData.append("image", file);
         formData.append("businessCategory", businessCategory || fallback.category || "General");
+        if (taskId) formData.append("taskId", taskId);
 
         const response = await fetch("/api/image/analyze-products", {
             method: "POST",
@@ -514,6 +516,7 @@ export function ImageWorkspace({
             const formData = new FormData();
             formData.append("image", file);
             formData.append("provider", "auto");
+            if (taskId) formData.append("taskId", taskId);
 
             const response = await fetch("/api/image/clean-background", {
                 method: "POST",
@@ -598,6 +601,7 @@ export function ImageWorkspace({
             const formData = new FormData();
             formData.append("image", cropFile);
             formData.append("provider", "auto");
+            if (taskId) formData.append("taskId", taskId);
 
             const response = await fetch("/api/image/clean-background", {
                 method: "POST",
