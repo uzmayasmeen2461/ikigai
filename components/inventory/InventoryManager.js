@@ -407,26 +407,26 @@ export function InventoryDashboard({ admin = false }) {
                                         <p className="mt-1 font-semibold text-[var(--ink)]">{formatINR(product.price || 0)}</p>
                                         {productNotes(product) ? <p className="mt-1 text-sm text-[var(--mid)]">{productNotes(product)}</p> : null}
                                     </div>
-                                    <div className="grid gap-3">
-                                        <div className="flex flex-wrap gap-2">
-                                            <button type="button" className="btn-secondary px-3 py-2 text-sm" disabled={savingId === `${product.id}-mark_sold`} onClick={() => patchProduct(product, { action: "mark_sold" }, "Stock updated")}>Mark Sold</button>
-                                            <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => patchProduct(product, { action: "add_stock", quantity: 1 }, "Stock added")}>+1</button>
-                                            <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => patchProduct(product, { action: "add_stock", quantity: 5 }, "Stock added")}>+5</button>
-                                            <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => patchProduct(product, { action: "mark_out_of_stock" }, "Marked out of stock")}>Out of Stock</button>
-                                            {!admin ? <Link href={`/dashboard/inventory/${product.id}`} className="btn-primary px-3 py-2 text-sm">Edit Product</Link> : null}
+                                    <div className="grid gap-3 lg:min-w-[360px]">
+                                        <div className="action-grid lg:grid-cols-2">
+                                            <button type="button" className="btn-secondary btn-sm" disabled={savingId === `${product.id}-mark_sold`} onClick={() => patchProduct(product, { action: "mark_sold" }, "Stock updated")}>Mark Sold</button>
+                                            <button type="button" className="btn-secondary btn-sm" onClick={() => patchProduct(product, { action: "add_stock", quantity: 1 }, "Stock added")}>+1 Stock</button>
+                                            <button type="button" className="btn-secondary btn-sm" onClick={() => patchProduct(product, { action: "add_stock", quantity: 5 }, "Stock added")}>+5 Stock</button>
+                                            <button type="button" className="btn-secondary btn-sm" onClick={() => patchProduct(product, { action: "mark_out_of_stock" }, "Marked out of stock")}>Out of Stock</button>
+                                            {!admin ? <Link href={`/dashboard/inventory/${product.id}`} className="btn-primary btn-sm">Edit Product</Link> : null}
                                             {!admin ? (
                                                 <>
                                                     <button
                                                         type="button"
-                                                        className={`btn-secondary px-3 py-2 text-sm ${pendingDeleteId === product.id ? "border-red-200 bg-red-50 text-red-700" : ""}`}
+                                                        className={`btn-secondary btn-sm ${pendingDeleteId === product.id ? "border-red-200 bg-red-50 text-red-700" : ""}`}
                                                         disabled={savingId === `${product.id}-delete`}
                                                         onClick={() => deleteProduct(product)}
                                                     >
-                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        <Trash2 className="h-4 w-4" />
                                                         {pendingDeleteId === product.id ? "Confirm Delete" : "Delete"}
                                                     </button>
                                                     {pendingDeleteId === product.id ? (
-                                                        <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => setPendingDeleteId("")}>Cancel</button>
+                                                        <button type="button" className="btn-secondary btn-sm" onClick={() => setPendingDeleteId("")}>Cancel</button>
                                                     ) : null}
                                                 </>
                                             ) : null}

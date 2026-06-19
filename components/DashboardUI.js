@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
     AlertCircle,
     CheckCircle2,
     ClipboardList,
     Filter,
 } from "lucide-react";
+import { useToast } from "./ToastProvider";
 
 const statusStyles = {
     pending: "badge-gray",
@@ -146,19 +148,37 @@ export function ServiceBadge({ children, className = "" }) {
 }
 
 export function FeedbackMessage({ type = "success", children, className = "" }) {
+    const toast = useToast();
+    const lastMessageRef = useRef("");
+
+    useEffect(() => {
+        if (!children) return;
+        const text = typeof children === "string" ? children : "";
+        if (!text || lastMessageRef.current === `${type}:${text}`) return;
+        lastMessageRef.current = `${type}:${text}`;
+        const toastType = type === "error" ? "error" : type === "warning" ? "warning" : type === "info" ? "info" : "success";
+        toast.show({ type: toastType, text });
+    }, [children, toast, type]);
+
     if (!children) return null;
 
     const isError = type === "error";
+    const isWarning = type === "warning";
+    const isInfo = type === "info";
 
     return (
         <div
             className={`flex gap-3 rounded-xl border p-4 text-sm leading-6 ${
                 isError
                     ? "border-[rgba(122,21,21,0.18)] bg-[var(--danger-bg)] text-[var(--danger)]"
+                    : isWarning
+                        ? "border-[rgba(122,92,14,0.2)] bg-[var(--warn-bg)] text-[var(--warn)]"
+                        : isInfo
+                            ? "border-[rgba(27,79,216,0.18)] bg-[var(--accent-light)] text-[var(--accent)]"
                     : "border-[rgba(14,122,82,0.2)] bg-[var(--success-bg)] text-[var(--success)]"
             } ${className}`}
         >
-            {isError ? (
+            {isError || isWarning ? (
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             ) : (
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />

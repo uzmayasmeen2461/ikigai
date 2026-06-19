@@ -1043,7 +1043,7 @@ export function ReelStudioPage() {
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <SectionHeading title="AI caption and overlays" description="Generate caption text, edit overlays, then publish only when ready." />
                             </div>
-                            <div className="mt-5 flex flex-wrap gap-2">
+                            <div className="action-grid mt-5">
                                 <button type="button" className="btn-primary" disabled={working === "generate" || !reelDraft.reel_video_url} onClick={generateContent}>{working === "generate" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Generate AI Caption from Reel</button>
                                 <button type="button" className="btn-secondary" onClick={copyCaption}><Copy className="h-4 w-4" />Copy Caption</button>
                                 <button type="button" className="btn-secondary" disabled={working === "save"} onClick={saveCopy}>{working === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save</button>

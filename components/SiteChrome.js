@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Footer } from "./Footer";
 import Navbar from "./Navbar";
 import { OrvaInteractionEffects } from "./OrvaInteractionEffects";
+import { ToastProvider } from "./ToastProvider";
 import { WhatsAppButton } from "./WhatsAppButton";
 
 const appRoutes = ["/admin", "/dashboard", "/worker", "/partner", "/training", "/payment", "/preview"];
@@ -16,20 +17,22 @@ export function SiteChrome({ children }) {
 
     if (isAppRoute) {
         return (
-            <div className="min-h-screen">
+            <ToastProvider>
                 <OrvaInteractionEffects />
-                {children}
-            </div>
+                <div className="min-h-screen">{children}</div>
+            </ToastProvider>
         );
     }
 
     return (
-        <div className="flex min-h-screen flex-col">
+        <ToastProvider>
             <OrvaInteractionEffects />
-            <Navbar />
-            <div className="flex-grow">{children}</div>
-            <WhatsAppButton />
-            <Footer />
-        </div>
+            <div className="flex min-h-screen flex-col">
+                <Navbar />
+                <div className="flex-grow">{children}</div>
+                <WhatsAppButton />
+                <Footer />
+            </div>
+        </ToastProvider>
     );
 }
