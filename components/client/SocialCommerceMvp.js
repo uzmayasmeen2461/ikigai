@@ -134,6 +134,33 @@ async function savePublishCopy(getToken, productId, channel, copy) {
     return { ok: response.ok, ...result };
 }
 
+async function syncWhatsAppCatalogProduct(getToken, { productId, caption = "", imageFile = null }) {
+    const token = await getToken();
+    let response;
+
+    if (imageFile) {
+        const formData = new FormData();
+        formData.append("productId", productId);
+        formData.append("caption", caption);
+        formData.append("image", imageFile);
+
+        response = await fetch("/api/whatsapp/catalog/sync-product", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+        });
+    } else {
+        response = await fetch("/api/whatsapp/catalog/sync-product", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ productId, caption }),
+        });
+    }
+
+    const result = await readJson(response);
+    return { ok: response.ok, ...result };
+}
+
 export function MvpDashboard() {
     const getToken = useToken();
     const [products, setProducts] = useState([]);
@@ -151,6 +178,7 @@ export function MvpDashboard() {
     const [editingCopy, setEditingCopy] = useState(false);
     const [writingAI, setWritingAI] = useState(false);
     const [savingCaption, setSavingCaption] = useState(false);
+    const [publishImageFile, setPublishImageFile] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -192,13 +220,13 @@ export function MvpDashboard() {
         }
         : publishChannel === "whatsapp"
             ? {
-                eyebrow: "WhatsApp Catalog",
-                title: "Review WhatsApp catalog copy",
+                eyebrow: "WhatsApp Catalog Export",
+                title: "Review WhatsApp catalog product",
                 copy: publishCopyForChannel(publishChannel, publishProduct || {}),
                 copyLabel: "Copy Product Text",
-                actionLabel: "Sync WhatsApp",
+                actionLabel: "Export to WhatsApp",
                 endpoint: "/api/whatsapp/catalog/sync-product",
-                note: "Sync one reviewed product into the connected WhatsApp Commerce catalog.",
+                note: "This sends one reviewed product to the configured WhatsApp Commerce catalog. Copy text remains available as a fallback.",
             }
             : {
                 eyebrow: "Facebook Page",
@@ -212,7 +240,7 @@ export function MvpDashboard() {
     const stats = [
         { label: "Total products", value: products.length, icon: Package, accent: "bg-[var(--accent)]" },
         { label: "Ready to publish", value: products.filter((product) => productName(product) && product.price).length, icon: CheckCircle2, accent: "bg-emerald-500" },
-        { label: "Reels ready", value: products.filter((product) => product.reel_video_url && ["ready", "published", "draft"].includes(product.reel_status)).length, icon: Film, accent: "bg-fuchsia-500" },
+        { label: "Catalog tasks", value: updateTasks.filter((task) => String(task.channel || "").includes("whatsapp")).length, icon: Send, accent: "bg-[#16A46D]" },
         { label: "Out of stock", value: products.filter((product) => productStock(product) <= 0).length, icon: AlertTriangle, accent: "bg-red-500" },
     ];
     const connectedChannels = connections.filter((connection) => connection.status === "connected").length;
@@ -224,6 +252,7 @@ export function MvpDashboard() {
         const fallback = publishCopyForChannel(channel, product);
         setEditedCopy(fallback);
         setEditingCopy(false);
+        setPublishImageFile(null);
         const saved = await loadSavedPublishCopy(getToken, product.id, channel);
         if (saved.ok && saved.copy) {
             setEditedCopy(saved.copy);
@@ -273,6 +302,23 @@ export function MvpDashboard() {
 
     const publishSelectedProduct = async () => {
         if (!publishProduct) return;
+        if (publishChannel === "whatsapp") {
+            setPublishing(true);
+            const result = await syncWhatsAppCatalogProduct(getToken, {
+                productId: publishProduct.id,
+                caption: editedCopy || publishDetails.copy,
+                imageFile: publishImageFile,
+            });
+            setPublishing(false);
+            if (!result.ok) {
+                return setMessage({ type: "error", text: result.error || "Could not export this product to WhatsApp catalog." });
+            }
+            setPublishProduct(null);
+            setPublishImageFile(null);
+            setMessage({ type: "success", text: result.message || "Product exported to WhatsApp catalog successfully." });
+            load();
+            return;
+        }
         setPublishing(true);
         const token = await getToken();
         const response = await fetch(publishDetails.endpoint, {
@@ -390,10 +436,9 @@ export function MvpDashboard() {
                                     <section className="dashboard-panel p-5">
                                         <SectionHeading title="Publish selected product" description="Review the copy before anything goes live." />
                                         <div className="mt-4 grid gap-2">
-                                            <button type="button" className="btn-secondary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "whatsapp")}><Send className="h-4 w-4" />WhatsApp Catalog</button>
+                                            <button type="button" className="btn-secondary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "whatsapp")}><ChannelLogo channel="whatsapp" />WhatsApp Export</button>
                                             <button type="button" className="btn-secondary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "instagram")}><Camera className="h-4 w-4" />Instagram Post</button>
                                             <button type="button" className="btn-primary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "facebook")}><ShoppingBag className="h-4 w-4" />Facebook Page</button>
-                                            {selectedProduct ? <Link href={`/dashboard/reel-studio?productId=${selectedProduct.id}`} className="btn-secondary justify-center"><Film className="h-4 w-4" />Create Reel</Link> : null}
                                         </div>
                                     </section>
                                 </div>
@@ -424,7 +469,21 @@ export function MvpDashboard() {
                                     <button type="button" className="rounded-lg p-2 text-[var(--mid)] transition hover:bg-[var(--surface)]" aria-label="Close publish preview" onClick={() => setPublishProduct(null)}><X className="h-5 w-5" /></button>
                                 </div>
                                 <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
-                                    {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                    <div className="space-y-3">
+                                        {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                        {publishChannel === "whatsapp" ? (
+                                            <label className="block rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-3 text-xs font-semibold text-[var(--mid)]">
+                                                Optional WhatsApp image
+                                                <input
+                                                    type="file"
+                                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                                    className="mt-2 block w-full text-xs"
+                                                    onChange={(event) => setPublishImageFile(event.target.files?.[0] || null)}
+                                                />
+                                                {publishImageFile ? <span className="mt-1 block text-[var(--accent)]">{publishImageFile.name}</span> : null}
+                                            </label>
+                                        ) : null}
+                                    </div>
                                     <div>
                                         <h3 className="text-lg font-bold">{productName(publishProduct)}</h3>
                                         <div className="mt-3 flex flex-wrap gap-2 text-sm"><span className="dashboard-badge badge-blue">{formatINR(publishProduct.price || 0)}</span><span className={`dashboard-badge ${statusBadge(publishProduct.status)}`}>{formatInventoryStatus(publishProduct.status)}</span></div>
@@ -475,6 +534,7 @@ export function ProductsPage() {
     const [editingCopy, setEditingCopy] = useState(false);
     const [writingAI, setWritingAI] = useState(false);
     const [savingCaption, setSavingCaption] = useState(false);
+    const [publishImageFile, setPublishImageFile] = useState(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -578,13 +638,13 @@ export function ProductsPage() {
         }
         : publishChannel === "whatsapp"
             ? {
-                eyebrow: "WhatsApp Catalog Sync",
-                title: "Preview catalog product",
+                eyebrow: "WhatsApp Catalog Export",
+                title: "Review WhatsApp catalog product",
                 copy: publishCopyForChannel(publishChannel, facebookProduct || {}),
                 copyLabel: "Copy Product Text",
-                actionLabel: "Sync Catalog Product",
+                actionLabel: "Export to WhatsApp",
                 endpoint: "/api/whatsapp/catalog/sync-product",
-                note: "This syncs one reviewed product into the Meta Commerce catalog linked to your WhatsApp Business Account.",
+                note: "This sends one reviewed product to the configured WhatsApp Commerce catalog. Copy text remains available as a fallback.",
             }
             : {
                 eyebrow: "Facebook Page Export",
@@ -602,6 +662,7 @@ export function ProductsPage() {
         const fallback = publishCopyForChannel(channel, product);
         setEditedCopy(fallback);
         setEditingCopy(false);
+        setPublishImageFile(null);
         const saved = await loadSavedPublishCopy(getToken, product.id, channel);
         if (saved.ok && saved.copy) {
             setEditedCopy(saved.copy);
@@ -655,6 +716,23 @@ export function ProductsPage() {
 
     const publishFacebookProduct = async () => {
         if (!facebookProduct) return;
+        if (publishChannel === "whatsapp") {
+            setPublishing(true);
+            const result = await syncWhatsAppCatalogProduct(getToken, {
+                productId: facebookProduct.id,
+                caption: editedCopy || publishDetails.copy,
+                imageFile: publishImageFile,
+            });
+            setPublishing(false);
+            if (!result.ok) {
+                return setMessage({ type: "error", text: result.error || "Could not export this product to WhatsApp catalog." });
+            }
+            setFacebookProduct(null);
+            setPublishImageFile(null);
+            setMessage({ type: "success", text: result.message || "Product exported to WhatsApp catalog successfully." });
+            load();
+            return;
+        }
         setPublishing(true);
         const token = await getToken();
         const response = await fetch(publishDetails.endpoint, {
@@ -736,10 +814,9 @@ export function ProductsPage() {
                                         <td>{formatINR(product.price || 0)}</td>
                                         <td>{productStock(product)}</td>
                                         <td><span className={`dashboard-badge ${statusBadge(product.status)}`}>{prettyStatus(product.status)}</span></td>
-                                        <td><div className="grid min-w-[620px] grid-cols-6 gap-2">
+                                        <td><div className="grid min-w-[520px] grid-cols-5 gap-2">
                                             <Link href={`/dashboard/products/${product.id}`} className="btn-secondary justify-center px-3 py-2" title="Edit product"><Pencil className="h-4 w-4" />Edit</Link>
-                                            <Link href={`/dashboard/reel-studio?productId=${product.id}`} className="btn-secondary justify-center px-3 py-2" title="Create product reel"><Film className="h-4 w-4" />Reel</Link>
-                                            <button type="button" className="btn-secondary justify-center px-3 py-2" title="Publish to WhatsApp catalog" aria-label={`Publish ${productName(product)} to WhatsApp catalog`} disabled={!onboarding.active} onClick={() => openPublisher(product, "whatsapp")}><ChannelLogo channel="whatsapp" />Publish</button>
+                                            <button type="button" className="btn-secondary justify-center px-3 py-2" title="Export to WhatsApp catalog" aria-label={`Export ${productName(product)} to WhatsApp catalog`} disabled={!onboarding.active} onClick={() => openPublisher(product, "whatsapp")}><ChannelLogo channel="whatsapp" />Export</button>
                                             <button type="button" className="btn-secondary justify-center px-3 py-2" title="Publish to Instagram" aria-label={`Publish ${productName(product)} to Instagram`} disabled={!onboarding.active} onClick={() => openPublisher(product, "instagram")}><ChannelLogo channel="instagram" />Publish</button>
                                             <button type="button" className="btn-secondary justify-center px-3 py-2" title="Publish to Facebook Page" aria-label={`Publish ${productName(product)} to Facebook Page`} disabled={!onboarding.active} onClick={() => openPublisher(product, "facebook")}><ChannelLogo channel="facebook" />Publish</button>
                                             <button type="button" className={`btn-secondary justify-center px-3 py-2 ${pendingDeleteId === product.id ? "border-red-200 bg-red-50 text-red-700" : ""}`} title="Delete product" disabled={workingId === product.id} onClick={() => deleteProduct(product)}><Trash2 className="h-4 w-4" />{pendingDeleteId === product.id ? "Confirm" : "Delete"}</button>
@@ -757,7 +834,21 @@ export function ProductsPage() {
                             <button type="button" className="rounded-lg p-2 text-[var(--mid)] transition hover:bg-[var(--surface)]" aria-label="Close Facebook export preview" onClick={() => setFacebookProduct(null)}><X className="h-5 w-5" /></button>
                         </div>
                         <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
-                            {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                            <div className="space-y-3">
+                                {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                {publishChannel === "whatsapp" ? (
+                                    <label className="block rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-3 text-xs font-semibold text-[var(--mid)]">
+                                        Optional WhatsApp image
+                                        <input
+                                            type="file"
+                                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                                            className="mt-2 block w-full text-xs"
+                                            onChange={(event) => setPublishImageFile(event.target.files?.[0] || null)}
+                                        />
+                                        {publishImageFile ? <span className="mt-1 block text-[var(--accent)]">{publishImageFile.name}</span> : null}
+                                    </label>
+                                ) : null}
+                            </div>
                             <div>
                                 <h3 className="text-lg font-bold">{productName(facebookProduct)}</h3>
                                 <div className="mt-3 flex flex-wrap gap-2 text-sm"><span className="dashboard-badge badge-blue">{formatINR(facebookProduct.price || 0)}</span><span className={`dashboard-badge ${statusBadge(facebookProduct.status)}`}>{formatInventoryStatus(facebookProduct.status)}</span></div>

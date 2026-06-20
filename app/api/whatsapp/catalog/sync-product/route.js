@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireActiveSubscription } from "../../../../lib/onboarding";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../../lib/supabaseServer";
+import { uploadToCloudinary } from "../../../../lib/uploadToCloudinary";
 import { syncProductToWhatsAppCatalog } from "../../../../lib/whatsappCatalogSync";
+
+export const runtime = "nodejs";
 
 async function saveExport(supabase, values) {
     const { data, error } = await supabase.from("social_exports").insert(values).select("*").single();
@@ -16,14 +19,56 @@ export async function POST(request) {
     const access = await requireActiveSubscription(user.id);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status || 403 });
 
-    const body = await request.json().catch(() => ({}));
-    const { productId } = body;
-    const description = String(body.caption || body.copy || body.description || "").trim();
+    const contentType = request.headers.get("content-type") || "";
+    let productId = "";
+    let description = "";
+    let imageFile = null;
+
+    if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        productId = String(formData.get("productId") || "");
+        description = String(formData.get("caption") || formData.get("copy") || formData.get("description") || "").trim();
+        imageFile = formData.get("image");
+    } else {
+        const body = await request.json().catch(() => ({}));
+        productId = body.productId;
+        description = String(body.caption || body.copy || body.description || "").trim();
+    }
+
     if (!productId) return NextResponse.json({ error: "Choose a product to sync." }, { status: 400 });
 
     const supabase = createSupabaseServiceRole();
     const { data: product } = await supabase.from("products").select("*").eq("id", productId).maybeSingle();
     if (!product || (product.user_id || product.client_id) !== user.id) return NextResponse.json({ error: "Product not found." }, { status: 404 });
+
+    if (imageFile && imageFile.size > 0) {
+        const allowedTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+        if (!allowedTypes.has(imageFile.type)) {
+            return NextResponse.json({ error: "Image must be JPEG, PNG, or WebP." }, { status: 400 });
+        }
+
+        if (imageFile.size > 8 * 1024 * 1024) {
+            return NextResponse.json({ error: "Image must be under 8 MB." }, { status: 400 });
+        }
+
+        try {
+            const buffer = Buffer.from(await imageFile.arrayBuffer());
+            const { url } = await uploadToCloudinary(buffer, {
+                tags: [`product-${product.id}`, `user-${user.id}`, "whatsapp-catalog"],
+            });
+            const now = new Date().toISOString();
+            const { error: updateError } = await supabase
+                .from("products")
+                .update({ cleaned_image_url: url, updated_at: now })
+                .eq("id", product.id);
+
+            if (updateError) throw updateError;
+            product.cleaned_image_url = url;
+            product.updated_at = now;
+        } catch (error) {
+            return NextResponse.json({ error: error.message || "Image upload failed." }, { status: 502 });
+        }
+    }
 
     const mockMode = process.env.NEXT_PUBLIC_META_MOCK_MODE === "true";
     try {
@@ -53,7 +98,11 @@ export async function POST(request) {
                 updated_at: new Date().toISOString(),
             })
             .eq("id", product.id);
-        return NextResponse.json({ message: "Product synced to the WhatsApp catalog successfully.", export: socialExport }, { status: 201 });
+        return NextResponse.json({
+            message: "Product synced to the WhatsApp catalog successfully.",
+            export: socialExport,
+            imageUrl: product.cleaned_image_url || product.image_url,
+        }, { status: 201 });
     } catch (error) {
         try {
             await saveExport(supabase, {
