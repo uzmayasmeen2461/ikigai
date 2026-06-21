@@ -20,9 +20,21 @@ function catalogProductUrl(product, imageUrl) {
     return imageUrl;
 }
 
-function productPayload(product, { descriptionOverride = "" } = {}) {
-    const imageUrl = product.cleaned_image_url || product.image_url;
-    const price = Number(product.price || 0);
+function productPrice(product) {
+    return Number(product.price || 0);
+}
+
+function productImageUrl(product) {
+    return product.cleaned_image_url || product.image_url;
+}
+
+function productAvailability(product) {
+    return productStock(product) > 0 ? "in stock" : "out of stock";
+}
+
+function baseProductData(product, { descriptionOverride = "" } = {}) {
+    const imageUrl = productImageUrl(product);
+    const price = productPrice(product);
     const retailerId = String(productCode(product) || product.id || "").trim();
 
     if (!imageUrl || imageUrl.startsWith("data:")) {
@@ -38,17 +50,57 @@ function productPayload(product, { descriptionOverride = "" } = {}) {
     }
 
     return {
-        retailer_id: retailerId,
+        imageUrl,
+        price,
+        retailerId,
         name: productName(product),
         description: String(descriptionOverride || "").trim() || buildWhatsAppText(product),
-        availability: productStock(product) > 0 ? "in stock" : "out of stock",
+        availability: productAvailability(product),
+        productUrl: catalogProductUrl(product, imageUrl),
+    };
+}
+
+function productPayload(product, { descriptionOverride = "" } = {}) {
+    const { imageUrl, price, retailerId, name, description, availability, productUrl } = baseProductData(product, { descriptionOverride });
+
+    return {
+        retailer_id: retailerId,
+        name,
+        description,
+        availability,
         condition: "new",
         price: String(Math.round(price * 100)),
         currency: "INR",
-        url: catalogProductUrl(product, imageUrl),
+        url: productUrl,
         image_url: imageUrl,
         brand: "ORVA",
     };
+}
+
+function commerceStyleProductPayload(product, { descriptionOverride = "" } = {}) {
+    const { imageUrl, price, retailerId, name, description, availability, productUrl } = baseProductData(product, { descriptionOverride });
+    return {
+        retailer_id: retailerId,
+        name,
+        description,
+        availability,
+        condition: "new",
+        price: `${price.toFixed(2)} INR`,
+        link: productUrl,
+        image_link: imageUrl,
+        brand: "ORVA",
+    };
+}
+
+function detailedMetaError(result = {}) {
+    const error = result.error || {};
+    const details = [
+        error.error_user_msg,
+        error.error_data?.details,
+        error.error_subcode ? `subcode ${error.error_subcode}` : "",
+        error.fbtrace_id ? `fbtrace ${error.fbtrace_id}` : "",
+    ].filter(Boolean);
+    return details.length ? ` Details: ${details.join(" | ")}` : "";
 }
 
 function metaErrorMessage(result = {}) {
@@ -58,7 +110,7 @@ function metaErrorMessage(result = {}) {
     const nextStep = objectAccessIssue
         ? ` Check that WHATSAPP_CATALOG_ID is the Commerce Manager catalog ID, not the WABA or phone number ID, and use a token with catalog_management and business_management access to that catalog. Current catalog ID: ${catalogId}.`
         : "";
-    return `${whatsappCatalogPermissionMessage} ${metaMessage}${nextStep}`;
+    return `${whatsappCatalogPermissionMessage} ${metaMessage}${detailedMetaError(result)}${nextStep}`;
 }
 
 async function graphPost(path, payload, accessToken) {
@@ -118,9 +170,20 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
 
     const payload = productPayload(product, { descriptionOverride });
     const shouldUpdate = method === "UPDATE" && externalProductId && !String(externalProductId).startsWith("mock-");
-    const result = shouldUpdate
-        ? await graphPost(externalProductId, payload, accessToken)
-        : await graphPost(`${catalogId}/products`, payload, accessToken);
+    let result;
+    let payloadUsed = payload;
+    try {
+        result = shouldUpdate
+            ? await graphPost(externalProductId, payload, accessToken)
+            : await graphPost(`${catalogId}/products`, payload, accessToken);
+    } catch (error) {
+        if (!/Invalid parameter/i.test(error.message || "")) throw error;
+        const fallbackPayload = commerceStyleProductPayload(product, { descriptionOverride });
+        payloadUsed = fallbackPayload;
+        result = shouldUpdate
+            ? await graphPost(externalProductId, fallbackPayload, accessToken)
+            : await graphPost(`${catalogId}/products`, fallbackPayload, accessToken);
+    }
 
     const metaProductId = result.id || result.product_id || (shouldUpdate ? externalProductId : "");
     if (!metaProductId) {
@@ -131,8 +194,8 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
         catalogId,
         accessToken,
         metaProductId,
-        retailerId: payload.retailer_id,
+        retailerId: payloadUsed.retailer_id,
     });
 
-    return { externalProductId: metaProductId, retailerId: payload.retailer_id, catalogId, mock: false, result, verifiedProduct };
+    return { externalProductId: metaProductId, retailerId: payloadUsed.retailer_id, catalogId, mock: false, result, verifiedProduct };
 }
