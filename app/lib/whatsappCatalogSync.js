@@ -86,6 +86,7 @@ function commerceStyleProductPayload(product, { descriptionOverride = "" } = {})
         availability,
         condition: "new",
         price: `${price.toFixed(2)} INR`,
+        currency: "INR",
         link: productUrl,
         image_link: imageUrl,
         brand: "ORVA",
