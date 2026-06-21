@@ -95,9 +95,9 @@ export async function POST(request) {
             user_id: user.id,
             product_id: product.id,
             channel: "whatsapp_catalog",
-            status: "published",
+            status: result.pendingVerification ? "draft" : "published",
             external_post_id: result.externalProductId,
-            error_message: null,
+            error_message: result.verificationWarning || null,
         });
         await supabase
             .from("products")
@@ -108,7 +108,10 @@ export async function POST(request) {
             })
             .eq("id", product.id);
         return NextResponse.json({
-            message: "Product synced to the WhatsApp catalog successfully.",
+            message: result.pendingVerification
+                ? "Product submitted to the WhatsApp catalog. Meta is processing it now."
+                : "Product synced to the WhatsApp catalog successfully.",
+            warning: result.verificationWarning || null,
             export: socialExport,
             catalogId: result.catalogId,
             metaProductId: result.externalProductId,

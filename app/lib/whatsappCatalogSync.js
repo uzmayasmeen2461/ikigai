@@ -267,12 +267,28 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
 
     const batchHandle = Array.isArray(result.handles) ? result.handles[0] : "";
     const metaProductId = result.id || result.product_id || (shouldUpdate ? externalProductId : "");
-    const verifiedProduct = await verifyCatalogProduct({
-        catalogId,
-        accessToken,
-        metaProductId,
-        retailerId: payloadUsed.retailer_id,
-    });
+    let verifiedProduct = null;
+    let verificationWarning = "";
+    try {
+        verifiedProduct = await verifyCatalogProduct({
+            catalogId,
+            accessToken,
+            metaProductId,
+            retailerId: payloadUsed.retailer_id,
+        });
+    } catch (error) {
+        if (!batchHandle) throw error;
+        verificationWarning = "Meta accepted the catalog batch request, but the product is still processing and was not readable immediately. Check Commerce Manager again in a few minutes.";
+    }
 
-    return { externalProductId: verifiedProduct?.id || metaProductId || batchHandle || payloadUsed.retailer_id, retailerId: payloadUsed.retailer_id, catalogId, mock: false, result, verifiedProduct };
+    return {
+        externalProductId: verifiedProduct?.id || metaProductId || batchHandle || payloadUsed.retailer_id,
+        retailerId: payloadUsed.retailer_id,
+        catalogId,
+        mock: false,
+        result,
+        verifiedProduct,
+        pendingVerification: Boolean(!verifiedProduct?.id && batchHandle),
+        verificationWarning,
+    };
 }
