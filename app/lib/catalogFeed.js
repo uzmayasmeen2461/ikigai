@@ -40,11 +40,26 @@ function productImageUrl(product = {}) {
     return product.cleaned_image_url || product.image_url || "";
 }
 
+function feedLocality() {
+    const address = process.env.WHATSAPP_CATALOG_AVAILABILITY_ADDRESS || process.env.ORVA_BUSINESS_ADDRESS || "Hyderabad, Telangana, India";
+    const radius = process.env.WHATSAPP_CATALOG_AVAILABILITY_RADIUS || "50000";
+    const latitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LATITUDE || "17.3850";
+    const longitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LONGITUDE || "78.4867";
+    const postalCodes = process.env.WHATSAPP_CATALOG_AVAILABILITY_POSTAL_CODES || "500001";
+    return {
+        address,
+        availability_circle_radius: radius,
+        availability_circle_origin: `${latitude},${longitude}`,
+        availability_postal_codes: postalCodes,
+    };
+}
+
 export function productLink(baseUrl, token, product) {
     return `${baseUrl}/catalog/${encodeURIComponent(token)}/${encodeURIComponent(product.id)}`;
 }
 
 export function buildMetaCatalogCsv(products = [], { baseUrl, token } = {}) {
+    const locality = feedLocality();
     const headers = [
         "id",
         "title",
@@ -55,6 +70,10 @@ export function buildMetaCatalogCsv(products = [], { baseUrl, token } = {}) {
         "link",
         "image_link",
         "brand",
+        "availability_circle_origin",
+        "availability_circle_radius",
+        "availability_postal_codes",
+        "address",
     ];
 
     const rows = products
@@ -71,6 +90,10 @@ export function buildMetaCatalogCsv(products = [], { baseUrl, token } = {}) {
                 productLink(baseUrl, token, product),
                 productImageUrl(product),
                 "ORVA",
+                locality.availability_circle_origin,
+                locality.availability_circle_radius,
+                locality.availability_postal_codes,
+                locality.address,
             ].map(csvEscape).join(",");
         });
 
