@@ -120,6 +120,30 @@ function commerceStyleProductPayload(product, { descriptionOverride = "" } = {})
     return payload;
 }
 
+function batchProductData(product, { descriptionOverride = "" } = {}) {
+    const { imageUrl, price, retailerId, name, description, availability, productUrl, locality } = baseProductData(product, { descriptionOverride });
+    const data = {
+        retailer_id: retailerId,
+        name,
+        title: name,
+        description,
+        availability,
+        condition: "new",
+        price: Math.round(price * 100),
+        currency: "INR",
+        url: productUrl,
+        link: productUrl,
+        image_url: imageUrl,
+        image_link: imageUrl,
+        brand: "ORVA",
+        address: locality.address,
+        availability_circle_radius: locality.availability_circle_radius,
+        availability_postal_codes: locality.availability_postal_codes,
+    };
+    if (locality.availability_circle_origin) data.availability_circle_origin = locality.availability_circle_origin;
+    return { retailerId, data };
+}
+
 function detailedMetaError(result = {}) {
     const error = result.error || {};
     const details = [
@@ -152,6 +176,26 @@ async function graphPost(path, payload, accessToken) {
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.error) {
         throw new Error(metaErrorMessage(result));
+    }
+    return result;
+}
+
+async function graphPostBatch({ catalogId, request, accessToken }) {
+    const params = new URLSearchParams({
+        access_token: accessToken,
+        allow_upsert: "true",
+        requests: JSON.stringify([request]),
+    });
+    const response = await fetch(`https://graph.facebook.com/${graphVersion()}/${catalogId}/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+        cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.error || result.errors?.length) {
+        const error = result.error ? result : { error: result.errors?.[0] || { message: "Meta could not sync this catalog product." } };
+        throw new Error(metaErrorMessage(error));
     }
     return result;
 }
@@ -197,13 +241,21 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
     if (!catalogId || !accessToken) throw new Error(`${whatsappCatalogPermissionMessage} Add WHATSAPP_CATALOG_ID and WHATSAPP_ACCESS_TOKEN to the server environment.`);
 
     const payload = productPayload(product, { descriptionOverride });
+    const { retailerId, data: batchData } = batchProductData(product, { descriptionOverride });
     const shouldUpdate = method === "UPDATE" && externalProductId && !String(externalProductId).startsWith("mock-");
     let result;
     let payloadUsed = payload;
     try {
-        result = shouldUpdate
-            ? await graphPost(externalProductId, payload, accessToken)
-            : await graphPost(`${catalogId}/products`, payload, accessToken);
+        result = await graphPostBatch({
+            catalogId,
+            accessToken,
+            request: {
+                method: shouldUpdate ? "UPDATE" : "CREATE",
+                retailer_id: retailerId,
+                data: batchData,
+            },
+        });
+        payloadUsed = { ...batchData, retailer_id: retailerId };
     } catch (error) {
         if (!/Invalid parameter/i.test(error.message || "")) throw error;
         const fallbackPayload = commerceStyleProductPayload(product, { descriptionOverride });
@@ -213,11 +265,8 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
             : await graphPost(`${catalogId}/products`, fallbackPayload, accessToken);
     }
 
+    const batchHandle = Array.isArray(result.handles) ? result.handles[0] : "";
     const metaProductId = result.id || result.product_id || (shouldUpdate ? externalProductId : "");
-    if (!metaProductId) {
-        throw new Error("Meta accepted the WhatsApp catalog request but did not return a product ID, so ORVA did not mark it as synced.");
-    }
-
     const verifiedProduct = await verifyCatalogProduct({
         catalogId,
         accessToken,
@@ -225,5 +274,5 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
         retailerId: payloadUsed.retailer_id,
     });
 
-    return { externalProductId: metaProductId, retailerId: payloadUsed.retailer_id, catalogId, mock: false, result, verifiedProduct };
+    return { externalProductId: verifiedProduct?.id || metaProductId || batchHandle || payloadUsed.retailer_id, retailerId: payloadUsed.retailer_id, catalogId, mock: false, result, verifiedProduct };
 }
