@@ -76,8 +76,41 @@ async function graphPost(path, payload, accessToken) {
     return result;
 }
 
+async function graphGet(path, accessToken) {
+    const separator = path.includes("?") ? "&" : "?";
+    const response = await fetch(`https://graph.facebook.com/${graphVersion()}/${path}${separator}access_token=${encodeURIComponent(accessToken)}`, {
+        method: "GET",
+        cache: "no-store",
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.error) {
+        throw new Error(metaErrorMessage(result));
+    }
+    return result;
+}
+
+async function verifyCatalogProduct({ catalogId, accessToken, metaProductId, retailerId }) {
+    const fields = "id,retailer_id,name,availability,price";
+    let directProduct = null;
+    try {
+        directProduct = await graphGet(`${metaProductId}?fields=${encodeURIComponent(fields)}`, accessToken);
+    } catch {
+        directProduct = null;
+    }
+
+    const listResult = await graphGet(`${catalogId}/products?fields=${encodeURIComponent(fields)}&limit=100`, accessToken);
+    const list = Array.isArray(listResult.data) ? listResult.data : [];
+    const matchedProduct = list.find((item) => String(item.id) === String(metaProductId) || String(item.retailer_id || "") === String(retailerId));
+
+    if (!directProduct?.id && !matchedProduct?.id) {
+        throw new Error(`Meta returned product ID ${metaProductId}, but it was not readable in catalog ${catalogId}. Check that WHATSAPP_CATALOG_ID points to the same Commerce catalog you are viewing and that the token has catalog access.`);
+    }
+
+    return matchedProduct || directProduct;
+}
+
 export async function syncProductToWhatsAppCatalog({ product, mockMode = false, method = "CREATE", description: descriptionOverride = "", externalProductId = "" }) {
-    if (mockMode) return { externalProductId: mockExternalProductId(product.id), mock: true };
+    if (mockMode) return { externalProductId: mockExternalProductId(product.id), mock: true, catalogId: "mock" };
 
     const catalogId = process.env.WHATSAPP_CATALOG_ID;
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -94,5 +127,12 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
         throw new Error("Meta accepted the WhatsApp catalog request but did not return a product ID, so ORVA did not mark it as synced.");
     }
 
-    return { externalProductId: metaProductId, retailerId: payload.retailer_id, mock: false, result };
+    const verifiedProduct = await verifyCatalogProduct({
+        catalogId,
+        accessToken,
+        metaProductId,
+        retailerId: payload.retailer_id,
+    });
+
+    return { externalProductId: metaProductId, retailerId: payload.retailer_id, catalogId, mock: false, result, verifiedProduct };
 }

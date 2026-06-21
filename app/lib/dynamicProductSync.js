@@ -107,18 +107,22 @@ async function syncWhatsAppCatalog(supabase, { userId, product }) {
     try {
         const { data: previousExport } = await supabase
             .from("social_exports")
-            .select("id")
+            .select("id, external_post_id")
             .eq("user_id", userId)
             .eq("product_id", product.id)
             .eq("channel", "whatsapp_catalog")
             .eq("status", "published")
+            .not("external_post_id", "is", null)
             .limit(1)
             .maybeSingle();
 
+        const previousExternalProductId = String(previousExport?.external_post_id || "");
+        const canUpdateExistingProduct = /^\d+$/.test(previousExternalProductId);
         const result = await syncProductToWhatsAppCatalog({
             product,
             mockMode: metaMockMode(),
-            method: previousExport ? "UPDATE" : "CREATE",
+            method: canUpdateExistingProduct ? "UPDATE" : "CREATE",
+            externalProductId: canUpdateExistingProduct ? previousExternalProductId : "",
         });
 
         await insertSocialExport(supabase, {

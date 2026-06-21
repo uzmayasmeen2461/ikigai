@@ -110,6 +110,9 @@ export async function POST(request) {
         return NextResponse.json({
             message: "Product synced to the WhatsApp catalog successfully.",
             export: socialExport,
+            catalogId: result.catalogId,
+            metaProductId: result.externalProductId,
+            verifiedProduct: result.verifiedProduct || null,
             imageUrl: product.cleaned_image_url || product.image_url,
         }, { status: 201 });
     } catch (error) {
