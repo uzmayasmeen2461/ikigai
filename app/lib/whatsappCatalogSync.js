@@ -33,13 +33,15 @@ function productAvailability(product) {
 }
 
 function productLocality() {
-    const address = process.env.WHATSAPP_CATALOG_AVAILABILITY_ADDRESS || process.env.ORVA_BUSINESS_ADDRESS || "India";
+    const address = process.env.WHATSAPP_CATALOG_AVAILABILITY_ADDRESS || process.env.ORVA_BUSINESS_ADDRESS || "Hyderabad, Telangana, India";
     const radius = Number(process.env.WHATSAPP_CATALOG_AVAILABILITY_RADIUS || 50000);
-    const latitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LATITUDE;
-    const longitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LONGITUDE;
+    const latitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LATITUDE || "17.3850";
+    const longitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LONGITUDE || "78.4867";
+    const postalCodes = process.env.WHATSAPP_CATALOG_AVAILABILITY_POSTAL_CODES || "500001";
 
     return {
         address,
+        availability_postal_codes: postalCodes,
         availability_circle_radius: Number.isFinite(radius) && radius > 0 ? radius : 50000,
         availability_circle_origin: latitude && longitude ? `${latitude},${longitude}` : "",
     };
@@ -89,6 +91,7 @@ function productPayload(product, { descriptionOverride = "" } = {}) {
         image_url: imageUrl,
         brand: "ORVA",
         address: locality.address,
+        availability_postal_codes: locality.availability_postal_codes,
         availability_circle_radius: locality.availability_circle_radius,
     };
     if (locality.availability_circle_origin) payload.availability_circle_origin = locality.availability_circle_origin;
@@ -110,6 +113,7 @@ function commerceStyleProductPayload(product, { descriptionOverride = "" } = {})
         image_link: imageUrl,
         brand: "ORVA",
         address: locality.address,
+        availability_postal_codes: locality.availability_postal_codes,
         availability_circle_radius: locality.availability_circle_radius,
     };
     if (locality.availability_circle_origin) payload.availability_circle_origin = locality.availability_circle_origin;
