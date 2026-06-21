@@ -277,8 +277,9 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
             retailerId: payloadUsed.retailer_id,
         });
     } catch (error) {
-        if (!batchHandle) throw error;
-        verificationWarning = "Meta accepted the catalog batch request, but the product is still processing and was not readable immediately. Check Commerce Manager again in a few minutes.";
+        const acceptedByBatch = Boolean(result && !result.error);
+        if (!acceptedByBatch) throw error;
+        verificationWarning = "Meta accepted the catalog request, but the product was not readable immediately. Check Commerce Manager again in a few minutes.";
     }
 
     return {
@@ -288,7 +289,7 @@ export async function syncProductToWhatsAppCatalog({ product, mockMode = false, 
         mock: false,
         result,
         verifiedProduct,
-        pendingVerification: Boolean(!verifiedProduct?.id && batchHandle),
+        pendingVerification: Boolean(!verifiedProduct?.id),
         verificationWarning,
     };
 }
