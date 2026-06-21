@@ -32,6 +32,19 @@ function productAvailability(product) {
     return productStock(product) > 0 ? "in stock" : "out of stock";
 }
 
+function productLocality() {
+    const address = process.env.WHATSAPP_CATALOG_AVAILABILITY_ADDRESS || process.env.ORVA_BUSINESS_ADDRESS || "India";
+    const radius = Number(process.env.WHATSAPP_CATALOG_AVAILABILITY_RADIUS || 50000);
+    const latitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LATITUDE;
+    const longitude = process.env.WHATSAPP_CATALOG_AVAILABILITY_LONGITUDE;
+
+    return {
+        address,
+        availability_circle_radius: Number.isFinite(radius) && radius > 0 ? radius : 50000,
+        availability_circle_origin: latitude && longitude ? `${latitude},${longitude}` : "",
+    };
+}
+
 function baseProductData(product, { descriptionOverride = "" } = {}) {
     const imageUrl = productImageUrl(product);
     const price = productPrice(product);
@@ -57,13 +70,14 @@ function baseProductData(product, { descriptionOverride = "" } = {}) {
         description: String(descriptionOverride || "").trim() || buildWhatsAppText(product),
         availability: productAvailability(product),
         productUrl: catalogProductUrl(product, imageUrl),
+        locality: productLocality(),
     };
 }
 
 function productPayload(product, { descriptionOverride = "" } = {}) {
-    const { imageUrl, price, retailerId, name, description, availability, productUrl } = baseProductData(product, { descriptionOverride });
+    const { imageUrl, price, retailerId, name, description, availability, productUrl, locality } = baseProductData(product, { descriptionOverride });
 
-    return {
+    const payload = {
         retailer_id: retailerId,
         name,
         description,
@@ -74,12 +88,16 @@ function productPayload(product, { descriptionOverride = "" } = {}) {
         url: productUrl,
         image_url: imageUrl,
         brand: "ORVA",
+        address: locality.address,
+        availability_circle_radius: locality.availability_circle_radius,
     };
+    if (locality.availability_circle_origin) payload.availability_circle_origin = locality.availability_circle_origin;
+    return payload;
 }
 
 function commerceStyleProductPayload(product, { descriptionOverride = "" } = {}) {
-    const { imageUrl, price, retailerId, name, description, availability, productUrl } = baseProductData(product, { descriptionOverride });
-    return {
+    const { imageUrl, price, retailerId, name, description, availability, productUrl, locality } = baseProductData(product, { descriptionOverride });
+    const payload = {
         retailer_id: retailerId,
         name,
         description,
@@ -91,7 +109,11 @@ function commerceStyleProductPayload(product, { descriptionOverride = "" } = {})
         image_url: imageUrl,
         image_link: imageUrl,
         brand: "ORVA",
+        address: locality.address,
+        availability_circle_radius: locality.availability_circle_radius,
     };
+    if (locality.availability_circle_origin) payload.availability_circle_origin = locality.availability_circle_origin;
+    return payload;
 }
 
 function detailedMetaError(result = {}) {
