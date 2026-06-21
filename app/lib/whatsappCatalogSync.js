@@ -88,6 +88,7 @@ function commerceStyleProductPayload(product, { descriptionOverride = "" } = {})
         price: Math.round(price * 100),
         currency: "INR",
         link: productUrl,
+        image_url: imageUrl,
         image_link: imageUrl,
         brand: "ORVA",
     };
