@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
     BarChart3,
@@ -56,7 +56,7 @@ const navConfig = {
     client: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Onboarding", href: "/dashboard/onboarding", icon: ShieldCheck },
-        { label: "Growth Assistant", href: "/dashboard?view=growth-assistant", icon: Sparkles },
+        { label: "Growth Studio", href: "/dashboard?view=growth-assistant", icon: Sparkles },
         { label: "Growth Autopilot", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
         { label: "Products", href: "/dashboard/products", icon: Package },
         { label: "Add Inventory", href: "/dashboard/upload-inventory", icon: Upload },
@@ -85,6 +85,7 @@ export function DashboardShell({
 }) {
     const pathname = usePathname();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [menuOpen, setMenuOpen] = useState(false);
     const [email, setEmail] = useState("");
     const [notifications, setNotifications] = useState([]);
@@ -124,7 +125,7 @@ export function DashboardShell({
         window.addEventListener("hashchange", syncActiveHref);
 
         return () => window.removeEventListener("hashchange", syncActiveHref);
-    }, [pathname]);
+    }, [pathname, searchParams]);
 
     const logout = async () => {
         await supabase.auth.signOut();

@@ -3,6 +3,6 @@ import { GrowthAssistantPage } from "../../../components/client/GrowthAssistantP
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default function DashboardGrowthAssistant() {
+export default function DashboardGrowthStudio() {
     return <GrowthAssistantPage />;
 }
