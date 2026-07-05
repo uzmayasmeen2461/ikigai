@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildReelContent } from "../../../lib/inventory";
 import { createSupabaseServiceRole, createSupabaseUserClient, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 function clientIdFor(product = {}) {
     return product.user_id || product.client_id;
@@ -28,7 +29,7 @@ export async function POST(request) {
     const patch = {
         ...generated,
         reel_status: "draft",
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
     };
 
     const { data: updated, error: updateError } = await supabase

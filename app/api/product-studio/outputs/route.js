@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin, getAuthenticatedUser, getUserRole } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 function canWriteForTask({ role, task, userId }) {
     if (role === "admin") return true;
@@ -43,7 +44,7 @@ export async function POST(request) {
         facebook_category: output.facebook_category || "",
         status: output.status || "draft",
         created_by: user.id,
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
     }));
 
     await supabase.from("product_content_outputs").delete().eq("task_id", taskId);

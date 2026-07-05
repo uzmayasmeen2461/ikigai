@@ -12,53 +12,71 @@ import { formatINR } from "../lib/pricing";
 
 const plans = [
     {
-        name: "Starter",
-        price: 999,
-        period: "/month",
-        badge: "For first catalogs",
-        description: "For small shops that want one clean product workspace and a share-ready catalog preview.",
+        name: "Free Trial",
+        price: 0,
+        period: "7 days",
+        badge: "Start free",
+        description: "For businesses that want to try ORVA with real inventory, previews, and basic publishing before paying.",
         icon: Package,
         features: [
-            "Up to 100 products",
-            "CSV inventory upload",
-            "Photos + prices inventory creation",
-            "Store and WhatsApp-style preview",
-            "Basic social captions",
+            "7 days free access",
+            "Upload inventory or product photos",
+            "Create product workspace",
+            "Preview catalog and social posts",
+            "Basic AI captions",
         ],
-        cta: "Start Starter",
+        cta: "Start Free Trial",
         featured: false,
     },
     {
-        name: "Growth",
-        price: 2499,
-        period: "/month",
-        badge: "Most useful",
-        description: "For businesses updating stock regularly and publishing products across social channels.",
+        name: "Initial Setup",
+        price: 2000,
+        period: "one-time",
+        badge: "First setup",
+        description: "For shops that need ORVA configured, inventory cleaned, and their first digital catalog workspace prepared.",
         icon: Sparkles,
         features: [
-            "Up to 500 products",
-            "AI image-to-inventory titles",
-            "Facebook Page publishing",
-            "Instagram and WhatsApp export workflows",
-            "Update task tracking for stock and price changes",
-            "Saved AI captions per product",
+            "ORVA workspace setup",
+            "Inventory list or photo + price onboarding",
+            "AI image-to-product matching",
+            "Product titles and descriptions",
+            "Store and social preview setup",
+            "Manual approval after payment",
         ],
-        cta: "Start Growth",
+        cta: "Start Setup",
         featured: true,
     },
     {
-        name: "Managed",
-        price: 6999,
+        name: "Catalog Management",
+        price: 7000,
         period: "/month",
         badge: "Human-assisted",
-        description: "For teams that want ORVA specialists to help keep catalogs, posts, and updates moving.",
+        description: "For businesses that want ORVA to help with WhatsApp catalog management and regular manual channel updates.",
         icon: RefreshCw,
         features: [
-            "Up to 2,000 products",
-            "Digital setup specialist dashboard",
-            "Manual WhatsApp, Instagram, and Facebook update tasks",
-            "Monthly catalog cleanup support",
-            "Priority support for publishing issues",
+            "WhatsApp catalog management support",
+            "Manual Instagram and Facebook update tasks",
+            "Monthly catalog cleanup",
+            "Product updates and corrections",
+            "Digital setup specialist support",
+            "Publishing issue tracking",
+        ],
+        cta: "Request Managed Plan",
+        featured: false,
+    },
+    {
+        name: "Advanced Automation",
+        price: 15000,
+        period: "/month",
+        badge: "Advanced",
+        description: "For businesses that want advanced automation, messaging workflows, and stronger growth support.",
+        icon: RefreshCw,
+        features: [
+            "Advanced automation features",
+            "Automated campaign scheduling",
+            "Automated messaging where available",
+            "Priority publishing support",
+            "Growth recommendations",
             "Admin review and exception tracking",
         ],
         cta: "Talk to ORVA",
@@ -68,17 +86,17 @@ const plans = [
 
 const addons = [
     {
-        title: "Photo-to-inventory setup",
-        price: 1999,
-        description: "For businesses without an inventory list. Upload product photos with prices and ORVA helps create clean product records.",
-        points: ["AI-generated titles", "Descriptions and categories", "Review before saving"],
+        title: "No inventory list? No problem.",
+        price: 2000,
+        description: "Upload product photos with prices and ORVA helps create clean product records during initial setup.",
+        points: ["Photos + prices", "AI-generated titles", "Review before saving"],
         icon: ImageIcon,
     },
     {
-        title: "Storefront launch support",
-        price: 4999,
-        description: "One-time guided setup for shops that want their catalog preview, brand details, and channels prepared.",
-        points: ["Business profile setup", "Preview studio polish", "Connection readiness check"],
+        title: "Manual channel support",
+        price: 7000,
+        description: "For businesses that want ORVA specialists to help keep WhatsApp, Instagram, and Facebook updates moving.",
+        points: ["WhatsApp catalog help", "Manual update tasks", "Monthly cleanup"],
         icon: Store,
     },
 ];
@@ -143,7 +161,7 @@ export default function PricingPage() {
                         <span>digital product selling.</span>
                     </h1>
                     <p className="hero-sub max-w-2xl">
-                        Choose a plan for inventory upload, catalog previews, social content, and update tracking. Start simple, then add human support when your catalog grows.
+                        Start with a 7-day free trial. After that, ORVA pricing is confirmed manually based on setup, catalog management, and automation needs.
                     </p>
                     <div className="mt-8 flex flex-wrap gap-3">
                         {["No forced Meta API dependency", "Review before publishing", "Photos-to-inventory support", "Built for small businesses"].map((item) => (
@@ -163,11 +181,11 @@ export default function PricingPage() {
                         Pick the level of automation you need
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-[var(--mid)]">
-                        ORVA works even before full platform API approval: your inventory stays central, previews stay accurate, and update tasks keep channels organized.
+                        Try ORVA first. Then continue with a one-time setup plan, monthly managed catalog support, or advanced automation.
                     </p>
                 </div>
 
-                <div className="grid gap-5 lg:grid-cols-3">
+                <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
                     {plans.map((plan) => <PlanCard key={plan.name} plan={plan} />)}
                 </div>
             </section>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { publishProductToFacebookPage } from "../../../../lib/facebookPage";
 import { requireActiveSubscription } from "../../../../lib/onboarding";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 function cleanProductId(value) {
     return String(value || "").trim();
@@ -67,13 +68,14 @@ export async function POST(request) {
         await supabase
             .from("products")
             .update({
-                last_promoted_at: new Date().toISOString(),
+                last_promoted_at: nowISTISOString(),
                 promotion_count: Number(product.promotion_count || 0) + 1,
-                updated_at: new Date().toISOString(),
+                updated_at: nowISTISOString(),
             })
             .eq("id", product.id);
         return NextResponse.json({
-            message: "Product published to Facebook Page successfully.",
+            message: result.warning || "Product published to Facebook Page successfully.",
+            warning: result.warning || null,
             export: socialExport,
         }, { status: 201 });
     } catch (error) {

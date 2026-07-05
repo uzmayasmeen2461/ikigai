@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../app/lib/supabase";
 import { formatINR } from "../../app/lib/pricing";
+import { nowISTISOString } from "../../app/lib/istDate";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 import {
@@ -391,7 +392,7 @@ export function AdminPartnerPayoutsPage() {
             return;
         }
 
-        const timestamp = new Date().toISOString();
+        const timestamp = nowISTISOString();
         if (payout.generated) {
             setSavingId(payout.id);
             const { error: insertError } = await supabase

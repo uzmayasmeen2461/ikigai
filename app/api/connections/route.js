@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../lib/supabaseServer";
 import { recordWhatsAppCatalogConnection, safeConnectionFields } from "../../lib/socialConnections";
+import { nowISTISOString } from "../../lib/istDate";
 
 export async function GET(request) {
     const { user, error: authError } = await getAuthenticatedUser(request);
@@ -25,7 +26,7 @@ export async function GET(request) {
                 reason: "facebook_oauth_timeout",
                 next_step: "Check the Meta app domain and exact Facebook Login OAuth redirect URI, then retry.",
             },
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         })
         .eq("user_id", user.id)
         .eq("channel", "facebook")

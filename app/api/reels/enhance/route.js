@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getClientSubscription, requireActiveSubscription } from "../../../lib/onboarding";
 import { enhancedReelLimitForSubscription, getCurrentMonthKey, normalizeTemplateName, reelMusicStyles } from "../../../lib/reels";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 function cleanBoolean(value, fallback = true) {
     if (typeof value === "boolean") return value;
@@ -84,7 +85,7 @@ export async function POST(request) {
         .update({
             status: "enhancing",
             error_message: null,
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         })
         .eq("id", reel.id)
         .eq("client_id", user.id);
@@ -95,9 +96,11 @@ export async function POST(request) {
         hook_text: String(body.hookText || template.hookText).trim(),
         cta_text: String(body.ctaText || template.ctaText).trim(),
         music_style: musicStyle,
+        audio_url: String(body.audioUrl || reel.audio_url || "").trim(),
+        audio_track_name: String(body.audioTrackName || reel.audio_track_name || "").trim(),
         status: "enhanced",
         error_message: null,
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
         metadata: {
             showPriceOverlay: cleanBoolean(body.showPriceOverlay, true),
             showOfferBadge: cleanBoolean(body.showOfferBadge, true),
@@ -106,13 +109,27 @@ export async function POST(request) {
         },
     };
 
-    const { data: updated, error: updateError } = await supabase
+    let { data: updated, error: updateError } = await supabase
         .from("reels")
         .update(patch)
         .eq("id", reel.id)
         .eq("client_id", user.id)
         .select("*")
         .single();
+    if (updateError && String(updateError.message || "").includes("audio")) {
+        const fallbackPatch = { ...patch };
+        delete fallbackPatch.audio_url;
+        delete fallbackPatch.audio_track_name;
+        const fallback = await supabase
+            .from("reels")
+            .update(fallbackPatch)
+            .eq("id", reel.id)
+            .eq("client_id", user.id)
+            .select("*")
+            .single();
+        updated = fallback.data;
+        updateError = fallback.error;
+    }
 
     if (updateError) return NextResponse.json({ error: updateError.message || "Could not save enhanced reel." }, { status: 500 });
 
@@ -120,7 +137,7 @@ export async function POST(request) {
         .from("reel_usage")
         .update({
             enhanced_reels_count: used + 1,
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         })
         .eq("id", usage.id);
 

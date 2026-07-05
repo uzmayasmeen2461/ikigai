@@ -1,50 +1,63 @@
 import { createSupabaseServiceRole, hasSupabaseServiceRoleKey } from "./supabaseServer";
+import { istTodayISO } from "./istDate";
 
 export const packageSeeds = [
     {
-        name: "ORVA Inventory Ready",
-        slug: "inventory-ready",
-        price_amount: 5999,
-        billing_cycle: "yearly",
-        description: "For businesses that already have an inventory list.",
+        name: "ORVA Free Trial",
+        slug: "free-trial",
+        price_amount: 0,
+        billing_cycle: "one_time",
+        description: "7 days of ORVA access to try inventory upload, previews, and basic publishing.",
         features: [
-            "Upload inventory list",
-            "Upload product images",
+            "7-day free trial",
+            "Inventory upload",
+            "Product photo + price flow",
+            "Preview Studio",
+            "Basic social content",
+            "Manual admin approval after trial",
+        ],
+    },
+    {
+        name: "ORVA Initial Setup",
+        slug: "initial-setup",
+        price_amount: 2000,
+        billing_cycle: "one_time",
+        description: "For businesses starting their first ORVA catalog and product workspace.",
+        features: [
+            "Initial ORVA setup",
+            "Inventory list or photo + price onboarding",
             "AI image-to-product matching",
             "Product list creation",
-            "Instagram post preview",
-            "WhatsApp catalog preview",
-            "Facebook, Instagram, and WhatsApp export options",
+            "Store and social preview setup",
+            "Basic caption generation",
         ],
     },
     {
-        name: "ORVA Photo-to-Inventory",
-        slug: "photo-to-inventory",
-        price_amount: 7999,
-        billing_cycle: "yearly",
-        description: "For businesses with only product photos and prices.",
-        features: [
-            "Upload product photos",
-            "Add price for each image",
-            "AI-generated product title",
-            "AI-generated description",
-            "Product list creation",
-            "Instagram post preview",
-            "WhatsApp catalog preview",
-            "Facebook, Instagram, and WhatsApp export options",
-        ],
-    },
-    {
-        name: "Managed Social Maintenance",
-        slug: "managed-social-maintenance",
-        price_amount: 4999,
+        name: "ORVA Catalog Management",
+        slug: "catalog-management",
+        price_amount: 7000,
         billing_cycle: "monthly",
-        description: "For clients who need digital setup specialist help every month.",
+        description: "For businesses that want WhatsApp catalog management and manual social channel work.",
         features: [
+            "WhatsApp catalog management",
+            "Manual Instagram and Facebook update support",
+            "Catalog cleanup",
             "Product updates",
-            "Catalog updates",
-            "Social media content support",
-            "Specialist-assisted maintenance",
+            "Digital setup specialist support",
+        ],
+    },
+    {
+        name: "ORVA Advanced Automation",
+        slug: "advanced-automation",
+        price_amount: 15000,
+        billing_cycle: "monthly",
+        description: "For businesses that want automated messaging, advanced campaigns, and growth features.",
+        features: [
+            "Advanced automation features",
+            "Automated campaign scheduling",
+            "Automated messaging support where available",
+            "Priority publishing support",
+            "Growth recommendations",
         ],
     },
 ];
@@ -94,13 +107,18 @@ export async function fetchPackages(supabase) {
 }
 
 export async function findPackageByFlow(supabase, selectedFlow) {
-    const slug = selectedFlow === "photo_to_inventory" ? "photo-to-inventory" : "inventory-ready";
+    const slug = "initial-setup";
     const packages = await fetchPackages(supabase);
     return packages.find((item) => item.slug === slug) || null;
 }
 
+export async function getTrialPackage(supabase) {
+    const packages = await fetchPackages(supabase);
+    return packages.find((item) => item.slug === "free-trial") || null;
+}
+
 export async function getClientSubscription(supabase, clientId) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = istTodayISO();
     const { data } = await supabase
         .from("subscriptions")
         .select("*, packages(name, slug, price_amount, billing_cycle)")
@@ -111,6 +129,47 @@ export async function getClientSubscription(supabase, clientId) {
         .limit(1)
         .maybeSingle();
 
+    return data || null;
+}
+
+export async function ensureTrialSubscription(supabase, clientId, values = {}) {
+    const activeSubscription = await getClientSubscription(supabase, clientId);
+    if (activeSubscription) return activeSubscription;
+
+    const trialPackage = await getTrialPackage(supabase);
+    const start = istTodayISO();
+    const end = new Date(`${start}T00:00:00.000Z`);
+    end.setUTCDate(end.getUTCDate() + 6);
+
+    const subscriptionValues = {
+        client_id: clientId,
+        package_id: trialPackage?.id || null,
+        application_id: null,
+        status: "active",
+        start_date: start,
+        end_date: end.toISOString().slice(0, 10),
+        activated_email: values.email || null,
+        activated_phone: values.phone || null,
+    };
+
+    let { data, error } = await supabase
+        .from("subscriptions")
+        .insert(subscriptionValues)
+        .select("*, packages(name, slug, price_amount, billing_cycle)")
+        .single();
+
+    if (error && /activated_(email|phone)|schema cache|column/i.test(error.message || "")) {
+        const { activated_email, activated_phone, ...fallbackValues } = subscriptionValues;
+        const fallback = await supabase
+            .from("subscriptions")
+            .insert(fallbackValues)
+            .select("*, packages(name, slug, price_amount, billing_cycle)")
+            .single();
+        data = fallback.data;
+        error = fallback.error;
+    }
+
+    if (error) return null;
     return data || null;
 }
 
@@ -132,7 +191,7 @@ export async function requireActiveSubscription(userId) {
     }
 
     const supabase = createSupabaseServiceRole();
-    const subscription = await getClientSubscription(supabase, userId);
+    const subscription = await ensureTrialSubscription(supabase, userId);
     if (!subscription) {
         return {
             ok: false,

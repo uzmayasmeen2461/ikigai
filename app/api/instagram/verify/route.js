@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyInstagramConnection } from "../../../lib/instagramPublishing";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 export async function POST(request) {
     const { user, error: authError } = await getAuthenticatedUser(request);
@@ -31,7 +32,7 @@ export async function POST(request) {
             instagram_username: account.username || connection?.metadata?.instagram_username || null,
             instagram_account_type: account.account_type || null,
             instagram_media_count: account.media_count ?? null,
-            last_verified_at: new Date().toISOString(),
+            last_verified_at: nowISTISOString(),
             last_verification_error: null,
         };
 
@@ -42,7 +43,7 @@ export async function POST(request) {
                     external_account_name: account.username ? `@${account.username}` : connection.external_account_name,
                     status: "connected",
                     metadata,
-                    updated_at: new Date().toISOString(),
+                    updated_at: nowISTISOString(),
                 })
                 .eq("id", connection.id);
         }
@@ -70,7 +71,7 @@ export async function POST(request) {
                         last_verification_error: verifyError.message,
                         last_verified_at: null,
                     },
-                    updated_at: new Date().toISOString(),
+                    updated_at: nowISTISOString(),
                 })
                 .eq("id", connection.id);
         }

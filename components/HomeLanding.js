@@ -26,62 +26,39 @@ import {
     Zap,
 } from "lucide-react";
 import { formatINR } from "../app/lib/pricing";
-import { ServiceStartButton } from "./ServiceStartButton";
 
 const services = [
     {
-        title: "WhatsApp Business Setup",
-        serviceType: "whatsapp",
-        desc: "Launch a polished profile customers can trust.",
-        bullets: ["Profile setup", "Catalog guidance", "Customer enquiry flow"],
-        price: 2000,
-        turnaround: "2-3 working days",
-        icon: MessageCircle,
+        title: "7-Day Free Trial",
+        desc: "Try ORVA with your real products before paying.",
+        bullets: ["Inventory upload", "Preview Studio", "Basic social content"],
+        price: 0,
+        turnaround: "Free for 7 days",
+        icon: Sparkles,
     },
     {
-        title: "Product Listing Setup",
-        serviceType: "listing",
-        desc: "Make products ready for online selling.",
-        bullets: ["Product copy", "Pricing structure", "Image readiness"],
-        price: 1999,
-        turnaround: "3-5 working days",
+        title: "Initial ORVA Setup",
+        desc: "Get your product workspace and first digital catalog ready.",
+        bullets: ["Inventory or photo onboarding", "AI matching", "Catalog preview setup"],
+        price: 2000,
+        turnaround: "One-time setup",
         icon: PackageCheck,
     },
     {
-        title: "Restaurant Zomato / Swiggy Listing",
-        serviceType: "restaurant",
-        desc: "Prepare your restaurant for delivery platforms.",
-        bullets: ["Menu structure", "Document checklist", "Listing inputs"],
-        price: 3499,
-        turnaround: "4-6 working days",
-        icon: Utensils,
+        title: "Catalog Management",
+        desc: "Human-assisted WhatsApp catalog and social channel update support.",
+        bullets: ["WhatsApp catalog support", "Manual channel updates", "Monthly cleanup"],
+        price: 7000,
+        turnaround: "Monthly",
+        icon: MessageCircle,
     },
     {
-        title: "Cloud Kitchen Launch Setup",
-        serviceType: "cloud_kitchen",
-        desc: "Get your cloud kitchen launch-ready.",
-        bullets: ["Kitchen profile", "Menu assets", "Delivery readiness"],
-        price: 4999,
-        turnaround: "5-7 working days",
-        icon: Store,
-    },
-    {
-        title: "Instagram Business Page Setup",
-        serviceType: "instagram",
-        desc: "Turn Instagram into a sharper business front.",
-        bullets: ["Bio optimization", "Highlight plan", "Contact setup"],
-        price: 2499,
-        turnaround: "3-4 working days",
-        icon: Camera,
-    },
-    {
-        title: "Website / Online Store Setup",
-        serviceType: "website",
-        desc: "Create a credible home for your business online.",
-        bullets: ["Essential pages", "Mobile-ready flow", "Lead or store CTA"],
-        price: 7999,
-        turnaround: "7-10 working days",
-        icon: Globe2,
+        title: "Advanced Automation",
+        desc: "Advanced campaigns, messaging workflows, and growth support.",
+        bullets: ["Campaign automation", "Advanced messaging", "Priority support"],
+        price: 15000,
+        turnaround: "Monthly",
+        icon: Zap,
     },
 ];
 
@@ -404,8 +381,8 @@ export function HomeLanding() {
                 <div className="absolute -right-24 bottom-10 -z-10 h-72 w-72 rounded-full bg-indigo-100/70 blur-3xl" />
                 <SectionHeader
                     eyebrow="Services & Pricing"
-                    title="Everything Your Business Needs To Go Digital"
-                    desc="Pick a service. Pay securely. Track the work."
+                    title="Start Free, Then Choose The Right ORVA Plan"
+                    desc="Every client gets 7 days free. After that, pricing is confirmed manually based on setup, catalog management, and automation needs."
                 />
 
                 <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -420,7 +397,7 @@ export function HomeLanding() {
                             <div className="relative flex items-start justify-between gap-4">
                                 <IconBadge icon={service.icon} />
                                 <span className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
-                                    Premium pricing
+                                    ORVA pricing
                                 </span>
                             </div>
 
@@ -436,7 +413,7 @@ export function HomeLanding() {
                                         {formatINR(service.price)}
                                     </p>
                                     <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm">
-                                        GST applicable
+                                    Manual approval
                                     </span>
                                 </div>
                                 <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
@@ -454,13 +431,10 @@ export function HomeLanding() {
                                 ))}
                             </div>
 
-                            <ServiceStartButton
-                                serviceType={service.serviceType}
-                                serviceTitle={service.title}
-                                included={service.bullets}
-                                turnaround={service.turnaround}
-                                className="mt-6"
-                            />
+                            <a href="/dashboard/onboarding" className="btn-primary mt-6 w-full justify-center">
+                                Start with ORVA
+                                <ArrowRight className="h-4 w-4" />
+                            </a>
                         </div>
                     ))}
                 </div>

@@ -68,30 +68,39 @@ for each row execute function public.orva_set_updated_at();
 insert into public.packages (name, slug, price_amount, billing_cycle, description, features, is_active)
 values
 (
-  'ORVA Inventory Ready',
-  'inventory-ready',
-  5999,
-  'yearly',
-  'For businesses that already have inventory list',
-  '["Upload inventory list","Upload product images","AI image-to-product matching","Product list creation","Instagram post preview","WhatsApp catalog preview","Facebook/Instagram/WhatsApp export options"]'::jsonb,
+  'ORVA Free Trial',
+  'free-trial',
+  0,
+  'one_time',
+  '7 days of ORVA access to try inventory upload, previews, and basic publishing',
+  '["7-day free trial","Inventory upload","Product photo + price flow","Preview Studio","Basic social content","Manual admin approval after trial"]'::jsonb,
   true
 ),
 (
-  'ORVA Photo-to-Inventory',
-  'photo-to-inventory',
-  7999,
-  'yearly',
-  'For businesses with only product photos and prices',
-  '["Upload product photos","Add price for each image","AI-generated product title","AI-generated description","Product list creation","Instagram post preview","WhatsApp catalog preview","Facebook/Instagram/WhatsApp export options"]'::jsonb,
+  'ORVA Initial Setup',
+  'initial-setup',
+  2000,
+  'one_time',
+  'For businesses starting their first ORVA catalog and product workspace',
+  '["Initial ORVA setup","Inventory list or photo + price onboarding","AI image-to-product matching","Product list creation","Store and social preview setup","Basic caption generation"]'::jsonb,
   true
 ),
 (
-  'Managed Social Maintenance',
-  'managed-social-maintenance',
-  4999,
+  'ORVA Catalog Management',
+  'catalog-management',
+  7000,
   'monthly',
-  'For clients who need worker help every month',
-  '["Product updates","Catalog updates","Social media content support","Worker-assisted maintenance"]'::jsonb,
+  'For businesses that want WhatsApp catalog management and manual social channel work',
+  '["WhatsApp catalog management","Manual Instagram and Facebook update support","Catalog cleanup","Product updates","Digital setup specialist support"]'::jsonb,
+  true
+),
+(
+  'ORVA Advanced Automation',
+  'advanced-automation',
+  15000,
+  'monthly',
+  'For businesses that want automated messaging, advanced campaigns, and growth features',
+  '["Advanced automation features","Automated campaign scheduling","Automated messaging support where available","Priority publishing support","Growth recommendations"]'::jsonb,
   true
 )
 on conflict (slug) do update
@@ -102,6 +111,10 @@ set
   description = excluded.description,
   features = excluded.features,
   is_active = excluded.is_active;
+
+update public.packages
+set is_active = false
+where slug in ('inventory-ready', 'photo-to-inventory', 'managed-social-maintenance');
 
 create index if not exists client_applications_client_id_idx on public.client_applications(client_id);
 create index if not exists client_applications_status_idx on public.client_applications(status);

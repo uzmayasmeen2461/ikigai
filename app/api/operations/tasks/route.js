@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAdmin, getAuthenticatedUser } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 const adminOnlyActions = new Set(["assign", "generate_payout", "mark_paid", "close"]);
 const workerStatuses = new Set(["started", "in_progress", "completed", "failed"]);
@@ -171,7 +172,7 @@ export async function POST(request) {
         priority: ["low", "medium", "high", "urgent"].includes(body.priority) ? body.priority : "medium",
         status: body.assigned_to ? "assigned" : "pending",
         assigned_to: body.assigned_to || null,
-        assigned_at: body.assigned_to ? new Date().toISOString() : null,
+        assigned_at: body.assigned_to ? nowISTISOString() : null,
         payout_amount: Math.max(0, Number(body.payout_amount || 0)),
         payout_status: "not_generated",
         old_value: {},
@@ -217,7 +218,7 @@ export async function PATCH(request) {
         return NextResponse.json({ error: "Only admin and assigned specialists can update operations tasks." }, { status: 403 });
     }
 
-    const now = new Date().toISOString();
+    const now = nowISTISOString();
     const fromStatus = task.status;
     const patch = { updated_at: now };
     let logAction = action;

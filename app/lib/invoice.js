@@ -1,5 +1,6 @@
 import { calculatePricing, getServicePricing } from "./pricing";
 import { BRAND } from "../../config/branding";
+import { nowISTISOString } from "./istDate";
 
 export const invoiceSupplierConfig = {
     legalName: process.env.IKIGAI_SUPPLIER_NAME || BRAND.companyName,
@@ -38,7 +39,7 @@ function hashId(value = "") {
 }
 
 export function createInvoiceNumber(taskId) {
-    const year = new Date().getFullYear();
+    const year = new Date(Date.now() + 5.5 * 60 * 60 * 1000).getUTCFullYear();
     const numericId = String(taskId || "").replace(/\D/g, "");
     const sequence = numericId.slice(-4) || String(hashId(taskId || Date.now())).slice(-4);
     return `IDG-${year}-${padInvoiceNumber(sequence || "1")}`;
@@ -148,7 +149,7 @@ function formatCurrency(amount = 0) {
 export function buildInvoiceData(task) {
     const service = getServicePricing(task.service_type);
     const fallbackPricing = calculatePricing(task.service_type);
-    const paidAt = task.paid_at || new Date().toISOString();
+    const paidAt = task.paid_at || nowISTISOString();
     const invoiceNumber = task.invoice_number || createInvoiceNumber(task.id);
     const invoiceUrl = task.invoice_url || invoiceUrlForTask(task.id);
 

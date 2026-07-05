@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createSupabaseServiceRole } from "./supabaseServer";
+import { nowISTISOString, toISTISOString } from "./istDate";
 
 export const connectionChannels = ["whatsapp", "instagram", "facebook"];
 export const safeConnectionFields = "id, channel, provider, external_account_name, status, created_at, updated_at";
@@ -60,7 +61,7 @@ export async function recordWhatsAppCatalogConnection(userId) {
                 waba_id: wabaId || null,
                 phone_number_id: phoneNumberId || null,
             },
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         }, { onConflict: "user_id,channel" })
         .select(safeConnectionFields)
         .single();
@@ -131,8 +132,8 @@ export async function beginFacebookLogin(userId, origin) {
             channel: facebookChannel,
             provider: facebookProvider,
             status: "connecting",
-            metadata: { oauth_state_nonce: nonce, oauth_state_expires_at: new Date(expiresAt).toISOString() },
-            updated_at: new Date().toISOString(),
+            metadata: { oauth_state_nonce: nonce, oauth_state_expires_at: toISTISOString(new Date(expiresAt)) },
+            updated_at: nowISTISOString(),
         }, { onConflict: "user_id,channel" });
     if (error) throw error;
 
@@ -179,7 +180,7 @@ export async function completeFacebookLogin({ code, state, origin }) {
         throw new Error("No manageable Facebook Page was found. Confirm pages_show_list and pages_manage_posts permissions, then reconnect.");
     }
     const tokenExpiresAt = token.expires_in
-        ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString()
+        ? toISTISOString(new Date(Date.now() + Number(token.expires_in) * 1000))
         : null;
 
     const { data: connection, error } = await supabase
@@ -197,7 +198,7 @@ export async function completeFacebookLogin({ code, state, origin }) {
                 facebook_page_name: page.name || null,
                 connected_pages_count: pages.data?.length || 1,
             },
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         })
         .eq("id", pending.id)
         .select(safeConnectionFields)
@@ -223,7 +224,7 @@ export async function completeFacebookLogin({ code, state, origin }) {
                     facebook_page_id: page.id,
                     facebook_page_name: page.name || null,
                 },
-                updated_at: new Date().toISOString(),
+                updated_at: nowISTISOString(),
             }, { onConflict: "user_id,channel" });
         if (instagramError) throw instagramError;
     } else {
@@ -244,7 +245,7 @@ export async function completeFacebookLogin({ code, state, origin }) {
                     facebook_page_name: page.name || null,
                     next_step: "Link an Instagram professional account to this Facebook Page, then reconnect Meta.",
                 },
-                updated_at: new Date().toISOString(),
+                updated_at: nowISTISOString(),
             }, { onConflict: "user_id,channel" });
         if (instagramError) throw instagramError;
     }
@@ -264,7 +265,7 @@ export async function markFacebookConnectionFailed(state, message) {
         .update({
             status: "failed",
             metadata: { reason: message || "facebook_oauth_failed" },
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         })
         .eq("user_id", payload.userId)
         .eq("channel", facebookChannel);
@@ -289,7 +290,7 @@ export async function recordPlaceholderConnection(userId, channel) {
                 reason: "provider_not_configured",
                 next_step: "Configure provider credentials and replace the placeholder route.",
             },
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         }, { onConflict: "user_id,channel" })
         .select(safeConnectionFields)
         .single();

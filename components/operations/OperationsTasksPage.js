@@ -40,6 +40,13 @@ const taskTemplates = [
         title: "Setup WhatsApp Business account",
         instructions: "Setup WhatsApp Business for the client, add profile details, business hours, catalog basics, greeting message, and quick replies.",
     },
+    {
+        value: "catalog_setup",
+        label: "Publish inventory to WhatsApp catalog",
+        channel: "whatsapp_catalog",
+        title: "Publish inventory to WhatsApp catalog",
+        instructions: "Review the client's ORVA products, prepare product images/names/prices/descriptions, and add or update them manually in the WhatsApp Business catalog. Add a completion note before marking done.",
+    },
 ];
 
 const blankTask = {

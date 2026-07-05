@@ -5,6 +5,7 @@ import {
     getAuthenticatedUser,
     hasSupabaseServiceRoleKey,
 } from "../../lib/supabaseServer";
+import { nowISTISOString } from "../../lib/istDate";
 
 const allowedStatuses = ["pending", "in_progress", "completed", "failed", "cancelled"];
 
@@ -68,12 +69,12 @@ export async function PATCH(request) {
 
     const patch = {
         status,
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
         completion_note: String(body.completion_note || task.completion_note || "").trim(),
     };
     if (status === "completed") {
         patch.completed_by = user.id;
-        patch.completed_at = new Date().toISOString();
+        patch.completed_at = nowISTISOString();
     }
 
     const { data, error } = await supabase.from("update_tasks").update(patch).eq("id", taskId).select("*, products(name, product_name, sku, product_code, price, stock, status, image_url)").single();

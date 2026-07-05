@@ -8,7 +8,7 @@ import {
 import { publishProductToFacebookPage } from "./facebookPage";
 import { publishProductToInstagram } from "./instagramPublishing";
 import { getClientSubscription } from "./onboarding";
-import { syncProductToWhatsAppCatalog } from "./whatsappCatalogSync";
+import { nowISTISOString } from "./istDate";
 
 function isMissingTable(error = {}) {
     const message = String(error.message || error.details || "");
@@ -35,7 +35,7 @@ function taskStatusFromSync(result) {
 async function insertSocialExport(supabase, values) {
     const { error } = await supabase.from("social_exports").insert({
         ...values,
-        created_at: new Date().toISOString(),
+        created_at: nowISTISOString(),
     });
     if (error && !isMissingTable(error)) throw error;
 }
@@ -44,9 +44,9 @@ async function updateChannelTasks(supabase, { userId, productId, channel, result
     const status = taskStatusFromSync(result);
     const patch = {
         status,
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
     };
-    if (status === "completed") patch.completed_at = new Date().toISOString();
+    if (status === "completed") patch.completed_at = nowISTISOString();
 
     const { error } = await supabase
         .from("update_tasks")
@@ -78,7 +78,7 @@ async function saveGeneratedUpdateContent(supabase, { userId, product, change })
         facebook_category: product.category || "",
         status: autoPublishSocialUpdates() ? "ready" : "draft",
         created_by: userId,
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
     };
 
     const { data, error } = await supabase
@@ -101,50 +101,6 @@ async function loadConnection(supabase, userId, channel) {
 
     if (error && !isMissingTable(error)) throw error;
     return data || null;
-}
-
-async function syncWhatsAppCatalog(supabase, { userId, product }) {
-    try {
-        const { data: previousExport } = await supabase
-            .from("social_exports")
-            .select("id, external_post_id")
-            .eq("user_id", userId)
-            .eq("product_id", product.id)
-            .eq("channel", "whatsapp_catalog")
-            .eq("status", "published")
-            .not("external_post_id", "is", null)
-            .limit(1)
-            .maybeSingle();
-
-        const previousExternalProductId = String(previousExport?.external_post_id || "");
-        const canUpdateExistingProduct = /^\d+$/.test(previousExternalProductId);
-        const result = await syncProductToWhatsAppCatalog({
-            product,
-            mockMode: metaMockMode(),
-            method: canUpdateExistingProduct ? "UPDATE" : "CREATE",
-            externalProductId: canUpdateExistingProduct ? previousExternalProductId : "",
-        });
-
-        await insertSocialExport(supabase, {
-            user_id: userId,
-            product_id: product.id,
-            channel: "whatsapp_catalog",
-            status: "published",
-            external_post_id: result.externalProductId,
-            error_message: null,
-        });
-        return { ok: true, externalId: result.externalProductId };
-    } catch (error) {
-        await insertSocialExport(supabase, {
-            user_id: userId,
-            product_id: product.id,
-            channel: "whatsapp_catalog",
-            status: "failed",
-            external_post_id: null,
-            error_message: error.message,
-        });
-        return { ok: false, error: error.message };
-    }
 }
 
 async function publishSocialUpdate(supabase, { userId, product, channel }) {
@@ -201,9 +157,6 @@ export async function runDynamicProductSync(supabase, { userId, before = null, a
             },
         };
     }
-
-    channels.whatsapp_catalog = await syncWhatsAppCatalog(supabase, { userId, product: after });
-    await updateChannelTasks(supabase, { userId, productId: after.id, channel: "whatsapp_catalog", result: channels.whatsapp_catalog });
 
     channels.online_store = { ok: true, externalId: after.id };
     await updateChannelTasks(supabase, { userId, productId: after.id, channel: "online_store", result: channels.online_store });

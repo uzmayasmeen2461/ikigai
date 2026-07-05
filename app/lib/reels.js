@@ -67,7 +67,9 @@ export const reelPlanLimits = {
     "managed-social-maintenance": 50,
 };
 
-export function getCurrentMonthKey(date = new Date()) {
+import { istNow } from "./istDate";
+
+export function getCurrentMonthKey(date = istNow()) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 

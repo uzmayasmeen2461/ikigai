@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseUserClient, getAuthenticatedUser, getUserRole } from "../../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -71,7 +72,7 @@ export async function POST(request, { params }) {
         await access.supabase.from("inventory_photo_batches").update({ status: "submitted_for_review" }).eq("task_id", taskId);
         await access.supabase.from("tasks").update({
             status: "submitted_for_review",
-            submitted_at: new Date().toISOString(),
+            submitted_at: nowISTISOString(),
             notes: body.notes || "Inventory conversion submitted for review.",
         }).eq("id", taskId);
 
@@ -103,6 +104,6 @@ export async function POST(request, { params }) {
 
     if (error) return NextResponse.json({ error: error.message || "Could not save product row." }, { status: 500 });
 
-    await access.supabase.from("tasks").update({ status: "in_progress", started_at: new Date().toISOString() }).eq("id", taskId);
+    await access.supabase.from("tasks").update({ status: "in_progress", started_at: nowISTISOString() }).eq("id", taskId);
     return NextResponse.json({ item: data }, { status: 201 });
 }

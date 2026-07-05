@@ -55,6 +55,20 @@ set
     file_size_limit = 209715200,
     allowed_mime_types = array['video/mp4', 'video/quicktime', 'video/webm'];
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+    'product-audio',
+    'product-audio',
+    true,
+    26214400,
+    array['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/x-wav', 'audio/ogg']
+)
+on conflict (id) do update
+set
+    public = true,
+    file_size_limit = 26214400,
+    allowed_mime_types = array['audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/x-wav', 'audio/ogg'];
+
 alter table public.social_exports drop constraint if exists social_exports_channel_check;
 alter table public.social_exports
     add constraint social_exports_channel_check

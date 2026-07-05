@@ -3,6 +3,7 @@ import { requireActiveSubscription } from "../../../../lib/onboarding";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../../lib/supabaseServer";
 import { uploadToCloudinary } from "../../../../lib/uploadToCloudinary";
 import { syncProductToWhatsAppCatalog } from "../../../../lib/whatsappCatalogSync";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 export const runtime = "nodejs";
 
@@ -56,7 +57,7 @@ export async function POST(request) {
             const { url } = await uploadToCloudinary(buffer, {
                 tags: [`product-${product.id}`, `user-${user.id}`, "whatsapp-catalog"],
             });
-            const now = new Date().toISOString();
+            const now = nowISTISOString();
             const { error: updateError } = await supabase
                 .from("products")
                 .update({ cleaned_image_url: url, updated_at: now })
@@ -102,9 +103,9 @@ export async function POST(request) {
         await supabase
             .from("products")
             .update({
-                last_promoted_at: new Date().toISOString(),
+                last_promoted_at: nowISTISOString(),
                 promotion_count: Number(product.promotion_count || 0) + 1,
-                updated_at: new Date().toISOString(),
+                updated_at: nowISTISOString(),
             })
             .eq("id", product.id);
         return NextResponse.json({

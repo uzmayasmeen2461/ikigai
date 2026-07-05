@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clientForRequest, requireUser, roleForUser } from "../../../_shared";
+import { nowISTISOString } from "../../../../../lib/istDate";
 
 const allowedActions = new Set(["dismiss", "mark_completed", "generate_content", "open_preview"]);
 
@@ -36,7 +37,7 @@ export async function POST(request, { params }) {
         const status = action === "dismiss" ? "dismissed" : "completed";
         const { data, error } = await supabase
             .from("inventory_recommendations")
-            .update({ status, updated_at: new Date().toISOString() })
+            .update({ status, updated_at: nowISTISOString() })
             .eq("id", params.id)
             .select("*")
             .single();

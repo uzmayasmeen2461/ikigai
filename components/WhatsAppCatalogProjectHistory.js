@@ -400,7 +400,7 @@ export function WhatsAppCatalogProjectHistory({ role = "partner" }) {
             partner_id: role === "admin" ? project.partner_id || null : user.id,
             project_type: project.task_id ? "client_task" : "internal",
             created_by: user.id,
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         };
 
         const { data, error } = await supabase

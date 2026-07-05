@@ -3,7 +3,9 @@ import { createSupabaseServiceRole, hasSupabaseServiceRoleKey } from "./supabase
 
 const defaultBucket = "product-images";
 const defaultVideoBucket = "product-videos";
+const defaultAudioBucket = "product-audio";
 export const maxProductVideoBytes = 200 * 1024 * 1024;
+export const maxProductAudioBytes = 25 * 1024 * 1024;
 
 function bucketName() {
     return process.env.SUPABASE_PRODUCT_IMAGE_BUCKET || defaultBucket;
@@ -13,7 +15,16 @@ function videoBucketName() {
     return process.env.SUPABASE_PRODUCT_VIDEO_BUCKET || defaultVideoBucket;
 }
 
+function audioBucketName() {
+    return process.env.SUPABASE_PRODUCT_AUDIO_BUCKET || defaultAudioBucket;
+}
+
 function extensionFromMime(mimeType = "") {
+    if (mimeType.includes("mpeg")) return "mp3";
+    if (mimeType.includes("aac")) return "aac";
+    if (mimeType.includes("wav")) return "wav";
+    if (mimeType.includes("ogg")) return "ogg";
+    if (mimeType.includes("mp4") && mimeType.startsWith("audio/")) return "m4a";
     if (mimeType.includes("png")) return "png";
     if (mimeType.includes("webp")) return "webp";
     if (mimeType.includes("gif")) return "gif";
@@ -69,6 +80,29 @@ async function ensureVideoBucket(supabase, bucket) {
         public: true,
         fileSizeLimit: maxProductVideoBytes,
         allowedMimeTypes: ["video/mp4", "video/quicktime", "video/webm"],
+    });
+
+    if (error && !String(error.message || "").toLowerCase().includes("already exists")) {
+        throw error;
+    }
+}
+
+async function ensureAudioBucket(supabase, bucket) {
+    const allowedMimeTypes = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/aac", "audio/wav", "audio/x-wav", "audio/ogg"];
+    const { data } = await supabase.storage.getBucket(bucket);
+    if (data?.id || data?.name) {
+        await supabase.storage.updateBucket(bucket, {
+            public: true,
+            fileSizeLimit: maxProductAudioBytes,
+            allowedMimeTypes,
+        });
+        return;
+    }
+
+    const { error } = await supabase.storage.createBucket(bucket, {
+        public: true,
+        fileSizeLimit: maxProductAudioBytes,
+        allowedMimeTypes,
     });
 
     if (error && !String(error.message || "").toLowerCase().includes("already exists")) {
@@ -157,6 +191,40 @@ export async function uploadProductVideoBuffer(buffer, { contentType = "video/we
     if (error) {
         if (String(error.message || "").toLowerCase().includes("exceeded")) {
             throw new Error("The video is larger than the current Supabase bucket limit. Increase the product-videos bucket file size limit to 200MB, then try again.");
+        }
+        throw error;
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+}
+
+export async function uploadProductAudioBuffer(buffer, { contentType = "audio/mpeg", userId, productId = "", label = "reel-audio" } = {}) {
+    if (!hasSupabaseServiceRoleKey()) {
+        throw new Error("SUPABASE_SERVICE_ROLE_KEY is required to upload reel audio.");
+    }
+    if (!buffer?.length) throw new Error("Could not read the uploaded audio.");
+    if (buffer.length > maxProductAudioBytes) throw new Error("Audio is larger than 25MB. Please upload a smaller music file.");
+
+    const supabase = createSupabaseServiceRole();
+    const bucket = audioBucketName();
+    await ensureAudioBucket(supabase, bucket);
+
+    const safeLabel = String(label || "reel-audio").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "reel-audio";
+    const extension = extensionFromMime(contentType);
+    const path = [
+        userId || "public",
+        productId || randomUUID(),
+        `${safeLabel}-${Date.now()}.${extension}`,
+    ].join("/");
+
+    const { error } = await supabase.storage.from(bucket).upload(path, buffer, {
+        contentType,
+        upsert: true,
+    });
+    if (error) {
+        if (String(error.message || "").toLowerCase().includes("exceeded")) {
+            throw new Error("The audio is larger than the current Supabase bucket limit. Increase the product-audio bucket file size limit to 25MB, then try again.");
         }
         throw error;
     }

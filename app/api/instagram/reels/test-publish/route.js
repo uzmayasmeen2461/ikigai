@@ -3,6 +3,7 @@ import { publishProductReelToInstagram } from "../../../../lib/instagramPublishi
 import { requireActiveSubscription } from "../../../../lib/onboarding";
 import { publicProductMediaFields } from "../../../../lib/productImageStorage";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 async function saveExport(supabase, values) {
     const { data, error } = await supabase.from("social_exports").insert(values).select("*").single();
@@ -86,7 +87,7 @@ export async function POST(request) {
         if (product.id && publishProduct.reel_video_url !== product.reel_video_url) {
             await supabase
                 .from("products")
-                .update({ reel_video_url: publishProduct.reel_video_url, updated_at: new Date().toISOString() })
+                .update({ reel_video_url: publishProduct.reel_video_url, updated_at: nowISTISOString() })
                 .eq("id", product.id);
         }
     } catch (mediaError) {
@@ -123,7 +124,7 @@ export async function POST(request) {
         } catch (trackingError) {
             warning = `Instagram Reel was published, but ORVA could not save the export record. Run scripts/orva-reel-content-studio.sql in Supabase. ${trackingError.message || ""}`.trim();
         }
-        if (product.id) await supabase.from("products").update({ reel_status: "published", updated_at: new Date().toISOString() }).eq("id", product.id);
+        if (product.id) await supabase.from("products").update({ reel_status: "published", updated_at: nowISTISOString() }).eq("id", product.id);
         return NextResponse.json({ message: "Instagram Reel published successfully.", export: socialExport, warning }, { status: 201 });
     } catch (error) {
         try {
@@ -137,7 +138,7 @@ export async function POST(request) {
                 external_post_id: null,
                 error_message: error.message,
             });
-            if (product.id) await supabase.from("products").update({ reel_status: "failed", updated_at: new Date().toISOString() }).eq("id", product.id);
+            if (product.id) await supabase.from("products").update({ reel_status: "failed", updated_at: nowISTISOString() }).eq("id", product.id);
         } catch {}
         return NextResponse.json({
             error: error.message || "Instagram Reel publishing requires an Instagram Business/Creator account connected to a Facebook Page and proper Meta permissions. You can still copy the caption and publish manually.",

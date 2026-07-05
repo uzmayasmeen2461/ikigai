@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseUserClient, getAuthenticatedUser, getUserRole } from "../../../../../lib/supabaseServer";
 import { normalizeInventoryStatus } from "../../../../../lib/inventory";
 import { insertUpdateTasks, tasksForNewProduct } from "../../../../../lib/updateTasks";
+import { nowISTISOString } from "../../../../../lib/istDate";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -44,7 +45,7 @@ export async function POST(request, { params }) {
 
     await supabase.from("inventory_conversion_items").update({ status: "approved" }).eq("task_id", taskId);
     await supabase.from("inventory_photo_batches").update({ status: "approved" }).eq("task_id", taskId);
-    await supabase.from("tasks").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", taskId);
+    await supabase.from("tasks").update({ status: "completed", completed_at: nowISTISOString() }).eq("id", taskId);
 
     let updateTaskWarning = "";
     try {

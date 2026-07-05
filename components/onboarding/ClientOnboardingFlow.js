@@ -16,14 +16,14 @@ const flowCards = [
         icon: FileSpreadsheet,
         title: "I have inventory list",
         subtitle: "Upload Excel/CSV and product images. ORVA will match images and generate content.",
-        cta: "Choose Inventory Ready Plan",
+        cta: "Choose Initial Setup",
     },
     {
         flow: "photo_to_inventory",
         icon: ImageIcon,
         title: "I only have product photos + prices",
         subtitle: "Upload product photos, add prices, and let ORVA create inventory.",
-        cta: "Choose Photo-to-Inventory Plan",
+        cta: "Choose Initial Setup",
     },
 ];
 
@@ -66,7 +66,7 @@ function useToken() {
 }
 
 function packageForFlow(packages, flow) {
-    const slug = flow === "photo_to_inventory" ? "photo-to-inventory" : "inventory-ready";
+    const slug = "initial-setup";
     return packages.find((item) => item.slug === slug);
 }
 
@@ -112,7 +112,9 @@ export function ClientOnboardingFlow({ showActiveInventory = false }) {
         wants_managed_service: false,
     });
 
+    const isTrial = subscription?.packages?.slug === "free-trial" || subscription?.package_slug === "free-trial";
     const active = Boolean(subscription);
+    const paidActive = active && !isTrial;
     const selectedPackage = useMemo(() => packageForFlow(packages, selectedFlow || application?.selected_flow), [application, packages, selectedFlow]);
 
     const load = useCallback(async () => {
@@ -169,10 +171,20 @@ export function ClientOnboardingFlow({ showActiveInventory = false }) {
 
     return (
         <AuthGate allowedRoles="client">
-            <DashboardShell role="client" eyebrow="Onboarding" title={active ? "ORVA is active" : "Start ORVA"} description="Choose your setup and submit your application. Once admin approves it, your ORVA workspace opens.">
+            <DashboardShell role="client" eyebrow="Onboarding" title={paidActive ? "ORVA is active" : isTrial ? "Free trial active" : "Start ORVA"} description="Start with 7 days free. After trial, submit your setup request and ORVA admin will confirm pricing manually.">
                 <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
 
-                {active ? (
+                {isTrial ? (
+                    <section className="dashboard-panel mb-5 p-5">
+                        <SectionHeading title="Your 7-day free trial is active" description={`Trial access${subscription?.end_date ? ` until ${formatStableDate(subscription.end_date)}` : ""}. You can use ORVA now and submit your paid setup request anytime.`} />
+                        <div className="mt-4 flex flex-wrap gap-3">
+                            <Link href="/dashboard/upload-inventory" className="btn-primary"><Upload className="h-4 w-4" />Use ORVA now</Link>
+                            <Link href="/pricing" className="btn-secondary">View pricing</Link>
+                        </div>
+                    </section>
+                ) : null}
+
+                {paidActive ? (
                     <EmptyState
                         title="Your ORVA account is active"
                         description={`Subscription active${subscription?.end_date ? ` until ${formatStableDate(subscription.end_date)}` : ""}. You can now upload inventory, preview, and publish.`}
@@ -185,7 +197,7 @@ export function ClientOnboardingFlow({ showActiveInventory = false }) {
                             <StatusTimeline status={application.status} />
                             <div className="mt-5 rounded-xl border border-[var(--border)] bg-white p-4">
                                 <p className="text-sm font-bold">{application.packages?.name || selectedPackage?.name}</p>
-                                <p className="mt-1 text-sm text-[var(--mid)]">{amountLabel(application.packages?.price_amount || selectedPackage?.price_amount)} / year</p>
+                                <p className="mt-1 text-sm text-[var(--mid)]">{amountLabel(application.packages?.price_amount || selectedPackage?.price_amount)} {application.packages?.billing_cycle === "monthly" ? "/ month" : "one-time"}</p>
                                 <span className="dashboard-badge badge-blue mt-3">{onboardingStatusLabels[application.status] || application.status}</span>
                             </div>
                         </section>
@@ -198,15 +210,15 @@ export function ClientOnboardingFlow({ showActiveInventory = false }) {
                 ) : selectedFlow ? (
                     <div className="grid gap-6">
                         <section className="dashboard-panel p-6">
-                            <SectionHeading title="Confirm package" description="Choose managed support only if you want monthly specialist help." />
+                            <SectionHeading title="Confirm package" description="Start with ORVA setup. Managed catalog and advanced automation can be confirmed manually after review." />
                             <div className="rounded-xl border border-[var(--border)] bg-white p-5">
                                 <p className="text-xl font-bold">{selectedPackage?.name}</p>
-                                <p className="mt-2 text-3xl font-bold text-[var(--accent)]">{amountLabel(selectedPackage?.price_amount)}<span className="text-sm text-[var(--mid)]"> / year</span></p>
+                                <p className="mt-2 text-3xl font-bold text-[var(--accent)]">{amountLabel(selectedPackage?.price_amount)}<span className="text-sm text-[var(--mid)]"> one-time</span></p>
                                 <p className="mt-2 text-sm text-[var(--mid)]">{selectedPackage?.description}</p>
                                 <div className="mt-4 grid gap-2 sm:grid-cols-2">{(selectedPackage?.features || []).map((feature) => <p key={feature} className="flex gap-2 text-sm"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />{feature}</p>)}</div>
                                 <label className="mt-5 flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm font-semibold">
                                     <input type="checkbox" checked={form.wants_managed_service} onChange={(event) => setForm({ ...form, wants_managed_service: event.target.checked })} className="mt-1 h-4 w-4" />
-                                    I also need monthly managed social media maintenance, starting ₹4,999/month.
+                                    I also need WhatsApp catalog management and manual social channel work, starting ₹7,000/month.
                                 </label>
                             </div>
                         </section>
@@ -240,7 +252,7 @@ export function ClientOnboardingFlow({ showActiveInventory = false }) {
                                     <Icon className="h-8 w-8 text-[var(--accent)]" />
                                     <h2 className="mt-5 text-2xl font-bold">{card.title}</h2>
                                     <p className="mt-2 text-sm leading-6 text-[var(--mid)]">{card.subtitle}</p>
-                                    <p className="mt-5 text-xl font-bold text-[var(--accent)]">{amountLabel(pack?.price_amount)} / year</p>
+                                    <p className="mt-5 text-xl font-bold text-[var(--accent)]">{amountLabel(pack?.price_amount)} one-time</p>
                                     <span className="btn-primary mt-5 inline-flex">{card.cta}</span>
                                 </button>
                             );

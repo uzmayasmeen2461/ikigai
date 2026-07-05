@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     AlertTriangle,
     Camera,
+    CalendarDays,
     CheckCircle2,
     CloudUpload,
     Copy,
@@ -13,7 +14,6 @@ import {
     Film,
     FileSpreadsheet,
     ImageIcon,
-    Lightbulb,
     Loader2,
     Package,
     Pencil,
@@ -28,14 +28,14 @@ import {
 } from "lucide-react";
 import { supabase } from "../../app/lib/supabase";
 import { formatINR } from "../../app/lib/pricing";
-import { buildFacebookPageCaption, buildInstagramCaption, buildWhatsAppText, formatInventoryStatus, productCode, productName, productStock } from "../../app/lib/inventory";
+import { buildFacebookPageCaption, buildInstagramCaption, formatInventoryStatus, productCode, productName, productStock } from "../../app/lib/inventory";
 import { formatStableDateTime } from "../../app/lib/stableDate";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
 
 const channels = [
-    { id: "whatsapp", name: "WhatsApp Business", description: "Prepare your catalog for customer conversations.", icon: Send },
+    { id: "whatsapp", name: "WhatsApp Business", description: "Prepare catalog-ready product text and images for manual WhatsApp setup.", icon: Send },
     { id: "instagram", name: "Instagram Business", description: "Keep products ready for posts and product highlights.", icon: Camera },
     { id: "facebook", name: "Facebook Page", description: "Prepare listings for your Facebook audience.", icon: ShoppingBag },
     { id: "online_store", name: "Online Store Preview", description: "Keep your shareable storefront preview current.", icon: Package },
@@ -109,8 +109,16 @@ function ChannelLogo({ channel }) {
 
 function publishCopyForChannel(channel, product = {}) {
     if (channel === "instagram") return buildInstagramCaption(product);
-    if (channel === "whatsapp") return buildWhatsAppText(product);
     return buildFacebookPageCaption(product);
+}
+
+function hasOpenWhatsAppCatalogRequest(tasks = []) {
+    const openStatuses = new Set(["pending", "assigned", "started", "in_progress", "completed", "payout_generated", "payout_paid", "payment_confirmed"]);
+    return tasks.some((task) =>
+        task.channel === "whatsapp_catalog" &&
+        task.task_type === "catalog_setup" &&
+        openStatuses.has(task.status || "pending")
+    );
 }
 
 async function loadSavedPublishCopy(getToken, productId, channel) {
@@ -134,29 +142,13 @@ async function savePublishCopy(getToken, productId, channel, copy) {
     return { ok: response.ok, ...result };
 }
 
-async function syncWhatsAppCatalogProduct(getToken, { productId, caption = "", imageFile = null }) {
+async function requestWhatsAppCatalogSetup(getToken, productIds = []) {
     const token = await getToken();
-    let response;
-
-    if (imageFile) {
-        const formData = new FormData();
-        formData.append("productId", productId);
-        formData.append("caption", caption);
-        formData.append("image", imageFile);
-
-        response = await fetch("/api/whatsapp/catalog/sync-product", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
-        });
-    } else {
-        response = await fetch("/api/whatsapp/catalog/sync-product", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ productId, caption }),
-        });
-    }
-
+    const response = await fetch("/api/operations/whatsapp-catalog-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ productIds }),
+    });
     const result = await readJson(response);
     return { ok: response.ok, ...result };
 }
@@ -178,7 +170,8 @@ export function MvpDashboard() {
     const [editingCopy, setEditingCopy] = useState(false);
     const [writingAI, setWritingAI] = useState(false);
     const [savingCaption, setSavingCaption] = useState(false);
-    const [publishImageFile, setPublishImageFile] = useState(null);
+    const [requestingWhatsApp, setRequestingWhatsApp] = useState(false);
+    const [whatsappRequested, setWhatsappRequested] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -201,6 +194,7 @@ export function MvpDashboard() {
         setProducts(productResult.products || []);
         setConnections(connectionResult.connections || []);
         setUpdateTasks(taskResult.tasks || []);
+        setWhatsappRequested(hasOpenWhatsAppCatalogRequest(taskResult.tasks || []));
         setOnboarding(onboardingResponse.ok ? onboardingResult : { active: false });
         setLoading(false);
     }, [getToken]);
@@ -218,25 +212,15 @@ export function MvpDashboard() {
             endpoint: "/api/instagram/publish-product",
             note: "Publish one reviewed image post to the connected Instagram professional account.",
         }
-        : publishChannel === "whatsapp"
-            ? {
-                eyebrow: "WhatsApp Catalog Export",
-                title: "Review WhatsApp catalog product",
-                copy: publishCopyForChannel(publishChannel, publishProduct || {}),
-                copyLabel: "Copy Product Text",
-                actionLabel: "Export to WhatsApp",
-                endpoint: "/api/whatsapp/catalog/sync-product",
-                note: "This sends one reviewed product to the configured WhatsApp Commerce catalog. Copy text remains available as a fallback.",
-            }
-            : {
-                eyebrow: "Facebook Page",
-                title: "Review Facebook post",
-                copy: publishCopyForChannel(publishChannel, publishProduct || {}),
-                copyLabel: "Copy Caption",
-                actionLabel: "Publish Facebook",
-                endpoint: "/api/facebook/page/publish-product",
-                note: "Publish one reviewed post to the connected Facebook Page.",
-            };
+        : {
+            eyebrow: "Facebook Page",
+            title: "Review Facebook post",
+            copy: publishCopyForChannel(publishChannel, publishProduct || {}),
+            copyLabel: "Copy Caption",
+            actionLabel: "Publish Facebook",
+            endpoint: "/api/facebook/page/publish-product",
+            note: "Publish one reviewed post to the connected Facebook Page.",
+        };
     const stats = [
         { label: "Total products", value: products.length, icon: Package, accent: "bg-[var(--accent)]" },
         { label: "Ready to publish", value: products.filter((product) => productName(product) && product.price).length, icon: CheckCircle2, accent: "bg-emerald-500" },
@@ -252,7 +236,6 @@ export function MvpDashboard() {
         const fallback = publishCopyForChannel(channel, product);
         setEditedCopy(fallback);
         setEditingCopy(false);
-        setPublishImageFile(null);
         const saved = await loadSavedPublishCopy(getToken, product.id, channel);
         if (saved.ok && saved.copy) {
             setEditedCopy(saved.copy);
@@ -302,23 +285,6 @@ export function MvpDashboard() {
 
     const publishSelectedProduct = async () => {
         if (!publishProduct) return;
-        if (publishChannel === "whatsapp") {
-            setPublishing(true);
-            const result = await syncWhatsAppCatalogProduct(getToken, {
-                productId: publishProduct.id,
-                caption: editedCopy || publishDetails.copy,
-                imageFile: publishImageFile,
-            });
-            setPublishing(false);
-            if (!result.ok) {
-                return setMessage({ type: "error", text: result.error || "Could not export this product to WhatsApp catalog." });
-            }
-            setPublishProduct(null);
-            setPublishImageFile(null);
-            setMessage({ type: "success", text: result.message || "Product exported to WhatsApp catalog successfully." });
-            load();
-            return;
-        }
         setPublishing(true);
         const token = await getToken();
         const response = await fetch(publishDetails.endpoint, {
@@ -331,6 +297,15 @@ export function MvpDashboard() {
         if (!response.ok) return setMessage({ type: "error", text: result.error || "Could not publish this product. Copy the prepared text and complete the update manually." });
         setPublishProduct(null);
         setMessage({ type: "success", text: result.message || "Product published successfully." });
+    };
+
+    const requestWhatsAppCatalog = async () => {
+        setRequestingWhatsApp(true);
+        const result = await requestWhatsAppCatalogSetup(getToken);
+        setRequestingWhatsApp(false);
+        if (!result.ok) return setMessage({ type: "error", text: result.error || "Could not create WhatsApp catalog task." });
+        setWhatsappRequested(true);
+        setMessage({ type: "success", text: result.message || "WhatsApp catalog task created for admin review." });
     };
 
     return (
@@ -349,13 +324,14 @@ export function MvpDashboard() {
                         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map((stat) => <StatCard key={stat.label} {...stat} />)}</section>
 
                         <section className="dashboard-panel p-5">
-                            <div className="grid gap-3 md:grid-cols-5">
+                            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                                 {[
                                     { step: "1", title: "Add inventory", detail: "Upload CSV, or send product photos with prices.", action: "Start here", href: "/dashboard/upload-inventory", icon: CloudUpload },
                                     { step: "2", title: "Review products", detail: "Check price, stock, image, and status.", action: "Manage products", href: "/dashboard/products", icon: Package },
-                                    { step: "3", title: "Know what to promote", detail: "See low stock, missing images, and ready products.", action: "Open Intelligence", href: "/dashboard/inventory-intelligence", icon: Lightbulb },
-                                    { step: "4", title: "Create reels", detail: "Upload a video or create a reel from product images.", action: "Open Reel Studio", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film },
-                                    { step: "5", title: "Preview & publish", detail: "Choose one product and publish after review.", action: `${connectedChannels || 0} channels connected`, href: "/dashboard/connections", icon: Send },
+                                    { step: "3", title: "Growth Assistant", detail: "Get today’s best product, offers, and weekly plan.", action: "Open Growth", href: "/dashboard/growth-assistant", icon: Sparkles },
+                                    { step: "4", title: "Growth Autopilot", detail: "Prepare posts and reminders for the week.", action: "Plan week", href: "/dashboard/growth-autopilot", icon: CalendarDays },
+                                    { step: "5", title: "Create reels", detail: "Upload a video or create a reel from product images.", action: "Open Reel Studio", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film },
+                                    { step: "6", title: "Preview & publish", detail: "Choose one product and publish after review.", action: `${connectedChannels || 0} channels connected`, href: "/dashboard/connections", icon: Send },
                                 ].map((item) => {
                                     const Icon = item.icon;
                                     return <Link key={item.title} href={item.href} className="interactive-tile rounded-xl border border-[var(--border)] bg-white p-4 transition hover:border-[var(--accent)]">
@@ -436,9 +412,9 @@ export function MvpDashboard() {
                                     <section className="dashboard-panel p-5">
                                         <SectionHeading title="Publish selected product" description="Review the copy before anything goes live." />
                                         <div className="mt-4 grid gap-2">
-                                            <button type="button" className="btn-secondary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "whatsapp")}><ChannelLogo channel="whatsapp" />WhatsApp Export</button>
                                             <button type="button" className="btn-secondary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "instagram")}><Camera className="h-4 w-4" />Instagram Post</button>
                                             <button type="button" className="btn-primary justify-center" disabled={!selectedProduct || !onboarding.active} onClick={() => openPublisher(selectedProduct, "facebook")}><ShoppingBag className="h-4 w-4" />Facebook Page</button>
+                                            <button type="button" className="btn-secondary justify-center" disabled={!products.length || !onboarding.active || requestingWhatsApp || whatsappRequested} onClick={requestWhatsAppCatalog}>{requestingWhatsApp ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChannelLogo channel="whatsapp" />}{whatsappRequested ? "WhatsApp Catalog Requested" : "Request WhatsApp Catalog Setup"}</button>
                                         </div>
                                     </section>
                                 </div>
@@ -471,18 +447,6 @@ export function MvpDashboard() {
                                 <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
                                     <div className="space-y-3">
                                         {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
-                                        {publishChannel === "whatsapp" ? (
-                                            <label className="block rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-3 text-xs font-semibold text-[var(--mid)]">
-                                                Optional WhatsApp image
-                                                <input
-                                                    type="file"
-                                                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                                                    className="mt-2 block w-full text-xs"
-                                                    onChange={(event) => setPublishImageFile(event.target.files?.[0] || null)}
-                                                />
-                                                {publishImageFile ? <span className="mt-1 block text-[var(--accent)]">{publishImageFile.name}</span> : null}
-                                            </label>
-                                        ) : null}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold">{productName(publishProduct)}</h3>
@@ -534,20 +498,23 @@ export function ProductsPage() {
     const [editingCopy, setEditingCopy] = useState(false);
     const [writingAI, setWritingAI] = useState(false);
     const [savingCaption, setSavingCaption] = useState(false);
-    const [publishImageFile, setPublishImageFile] = useState(null);
+    const [requestingWhatsApp, setRequestingWhatsApp] = useState(false);
+    const [whatsappRequested, setWhatsappRequested] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
         const token = await getToken();
         const headers = { Authorization: `Bearer ${token}` };
-        const [response, onboardingResponse] = await Promise.all([
+        const [response, onboardingResponse, tasksResponse] = await Promise.all([
             fetch("/api/inventory", { headers }),
             fetch("/api/onboarding/application", { headers }),
+            fetch("/api/update-tasks", { headers }),
         ]);
-        const [result, onboardingResult] = await Promise.all([readJson(response), readJson(onboardingResponse)]);
+        const [result, onboardingResult, tasksResult] = await Promise.all([readJson(response), readJson(onboardingResponse), readJson(tasksResponse)]);
         const nextProducts = result.products || [];
         setProducts(nextProducts);
         setOnboarding(onboardingResponse.ok ? onboardingResult : { active: false });
+        setWhatsappRequested(tasksResponse.ok ? hasOpenWhatsAppCatalogRequest(tasksResult.tasks || []) : false);
         setSelectedProductIds((current) => current.filter((id) => nextProducts.some((product) => product.id === id)));
         setError(response.ok ? "" : result.error || "Could not load products.");
         setLoading(false);
@@ -626,6 +593,20 @@ export function ProductsPage() {
         );
     };
 
+    const requestWhatsAppCatalog = async () => {
+        setRequestingWhatsApp(true);
+        const result = await requestWhatsAppCatalogSetup(getToken, selectedProductIds);
+        setRequestingWhatsApp(false);
+        if (!result.ok) return setMessage({ type: "error", text: result.error || "Could not create WhatsApp catalog task." });
+        setWhatsappRequested(true);
+        setMessage({
+            type: "success",
+            text: selectedProductIds.length
+                ? `WhatsApp catalog task created for ${selectedProductIds.length} selected product${selectedProductIds.length === 1 ? "" : "s"}.`
+                : result.message || "WhatsApp catalog task created for admin review.",
+        });
+    };
+
     const publishDetails = publishChannel === "instagram"
         ? {
             eyebrow: "Instagram Post Export",
@@ -636,25 +617,15 @@ export function ProductsPage() {
             endpoint: "/api/instagram/publish-product",
             note: "This publishes one reviewed image post to the Instagram professional account linked to your connected Facebook Page.",
         }
-        : publishChannel === "whatsapp"
-            ? {
-                eyebrow: "WhatsApp Catalog Export",
-                title: "Review WhatsApp catalog product",
-                copy: publishCopyForChannel(publishChannel, facebookProduct || {}),
-                copyLabel: "Copy Product Text",
-                actionLabel: "Export to WhatsApp",
-                endpoint: "/api/whatsapp/catalog/sync-product",
-                note: "This sends one reviewed product to the configured WhatsApp Commerce catalog. Copy text remains available as a fallback.",
-            }
-            : {
-                eyebrow: "Facebook Page Export",
-                title: "Preview Facebook post",
-                copy: publishCopyForChannel(publishChannel, facebookProduct || {}),
-                copyLabel: "Copy Caption",
-                actionLabel: "Publish Facebook Post",
-                endpoint: "/api/facebook/page/publish-product",
-                note: "This publishes one reviewed post to your connected Facebook Page. Marketplace publishing is not included.",
-            };
+        : {
+            eyebrow: "Facebook Page Export",
+            title: "Preview Facebook post",
+            copy: publishCopyForChannel(publishChannel, facebookProduct || {}),
+            copyLabel: "Copy Caption",
+            actionLabel: "Publish Facebook Post",
+            endpoint: "/api/facebook/page/publish-product",
+            note: "This publishes one reviewed post to your connected Facebook Page. Marketplace publishing is not included.",
+        };
 
     const openPublisher = async (product, channel) => {
         setPublishChannel(channel);
@@ -662,7 +633,6 @@ export function ProductsPage() {
         const fallback = publishCopyForChannel(channel, product);
         setEditedCopy(fallback);
         setEditingCopy(false);
-        setPublishImageFile(null);
         const saved = await loadSavedPublishCopy(getToken, product.id, channel);
         if (saved.ok && saved.copy) {
             setEditedCopy(saved.copy);
@@ -716,23 +686,6 @@ export function ProductsPage() {
 
     const publishFacebookProduct = async () => {
         if (!facebookProduct) return;
-        if (publishChannel === "whatsapp") {
-            setPublishing(true);
-            const result = await syncWhatsAppCatalogProduct(getToken, {
-                productId: facebookProduct.id,
-                caption: editedCopy || publishDetails.copy,
-                imageFile: publishImageFile,
-            });
-            setPublishing(false);
-            if (!result.ok) {
-                return setMessage({ type: "error", text: result.error || "Could not export this product to WhatsApp catalog." });
-            }
-            setFacebookProduct(null);
-            setPublishImageFile(null);
-            setMessage({ type: "success", text: result.message || "Product exported to WhatsApp catalog successfully." });
-            load();
-            return;
-        }
         setPublishing(true);
         const token = await getToken();
         const response = await fetch(publishDetails.endpoint, {
@@ -756,14 +709,20 @@ export function ProductsPage() {
                 {!onboarding.active ? (
                     <section className="dashboard-panel mb-5 border-l-4 border-l-amber-400 p-5">
                         <p className="font-bold">Publishing is locked until your ORVA account is activated.</p>
-                        <p className="mt-1 text-sm leading-6 text-[var(--mid)]">You can add and edit products now. Facebook, Instagram, and WhatsApp publishing unlock after manual payment verification.</p>
+                        <p className="mt-1 text-sm leading-6 text-[var(--mid)]">You can add and edit products now. Facebook and Instagram publishing unlock after manual account activation.</p>
                         <Link href="/dashboard/onboarding" className="btn-primary mt-4 inline-flex">Complete onboarding</Link>
                     </section>
                 ) : null}
                 <section className="dashboard-panel overflow-hidden">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-5">
                         <div><h2 className="text-xl font-bold">Product list</h2><p className="mt-1 text-sm text-[var(--mid)]">Update details once. ORVA adds the required channel work to your queue.</p></div>
-                        <Link href="/dashboard/products/new" className="btn-primary"><Plus className="h-4 w-4" />Add product</Link>
+                        <div className="flex flex-wrap gap-2">
+                            <button type="button" className="btn-secondary" disabled={!products.length || !onboarding.active || requestingWhatsApp || whatsappRequested} onClick={requestWhatsAppCatalog}>
+                                {requestingWhatsApp ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChannelLogo channel="whatsapp" />}
+                                {whatsappRequested ? "WhatsApp Catalog Requested" : selectedProductIds.length ? "Request WhatsApp for Selected" : "Request WhatsApp Catalog"}
+                            </button>
+                            <Link href="/dashboard/products/new" className="btn-primary"><Plus className="h-4 w-4" />Add product</Link>
+                        </div>
                     </div>
                     {loading ? <div className="p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : error ? <ErrorState title="Could not load products" message={error} onRetry={load} className="m-5" /> : !products.length ? (
                         <EmptyState title="No products yet" description="Upload a CSV or add your first product." action={<Link href="/dashboard/upload-inventory" className="btn-primary mt-6 inline-flex">Upload inventory</Link>} className="m-5" />
@@ -814,9 +773,8 @@ export function ProductsPage() {
                                         <td>{formatINR(product.price || 0)}</td>
                                         <td>{productStock(product)}</td>
                                         <td><span className={`dashboard-badge ${statusBadge(product.status)}`}>{prettyStatus(product.status)}</span></td>
-                                        <td><div className="grid min-w-[520px] grid-cols-5 gap-2">
+                                        <td><div className="grid min-w-[420px] grid-cols-4 gap-2">
                                             <Link href={`/dashboard/products/${product.id}`} className="btn-secondary justify-center px-3 py-2" title="Edit product"><Pencil className="h-4 w-4" />Edit</Link>
-                                            <button type="button" className="btn-secondary justify-center px-3 py-2" title="Export to WhatsApp catalog" aria-label={`Export ${productName(product)} to WhatsApp catalog`} disabled={!onboarding.active} onClick={() => openPublisher(product, "whatsapp")}><ChannelLogo channel="whatsapp" />Export</button>
                                             <button type="button" className="btn-secondary justify-center px-3 py-2" title="Publish to Instagram" aria-label={`Publish ${productName(product)} to Instagram`} disabled={!onboarding.active} onClick={() => openPublisher(product, "instagram")}><ChannelLogo channel="instagram" />Publish</button>
                                             <button type="button" className="btn-secondary justify-center px-3 py-2" title="Publish to Facebook Page" aria-label={`Publish ${productName(product)} to Facebook Page`} disabled={!onboarding.active} onClick={() => openPublisher(product, "facebook")}><ChannelLogo channel="facebook" />Publish</button>
                                             <button type="button" className={`btn-secondary justify-center px-3 py-2 ${pendingDeleteId === product.id ? "border-red-200 bg-red-50 text-red-700" : ""}`} title="Delete product" disabled={workingId === product.id} onClick={() => deleteProduct(product)}><Trash2 className="h-4 w-4" />{pendingDeleteId === product.id ? "Confirm" : "Delete"}</button>
@@ -836,18 +794,6 @@ export function ProductsPage() {
                         <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-3">
                                 {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
-                                {publishChannel === "whatsapp" ? (
-                                    <label className="block rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-3 text-xs font-semibold text-[var(--mid)]">
-                                        Optional WhatsApp image
-                                        <input
-                                            type="file"
-                                            accept="image/jpeg,image/jpg,image/png,image/webp"
-                                            className="mt-2 block w-full text-xs"
-                                            onChange={(event) => setPublishImageFile(event.target.files?.[0] || null)}
-                                        />
-                                        {publishImageFile ? <span className="mt-1 block text-[var(--accent)]">{publishImageFile.name}</span> : null}
-                                    </label>
-                                ) : null}
                             </div>
                             <div>
                                 <h3 className="text-lg font-bold">{productName(facebookProduct)}</h3>
@@ -987,7 +933,6 @@ export function UploadInventoryPage() {
 export function ConnectionsPage() {
     const getToken = useToken();
     const [connections, setConnections] = useState([]);
-    const [catalogFeed, setCatalogFeed] = useState(null);
     const [working, setWorking] = useState("");
     const [message, setMessage] = useState({ type: "", text: "" });
     const timeoutRef = useRef({});
@@ -997,20 +942,13 @@ export function ConnectionsPage() {
     const load = useCallback(async () => {
         const token = await getToken();
         const headers = { Authorization: `Bearer ${token}` };
-        const [connectionResponse, feedResponse] = await Promise.all([
-            fetch("/api/connections", { headers }),
-            fetch("/api/catalog-feed", { headers }),
-        ]);
-        const [connectionResult, feedResult] = await Promise.all([
-            readJson(connectionResponse),
-            readJson(feedResponse),
-        ]);
+        const connectionResponse = await fetch("/api/connections", { headers });
+        const connectionResult = await readJson(connectionResponse);
         if (connectionResponse.ok) {
             setConnections(connectionResult.connections || []);
             if (connectionResult.configuration_error) setMessage({ type: "error", text: connectionResult.configuration_error });
         }
         else setMessage({ type: "error", text: connectionResult.error || "Could not load connections." });
-        if (feedResponse.ok) setCatalogFeed(feedResult);
     }, [getToken]);
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -1146,54 +1084,13 @@ export function ConnectionsPage() {
         load();
     };
 
-    const copyCatalogFeedUrl = async () => {
-        if (!catalogFeed?.feed_url) return;
-        await navigator.clipboard?.writeText(catalogFeed.feed_url);
-        setMessage({ type: "success", text: "Catalog feed URL copied. Paste it in Meta Commerce Manager as a Data File URL." });
-    };
-
     return <AuthGate allowedRoles="client"><DashboardShell role="client" eyebrow="Channels" title="Connections" description="Connect the places where customers find your products.">
         <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
-        <section className="dashboard-panel mb-5 border-l-4 border-l-[var(--accent)] p-5 text-sm leading-6 text-[var(--mid)]">Real-time API sync can be enabled after platform approval. Until then, Orva tracks required updates and your setup team can complete them.</section>
-        <section className="dashboard-panel mb-5 p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <div className="dashboard-eyebrow"><FileSpreadsheet className="h-3.5 w-3.5" /> Meta catalog feed</div>
-                    <h2 className="mt-3 text-2xl font-black text-[var(--ink)]">Live product feed for WhatsApp catalog</h2>
-                    <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[var(--muted)]">
-                        Use this URL in Meta Commerce Manager as a Data File. Meta can pull ORVA products on schedule while direct WhatsApp API permissions are restricted.
-                    </p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:w-[360px]">
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Ready rows</p>
-                        <p className="mt-1 text-2xl font-black text-[var(--ink)]">{catalogFeed?.summary?.exportableProducts ?? "-"}</p>
-                    </div>
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Total products</p>
-                        <p className="mt-1 text-2xl font-black text-[var(--ink)]">{catalogFeed?.summary?.totalProducts ?? "-"}</p>
-                    </div>
-                </div>
-            </div>
-            <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto]">
-                <input className="form-field font-mono text-xs" readOnly value={catalogFeed?.feed_url || "Catalog feed URL will appear after setup."} />
-                <button type="button" className="btn-primary justify-center" disabled={!catalogFeed?.feed_url} onClick={copyCatalogFeedUrl}><Copy className="h-4 w-4" />Copy Feed URL</button>
-            </div>
-            {catalogFeed?.summary?.missingImages || catalogFeed?.summary?.missingPrice ? (
-                <p className="mt-3 rounded-xl bg-amber-50 px-3 py-3 text-xs font-semibold text-amber-800">
-                    {catalogFeed.summary.missingImages || 0} products need images and {catalogFeed.summary.missingPrice || 0} need prices before Meta can use them.
-                </p>
-            ) : null}
-            <ol className="mt-4 grid gap-2 text-sm font-semibold text-[var(--mid)] md:grid-cols-3">
-                {(catalogFeed?.instructions || ["Open Meta Commerce Manager.", "Add items using Data File.", "Paste this ORVA feed URL."]).map((step, index) => (
-                    <li key={step} className="rounded-xl border border-[var(--border)] bg-white px-3 py-3"><span className="mr-2 text-[var(--accent)]">{index + 1}.</span>{step}</li>
-                ))}
-            </ol>
-        </section>
+        <section className="dashboard-panel mb-5 border-l-4 border-l-[var(--accent)] p-5 text-sm leading-6 text-[var(--mid)]">ORVA can publish reviewed posts to connected Instagram and Facebook accounts. WhatsApp catalog updates are handled as manual catalog-ready support until Meta catalog access is fully approved for each business.</section>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{channels.map((channel) => {
             const Icon = channel.icon;
             const connection = connections.find((item) => item.channel === channel.id);
-            const status = connection?.status || "manual_setup";
+            const status = channel.id === "whatsapp" ? "manual_setup" : connection?.status || "manual_setup";
             const connected = status === "connected";
             const connecting = status === "connecting" || working === channel.id;
             const connectLabel = channel.id === "whatsapp"
@@ -1201,7 +1098,7 @@ export function ConnectionsPage() {
                 : channel.id === "facebook"
                     ? "Connect Facebook"
                     : "Connect Meta";
-            return <section key={channel.id} className="dashboard-panel p-6"><Icon className="h-6 w-6 text-[var(--accent)]" /><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{channel.name}</h2><span className={`dashboard-badge ${connectionBadge(status)}`}>{prettyStatus(status)}</span></div>{channel.id === "facebook" && metaMockMode ? <span className="dashboard-badge badge-blue mt-3">Demo Mode</span> : null}<p className="mt-3 text-sm leading-6 text-[var(--mid)]">{channel.description}</p>{connection?.external_account_name ? <p className="mt-3 text-sm font-semibold">{connection.external_account_name}</p> : null}{channel.id === "online_store" ? <Link href="/dashboard/preview-studio" className="btn-secondary mt-6 w-full">Open preview</Link> : connected && channel.id === "instagram" ? <div className="mt-6 grid gap-2"><button type="button" className="btn-primary w-full justify-center" disabled={working === "verify-instagram"} onClick={verifyInstagram}>{working === "verify-instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{working === "verify-instagram" ? "Verifying..." : "Verify Instagram"}</button><button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button></div> : connected ? <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button> : status === "failed" ? <button type="button" className="btn-secondary mt-6 w-full" onClick={() => retry(channel.id)}>Retry</button> : <button type="button" className="btn-secondary mt-6 w-full" disabled={connecting} onClick={() => connect(channel.id)}>{connecting ? "Connecting..." : connectLabel}</button>}</section>;
+            return <section key={channel.id} className="dashboard-panel p-6"><Icon className="h-6 w-6 text-[var(--accent)]" /><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{channel.name}</h2><span className={`dashboard-badge ${connectionBadge(status)}`}>{prettyStatus(status)}</span></div>{channel.id === "facebook" && metaMockMode ? <span className="dashboard-badge badge-blue mt-3">Demo Mode</span> : null}<p className="mt-3 text-sm leading-6 text-[var(--mid)]">{channel.description}</p>{connection?.external_account_name && channel.id !== "whatsapp" ? <p className="mt-3 text-sm font-semibold">{connection.external_account_name}</p> : null}{channel.id === "whatsapp" ? <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm font-semibold text-[var(--mid)]">Catalog-ready support only</div> : channel.id === "online_store" ? <Link href="/dashboard/preview-studio" className="btn-secondary mt-6 w-full">Open preview</Link> : connected && channel.id === "instagram" ? <div className="mt-6 grid gap-2"><button type="button" className="btn-primary w-full justify-center" disabled={working === "verify-instagram"} onClick={verifyInstagram}>{working === "verify-instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{working === "verify-instagram" ? "Verifying..." : "Verify Instagram"}</button><button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button></div> : connected ? <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button> : status === "failed" ? <button type="button" className="btn-secondary mt-6 w-full" onClick={() => retry(channel.id)}>Retry</button> : <button type="button" className="btn-secondary mt-6 w-full" disabled={connecting} onClick={() => connect(channel.id)}>{connecting ? "Connecting..." : connectLabel}</button>}</section>;
         })}</div>
     </DashboardShell></AuthGate>;
 }
@@ -1243,7 +1140,7 @@ export function SyncCenterPage() {
 
     return <AuthGate allowedRoles="client"><DashboardShell role="client" eyebrow="Channels" title="Sync Center" description="Review channel updates and retry anything that needs attention.">
         <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
-        <section className="dashboard-panel overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-5"><div><h2 className="text-xl font-bold">Sync logs</h2><p className="mt-1 text-sm text-[var(--mid)]">Mock sync results for WhatsApp, Instagram, and Facebook.</p></div><button type="button" className="btn-primary" disabled={working === "all"} onClick={runSync}><RefreshCw className={`h-4 w-4 ${working === "all" ? "animate-spin" : ""}`} />Sync all products</button></div>
+        <section className="dashboard-panel overflow-hidden"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-5"><div><h2 className="text-xl font-bold">Sync logs</h2><p className="mt-1 text-sm text-[var(--mid)]">Mock sync results for Instagram and Facebook.</p></div><button type="button" className="btn-primary" disabled={working === "all"} onClick={runSync}><RefreshCw className={`h-4 w-4 ${working === "all" ? "animate-spin" : ""}`} />Sync all products</button></div>
         {!logs.length ? <EmptyState title="No syncs yet" description="Add products, then run your first sync." action={<Link href="/dashboard/products" className="btn-primary mt-6 inline-flex">View products</Link>} className="m-5" /> : <div className="overflow-x-auto"><table className="data-table min-w-[820px]"><thead><tr><th>Product</th><th>Channel</th><th>Status</th><th>Last synced</th><th>Error</th><th>Action</th></tr></thead><tbody>{logs.map((log) => <tr key={log.id}><td className="font-semibold">{log.products?.name || log.products?.product_name || "Product"}</td><td className="capitalize">{log.channel}</td><td><span className={`dashboard-badge ${syncBadge(log.status)}`}>{prettyStatus(log.status)}</span></td><td>{log.last_synced_at ? formatStableDateTime(log.last_synced_at) : "-"}</td><td>{log.error_message || "-"}</td><td>{log.status === "failed" ? <button type="button" className="btn-secondary px-3 py-2" disabled={working === log.id} onClick={() => retry(log.id)}>Retry</button> : "-"}</td></tr>)}</tbody></table></div>}</section>
     </DashboardShell></AuthGate>;
 }

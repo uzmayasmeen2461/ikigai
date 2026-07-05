@@ -5,6 +5,7 @@ import { verifyRazorpaySignature } from "../../../lib/razorpay";
 import { createSupabaseAdmin, getBearerToken, getAuthenticatedUser } from "../../../lib/supabaseServer";
 import { autoAssignPaidTask } from "../../../lib/automation";
 import { BRAND } from "../../../../config/branding";
+import { nowISTISOString } from "../../../lib/istDate";
 
 export const runtime = "nodejs";
 
@@ -75,7 +76,7 @@ export async function POST(request) {
 
         const invoiceNumber = task.invoice_number || createInvoiceNumber(task.id);
         const invoiceUrl = invoiceUrlForTask(task.id);
-        const paidAt = new Date().toISOString();
+        const paidAt = nowISTISOString();
 
         const updatedTask = {
             ...task,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
     fetchPackages,
+    ensureTrialSubscription,
     findPackageByFlow,
     getClientSubscription,
     getLatestClientApplication,
@@ -32,11 +33,12 @@ export async function GET(request) {
     }
 
     const supabase = createSupabaseServiceRole();
-    const [packages, application, subscription] = await Promise.all([
+    const [packages, application, existingSubscription] = await Promise.all([
         fetchPackages(supabase),
         getLatestClientApplication(supabase, user.id),
         getClientSubscription(supabase, user.id),
     ]);
+    const subscription = existingSubscription || await ensureTrialSubscription(supabase, user.id, { email: user.email });
 
     return NextResponse.json({
         packages,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildMetaCatalogCsv, normalizeFeedToken, publicBaseUrl } from "../../../lib/catalogFeed";
 import { createSupabaseServiceRole, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 export async function GET(request, { params }) {
     if (!hasSupabaseServiceRoleKey()) return new NextResponse("Catalog feed is not configured.", { status: 503 });
@@ -27,7 +28,7 @@ export async function GET(request, { params }) {
 
     await supabase
         .from("catalog_feeds")
-        .update({ last_accessed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({ last_accessed_at: nowISTISOString(), updated_at: nowISTISOString() })
         .eq("id", feed.id);
 
     const csv = buildMetaCatalogCsv(products || [], { baseUrl: publicBaseUrl(request), token: feed.feed_token });

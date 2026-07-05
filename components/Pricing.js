@@ -1,39 +1,39 @@
 export function Pricing() {
     const plans = [
         {
-            name: "Starter",
-            price: "₹2,499",
-            subtitle: "Perfect for small businesses",
+            name: "Free Trial",
+            price: "₹0",
+            subtitle: "7 days to try ORVA",
             features: [
-                "Up to 50 product listings",
-                "Basic data entry",
-                "Standard delivery",
-                "Email support",
+                "Inventory upload",
+                "Product previews",
+                "Basic captions",
+                "Manual approval after trial",
             ],
         },
         {
-            name: "Growth",
-            price: "₹5,999",
-            subtitle: "Best for scaling stores",
+            name: "Initial Setup",
+            price: "₹2,000",
+            subtitle: "One-time ORVA setup",
             highlight: true,
             features: [
-                "Up to 150 product listings",
-                "Optimized product titles",
-                "Faster delivery",
-                "Priority support",
-                "Quality check included",
+                "Inventory/photo onboarding",
+                "AI image matching",
+                "Catalog preview setup",
+                "Product title cleanup",
+                "Manual payment confirmation",
             ],
         },
         {
-            name: "Premium",
-            price: "₹9,999",
-            subtitle: "For serious businesses",
+            name: "Managed",
+            price: "₹7,000/mo",
+            subtitle: "Catalog and manual channel support",
             features: [
-                "Up to 300 product listings",
-                "SEO-optimized listings",
-                "Dedicated assistant",
-                "Fastest delivery",
-                "Priority support",
+                "WhatsApp catalog management",
+                "Manual social updates",
+                "Monthly catalog cleanup",
+                "Specialist support",
+                "Priority issue tracking",
             ],
         },
     ];
@@ -99,7 +99,7 @@ export function Pricing() {
 
             {/* TRUST LINE */}
             <p className="text-center text-sm text-gray-500 mt-10">
-                No hidden charges • Flexible pricing • Quick turnaround
+                7-day free trial • Manual payment confirmation • Advanced automation from ₹15,000/month
             </p>
         </section>
     );

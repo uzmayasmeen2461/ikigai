@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 export async function POST(request, { params }) {
     const { user, error: authError } = await getAuthenticatedUser(request);
@@ -13,7 +14,7 @@ export async function POST(request, { params }) {
         .update({
             status: "failed",
             error_message: String(body.error || "Reel enhancement failed.").slice(0, 500),
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         })
         .eq("id", params.id)
         .eq("client_id", user.id)

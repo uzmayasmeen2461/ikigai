@@ -1,13 +1,11 @@
 import {
     publishFacebookPost,
     publishInstagramPost,
-    syncProductToWhatsapp,
 } from "./meta";
 
-export const syncChannels = ["whatsapp", "instagram", "facebook"];
+export const syncChannels = ["instagram", "facebook"];
 
 const channelHandlers = {
-    whatsapp: syncProductToWhatsapp,
     instagram: publishInstagramPost,
     facebook: publishFacebookPost,
 };
@@ -29,4 +27,3 @@ export async function syncProductToChannel(product, channel) {
 
     return channelHandlers[channel](product);
 }
-

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseUserClient, getAuthenticatedUser } from "../../../../lib/supabaseServer";
 import { syncProductToChannel } from "../../../../lib/sync";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 export async function POST(request, { params }) {
     const { logId } = await params;
@@ -21,7 +22,7 @@ export async function POST(request, { params }) {
             status: result.ok ? "synced" : "failed",
             external_id: result.external_id || null,
             error_message: result.error_message || null,
-            last_synced_at: new Date().toISOString(),
+            last_synced_at: nowISTISOString(),
         })
         .eq("id", log.id)
         .select("*")

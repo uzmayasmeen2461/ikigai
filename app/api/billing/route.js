@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseUserClient, getAuthenticatedUser } from "../../lib/supabaseServer";
 import { normalizeInventoryStatus, productName, toInteger } from "../../lib/inventory";
 import { changeLogsForProduct, insertUpdateTasks, tasksForProductChanges } from "../../lib/updateTasks";
+import { nowISTISOString } from "../../lib/istDate";
 
 async function getRole(supabase, userId) {
     const { data } = await supabase
@@ -17,7 +18,7 @@ async function getRole(supabase, userId) {
 }
 
 async function nextBillNumber(supabase, clientId) {
-    const year = new Date().getFullYear();
+    const year = new Date(Date.now() + 5.5 * 60 * 60 * 1000).getUTCFullYear();
     const start = `${year}-01-01T00:00:00.000Z`;
     const end = `${year + 1}-01-01T00:00:00.000Z`;
     const { count } = await supabase
@@ -162,7 +163,7 @@ export async function POST(request) {
             .update({
                 stock: newStock,
                 status: normalizeInventoryStatus(newStock, item.product.status),
-                updated_at: new Date().toISOString(),
+                updated_at: nowISTISOString(),
             })
             .eq("id", item.product.id)
             .select("*")

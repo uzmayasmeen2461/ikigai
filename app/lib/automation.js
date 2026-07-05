@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { BRAND } from "../../config/branding";
+import { nowISTISOString, istNow } from "./istDate";
 
 const assignmentStatuses = ["assigned", "in_progress", "submitted_for_review", "revision_requested", "needs_changes"];
 const completedStatuses = ["completed", "client_approved", "auto_approved"];
@@ -18,7 +19,7 @@ export function dueDateForService(serviceType = "whatsapp", fromDate = new Date(
     const days = serviceSlaDays[serviceType] || 5;
     const dueAt = new Date(fromDate);
     dueAt.setDate(dueAt.getDate() + days);
-    return dueAt.toISOString();
+    return nowISTISOString(dueAt);
 }
 
 export function getSlaStatus(task = {}, now = new Date()) {
@@ -158,7 +159,7 @@ export async function autoAssignPaidTask(supabase, task) {
         return { task: data || task, assigned: false };
     }
 
-    const assignedAt = now.toISOString();
+    const assignedAt = nowISTISOString(now);
     const { data: assignedTask } = await supabase
         .from("tasks")
         .update({
@@ -249,19 +250,19 @@ export async function refreshSlaStatuses(supabase) {
 }
 
 export async function autoApproveStaleSubmissions(supabase) {
-    const cutoff = new Date();
+    const cutoff = istNow();
     cutoff.setDate(cutoff.getDate() - 3);
 
     const { data: tasks = [] } = await supabase
         .from("tasks")
         .select("*")
         .eq("status", "submitted_for_review")
-        .lte("submitted_at", cutoff.toISOString());
+        .lte("submitted_at", nowISTISOString(cutoff));
 
     const approved = [];
 
     for (const task of tasks) {
-        const approvedAt = new Date().toISOString();
+        const approvedAt = nowISTISOString();
         const { data } = await supabase
             .from("tasks")
             .update({

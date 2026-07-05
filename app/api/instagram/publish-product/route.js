@@ -3,6 +3,7 @@ import { publishProductToInstagram } from "../../../lib/instagramPublishing";
 import { requireActiveSubscription } from "../../../lib/onboarding";
 import { publicProductImageFields } from "../../../lib/productImageStorage";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../lib/istDate";
 
 async function saveExport(supabase, values) {
     const { data, error } = await supabase.from("social_exports").insert(values).select("*").single();
@@ -38,7 +39,7 @@ export async function POST(request) {
                 .update({
                     image_url: publishProduct.image_url,
                     cleaned_image_url: publishProduct.cleaned_image_url,
-                    updated_at: new Date().toISOString(),
+                    updated_at: nowISTISOString(),
                 })
                 .eq("id", product.id);
         }
@@ -68,9 +69,9 @@ export async function POST(request) {
         await supabase
             .from("products")
             .update({
-                last_promoted_at: new Date().toISOString(),
+                last_promoted_at: nowISTISOString(),
                 promotion_count: Number(product.promotion_count || 0) + 1,
-                updated_at: new Date().toISOString(),
+                updated_at: nowISTISOString(),
             })
             .eq("id", product.id);
         return NextResponse.json({ message: "Product published to Instagram successfully.", export: socialExport }, { status: 201 });

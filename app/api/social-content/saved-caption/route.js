@@ -6,6 +6,7 @@ import {
     hasSupabaseServiceRoleKey,
 } from "../../../lib/supabaseServer";
 import { productName } from "../../../lib/inventory";
+import { nowISTISOString } from "../../../lib/istDate";
 
 const allowedChannels = new Set(["facebook", "facebook_page", "instagram", "whatsapp"]);
 
@@ -140,7 +141,7 @@ export async function POST(request) {
         task_id: null,
         status: "draft",
         created_by: user.id,
-        updated_at: new Date().toISOString(),
+        updated_at: nowISTISOString(),
         ...fieldsForChannel(owned.product, channel, copy),
     };
 

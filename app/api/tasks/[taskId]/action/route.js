@@ -10,6 +10,7 @@ import {
     getBearerToken,
     getUserRole,
 } from "../../../../lib/supabaseServer";
+import { nowISTISOString } from "../../../../lib/istDate";
 
 export const runtime = "nodejs";
 
@@ -46,7 +47,7 @@ export async function POST(request, context) {
 
         const isPartnerOwner = task.worker_id === auth.user.id;
         const isClientOwner = task.client_id === auth.user.id;
-        const now = new Date().toISOString();
+        const now = nowISTISOString();
 
         if (action === "partner_start") {
             if (role !== "partner" || !isPartnerOwner) {

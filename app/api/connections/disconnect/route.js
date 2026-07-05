@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
 import { connectionChannels } from "../../../lib/socialConnections";
+import { nowISTISOString } from "../../../lib/istDate";
 
 export async function POST(request) {
     const { user, error: authError } = await getAuthenticatedUser(request);
@@ -28,7 +29,7 @@ export async function POST(request) {
             token_expires_at: null,
             status: "not_connected",
             metadata: {},
-            updated_at: new Date().toISOString(),
+            updated_at: nowISTISOString(),
         }, { onConflict: "user_id,channel" })
         .select("id, channel, provider, external_account_name, status, created_at, updated_at")
         .single();

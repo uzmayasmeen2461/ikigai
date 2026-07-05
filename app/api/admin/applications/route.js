@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserRole } from "../../../lib/onboarding";
 import { sendActivationEmail } from "../../../lib/onboardingEmail";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { nowISTISOString, toISTISOString } from "../../../lib/istDate";
 
 function cleanText(value = "") {
     return String(value || "").trim();
@@ -34,7 +35,7 @@ export async function GET(request) {
 }
 
 async function activateApplication(supabase, application) {
-    const startDate = new Date();
+    const startDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
     const endDate = new Date(startDate);
     endDate.setFullYear(endDate.getFullYear() + 1);
 
@@ -69,7 +70,7 @@ async function activateApplication(supabase, application) {
 
     const { error: applicationError } = await supabase
         .from("client_applications")
-        .update({ status: "activated", updated_at: new Date().toISOString() })
+        .update({ status: "activated", updated_at: nowISTISOString() })
         .eq("id", application.id);
     if (applicationError) throw applicationError;
 }
@@ -110,7 +111,7 @@ export async function PATCH(request) {
         } else if (action === "reject") {
             await auth.supabase
                 .from("client_applications")
-                .update({ status: "rejected", notes: [application.notes, cleanText(body.admin_notes)].filter(Boolean).join("\n\nAdmin: "), updated_at: new Date().toISOString() })
+                .update({ status: "rejected", notes: [application.notes, cleanText(body.admin_notes)].filter(Boolean).join("\n\nAdmin: "), updated_at: nowISTISOString() })
                 .eq("id", applicationId);
         } else if (action === "activate") {
             await activateApplication(auth.supabase, application);

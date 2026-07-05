@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Copy, Download, Film, Loader2, Play, Save, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+import { Camera, Copy, Download, Film, Loader2, Music, Play, Save, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../../app/lib/supabase";
 import { formatINR } from "../../../app/lib/pricing";
 import { productName } from "../../../app/lib/inventory";
@@ -14,6 +14,8 @@ const emptyReelDraft = {
     name: "ORVA Reel",
     price: "",
     reel_video_url: "",
+    reel_audio_url: "",
+    reel_audio_track_name: "",
     reel_thumbnail_url: "",
     reel_hook: "New arrival for you",
     reel_caption: "",
@@ -56,6 +58,66 @@ function mediaRecorderOptions() {
     return mimeType ? { mimeType } : undefined;
 }
 
+function canMixAudio() {
+    return typeof window !== "undefined" && Boolean(window.AudioContext || window.webkitAudioContext);
+}
+
+function loadAudioElement(url) {
+    return new Promise((resolve, reject) => {
+        const audio = document.createElement("audio");
+        audio.crossOrigin = "anonymous";
+        audio.preload = "auto";
+        audio.loop = true;
+        audio.oncanplaythrough = () => resolve(audio);
+        audio.onloadedmetadata = () => resolve(audio);
+        audio.onerror = () => reject(new Error("Could not load the selected music. Try uploading the audio again."));
+        audio.src = url;
+    });
+}
+
+async function prepareCanvasRecording(canvas, audioUrl = "") {
+    const canvasStream = canvas.captureStream(30);
+    if (!audioUrl) {
+        return {
+            stream: canvasStream,
+            start: async () => {},
+            stop: () => canvasStream.getTracks().forEach((track) => track.stop()),
+        };
+    }
+    if (!canMixAudio()) {
+        throw new Error("Your browser does not support mixing music into reels. Download the video and add music manually.");
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audio = await loadAudioElement(audioUrl);
+    const audioContext = new AudioContextClass();
+    const source = audioContext.createMediaElementSource(audio);
+    const gain = audioContext.createGain();
+    const destination = audioContext.createMediaStreamDestination();
+    gain.gain.value = 0.72;
+    source.connect(gain);
+    gain.connect(destination);
+    const stream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...destination.stream.getAudioTracks(),
+    ]);
+
+    return {
+        stream,
+        start: async () => {
+            audio.currentTime = 0;
+            await audioContext.resume();
+            await audio.play();
+        },
+        stop: () => {
+            audio.pause();
+            canvasStream.getTracks().forEach((track) => track.stop());
+            stream.getTracks().forEach((track) => track.stop());
+            audioContext.close().catch(() => {});
+        },
+    };
+}
+
 function reelCaptionText(reel = {}) {
     const name = productName(reel);
     const priceText = reel.price ? ` at ${formatINR(reel.price)}` : "";
@@ -80,7 +142,7 @@ async function imageFromUrl(url) {
     });
 }
 
-async function createSlideshowVideo(products = [], onProgress = () => {}) {
+async function createSlideshowVideo(products = [], onProgress = () => {}, audioUrl = "") {
     if (typeof window === "undefined" || typeof document === "undefined" || typeof window.MediaRecorder === "undefined") {
         throw new Error("Your browser does not support in-browser reel creation. Upload a video instead.");
     }
@@ -96,8 +158,8 @@ async function createSlideshowVideo(products = [], onProgress = () => {}) {
         throw new Error("Your browser does not support in-browser reel creation. Upload a video instead.");
     }
 
-    const stream = canvas.captureStream(30);
-    const recorder = new window.MediaRecorder(stream, mediaRecorderOptions());
+    const recording = await prepareCanvasRecording(canvas, audioUrl);
+    const recorder = new window.MediaRecorder(recording.stream, mediaRecorderOptions());
     const chunks = [];
     recorder.ondataavailable = (event) => {
         if (event.data?.size) chunks.push(event.data);
@@ -106,6 +168,7 @@ async function createSlideshowVideo(products = [], onProgress = () => {}) {
         recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" }));
     });
     recorder.start();
+    await recording.start();
 
     for (let index = 0; index < selected.length; index += 1) {
         const product = selected[index];
@@ -140,7 +203,7 @@ async function createSlideshowVideo(products = [], onProgress = () => {}) {
 
     recorder.stop();
     const blob = await done;
-    stream.getTracks().forEach((track) => track.stop());
+    recording.stop();
     return blob;
 }
 
@@ -191,8 +254,8 @@ async function createPremiumTemplateVideo(products = [], settings = {}, onProgre
         throw new Error("Your browser does not support premium reel rendering. Download the basic reel instead.");
     }
 
-    const stream = canvas.captureStream(30);
-    const recorder = new window.MediaRecorder(stream, mediaRecorderOptions());
+    const recording = await prepareCanvasRecording(canvas, settings.audioUrl || "");
+    const recorder = new window.MediaRecorder(recording.stream, mediaRecorderOptions());
     const chunks = [];
     recorder.ondataavailable = (event) => {
         if (event.data?.size) chunks.push(event.data);
@@ -212,6 +275,7 @@ async function createPremiumTemplateVideo(products = [], settings = {}, onProgre
     const endFrames = fps * 1.35;
     const totalFrames = hookFrames + images.length * slideFrames + endFrames;
     recorder.start();
+    await recording.start();
 
     const drawBackground = () => {
         const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
@@ -341,7 +405,7 @@ async function createPremiumTemplateVideo(products = [], settings = {}, onProgre
 
     recorder.stop();
     const blob = await done;
-    stream.getTracks().forEach((track) => track.stop());
+    recording.stop();
     return blob;
 }
 
@@ -412,8 +476,8 @@ async function createEditedVideo(reel, options, onProgress = () => {}) {
         throw new Error("Your browser does not support in-browser video editing.");
     }
 
-    const stream = canvas.captureStream(30);
-    const recorder = new window.MediaRecorder(stream, mediaRecorderOptions());
+    const recording = await prepareCanvasRecording(canvas, options.audioUrl || reel.reel_audio_url || "");
+    const recorder = new window.MediaRecorder(recording.stream, mediaRecorderOptions());
     const chunks = [];
     recorder.ondataavailable = (event) => {
         if (event.data?.size) chunks.push(event.data);
@@ -424,6 +488,7 @@ async function createEditedVideo(reel, options, onProgress = () => {}) {
 
     await seekVideo(video, startAt);
     recorder.start();
+    await recording.start();
     await video.play();
 
     await new Promise((resolve) => {
@@ -469,7 +534,7 @@ async function createEditedVideo(reel, options, onProgress = () => {}) {
 
     recorder.stop();
     const blob = await done;
-    stream.getTracks().forEach((track) => track.stop());
+    recording.stop();
     return blob;
 }
 
@@ -526,6 +591,22 @@ export function ReelStudioPage() {
         return result.url;
     }, [getToken]);
 
+    const uploadReelAudioFile = useCallback(async (file, label = "orva-reel-music") => {
+        const token = await getToken();
+        const body = new FormData();
+        body.append("file", file);
+        body.append("label", label);
+
+        const response = await fetch("/api/reels/upload-audio", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body,
+        });
+        const result = await readJson(response);
+        if (!response.ok) throw new Error(result.error || "Could not upload reel music.");
+        return result;
+    }, [getToken]);
+
     const saveBasicReelRecord = useCallback(async (videoUrl, overrides = {}) => {
         const token = await getToken();
         const response = await fetch("/api/reels", {
@@ -536,6 +617,8 @@ export function ReelStudioPage() {
                 basic_video_url: videoUrl,
                 product_ids: selectedImageProducts.map((product) => product.id),
                 selected_image_urls: selectedImageProducts.map((product) => product.cleaned_image_url || product.image_url),
+                audio_url: reelDraft.reel_audio_url,
+                audio_track_name: reelDraft.reel_audio_track_name,
                 hook_text: reelDraft.reel_hook,
                 cta_text: reelDraft.reel_cta,
                 music_style: enhanceOptions.musicStyle,
@@ -546,7 +629,7 @@ export function ReelStudioPage() {
         if (!response.ok) throw new Error(result.error || "Could not save reel.");
         setCurrentReel(result.reel);
         return result.reel;
-    }, [currentReel?.id, enhanceOptions.musicStyle, getToken, reelDraft.reel_cta, reelDraft.reel_hook, selectedImageProducts]);
+    }, [currentReel?.id, enhanceOptions.musicStyle, getToken, reelDraft.reel_audio_track_name, reelDraft.reel_audio_url, reelDraft.reel_cta, reelDraft.reel_hook, selectedImageProducts]);
 
     const loadUsage = useCallback(async () => {
         const token = await getToken();
@@ -628,6 +711,51 @@ export function ReelStudioPage() {
         }
     };
 
+    const uploadMusic = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+        const allowed = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/aac", "audio/wav", "audio/x-wav", "audio/ogg"];
+        if (!allowed.includes(file.type)) return setMessage({ type: "error", text: "Upload MP3, M4A, AAC, WAV, or OGG music." });
+        if (file.size > 25 * 1024 * 1024) return setMessage({ type: "error", text: "Music file must be under 25MB." });
+
+        setWorking("upload-audio");
+        setProgress(20);
+        try {
+            const result = await uploadReelAudioFile(file, file.name || "reel-music");
+            setProgress(92);
+            setReelDraft((current) => ({
+                ...current,
+                reel_audio_url: result.url,
+                reel_audio_track_name: result.name || file.name || "Uploaded music",
+            }));
+            if (reelDraft.reel_video_url) {
+                await saveBasicReelRecord(reelDraft.reel_video_url, {
+                    audio_url: result.url,
+                    audio_track_name: result.name || file.name || "Uploaded music",
+                });
+            }
+            setProgress(100);
+            setMessage({ type: "success", text: "Music uploaded. Use Save edited video or Generate Premium Reel to add it into the final reel." });
+        } catch (error) {
+            setMessage({ type: "error", text: error.message || "Could not upload reel music." });
+        } finally {
+            setWorking("");
+            setTimeout(() => setProgress(0), 800);
+        }
+    };
+
+    const clearMusic = async () => {
+        setReelDraft((current) => ({ ...current, reel_audio_url: "", reel_audio_track_name: "" }));
+        if (reelDraft.reel_video_url) {
+            await saveBasicReelRecord(reelDraft.reel_video_url, {
+                audio_url: "",
+                audio_track_name: "",
+            }).catch(() => {});
+        }
+        setMessage({ type: "success", text: "Music removed from this reel." });
+    };
+
     const generateContent = async () => {
         setWorking("generate");
         try {
@@ -677,7 +805,7 @@ export function ReelStudioPage() {
         setWorking("ai-video");
         setProgress(8);
         try {
-            const blob = await createSlideshowVideo(selectedImageProducts, setProgress);
+            const blob = await createSlideshowVideo(selectedImageProducts, setProgress, reelDraft.reel_audio_url);
             setProgress(94);
             const generatedFile = new File([blob], "orva-generated-reel.webm", { type: blob.type || "video/webm" });
             const url = await uploadReelVideoFile(generatedFile, "generated-reel");
@@ -736,6 +864,7 @@ export function ReelStudioPage() {
             const reel = currentReel?.id ? currentReel : await saveBasicReelRecord(reelDraft.reel_video_url);
             const premiumBlob = await createPremiumTemplateVideo(selectedImageProducts, {
                 template: selectedTemplate,
+                audioUrl: reelDraft.reel_audio_url,
                 ...enhanceOptions,
             }, setProgress);
             setProgress(94);
@@ -755,6 +884,8 @@ export function ReelStudioPage() {
                     showPriceOverlay: enhanceOptions.showPriceOverlay,
                     showOfferBadge: enhanceOptions.showOfferBadge,
                     showWatermark: enhanceOptions.showWatermark,
+                    audioUrl: reelDraft.reel_audio_url,
+                    audioTrackName: reelDraft.reel_audio_track_name,
                     enhancedVideoUrl,
                 }),
             });
@@ -868,7 +999,28 @@ export function ReelStudioPage() {
                                     <Upload className="h-4 w-4" />Upload video
                                     <input className="sr-only" type="file" accept="video/mp4,video/quicktime,video/webm" onChange={uploadVideo} disabled={working === "upload"} />
                                 </label>
+                                <label className="btn-secondary cursor-pointer justify-center">
+                                    {working === "upload-audio" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
+                                    {reelDraft.reel_audio_url ? "Change music" : "Upload music"}
+                                    <input className="sr-only" type="file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg" onChange={uploadMusic} disabled={working === "upload-audio"} />
+                                </label>
                                 <button type="button" className="btn-secondary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={createAiReelFromImages}>{working === "ai-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Create from selected images</button>
+                            </div>
+                            <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Reel music</p>
+                                        <p className="mt-1 truncate text-sm font-black text-[var(--ink)]">{reelDraft.reel_audio_track_name || "No music selected"}</p>
+                                    </div>
+                                    {reelDraft.reel_audio_url ? (
+                                        <button type="button" className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-red-600 shadow-sm" onClick={clearMusic} disabled={Boolean(working)}>Remove</button>
+                                    ) : null}
+                                </div>
+                                {reelDraft.reel_audio_url ? (
+                                    <audio className="mt-3 w-full" src={reelDraft.reel_audio_url} controls preload="metadata" />
+                                ) : (
+                                    <p className="mt-2 text-xs font-semibold leading-5 text-[var(--muted)]">Use music you own or have permission to use. Apply it with Save edited video or Generate Premium Reel before publishing.</p>
+                                )}
                             </div>
 
                             <div className="mt-5 flex items-center justify-between gap-3">
@@ -929,6 +1081,12 @@ export function ReelStudioPage() {
                                 </div>
                             </div>
                             {progress ? <div className="mt-4 rounded-full bg-[var(--surface)] p-1"><div className="h-2 rounded-full bg-[var(--accent)] transition-all" style={{ width: `${progress}%` }} /></div> : null}
+                            {reelDraft.reel_audio_url ? (
+                                <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                                    <div className="flex items-center gap-2 text-sm font-black text-[var(--ink)]"><Music className="h-4 w-4 text-[var(--accent)]" />Music attached</div>
+                                    <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">If this video was uploaded before music, click Edit reel → Save edited video to bake the music into the publishable file.</p>
+                                </div>
+                            ) : null}
                             {reelDraft.reel_video_url ? (
                             <div className="mt-4 grid grid-cols-2 gap-2">
                                     <button type="button" className="btn-secondary justify-center" disabled={Boolean(working)} onClick={() => setShowEditor((value) => !value)}><SlidersHorizontal className="h-4 w-4" />{showEditor ? "Hide editor" : "Edit reel"}</button>
@@ -1002,7 +1160,7 @@ export function ReelStudioPage() {
                                         </div>
                                     </div>
                                     <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
-                                        <p className="rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold leading-5 text-[var(--muted)]">Premium rendering uses selected inventory images. Basic reel stays safe if enhancement fails.</p>
+                                        <p className="rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold leading-5 text-[var(--muted)]">Premium rendering uses selected inventory images{reelDraft.reel_audio_url ? " and your uploaded music" : ""}. Basic reel stays safe if enhancement fails.</p>
                                         <button type="button" className="btn-primary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={generatePremiumReel}>
                                             {working === "premium-reel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                             Generate Premium Reel
@@ -1028,6 +1186,12 @@ export function ReelStudioPage() {
                                             <input type="checkbox" checked={videoEdit.overlay} onChange={(event) => setVideoEdit((current) => ({ ...current, overlay: event.target.checked }))} />
                                             Add title, price, and CTA overlay
                                         </label>
+                                        {reelDraft.reel_audio_url ? (
+                                            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm font-semibold text-[var(--mid)]">
+                                                <Music className="mr-2 inline h-4 w-4 text-[var(--accent)]" />
+                                                Save edited video will include: {reelDraft.reel_audio_track_name || "uploaded music"}
+                                            </div>
+                                        ) : null}
                                         <button type="button" className="btn-primary justify-center" disabled={Boolean(working)} onClick={applyVideoEdits}>{working === "edit-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Save edited video</button>
                                     </div>
                                 </div>
