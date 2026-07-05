@@ -56,8 +56,8 @@ const navConfig = {
     client: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Onboarding", href: "/dashboard/onboarding", icon: ShieldCheck },
-        { label: "Growth Assistant", href: "/dashboard/growth-assistant", icon: Sparkles },
-        { label: "Growth Autopilot", href: "/dashboard/growth-autopilot", icon: CalendarDays },
+        { label: "Growth Assistant", href: "/dashboard?view=growth-assistant", icon: Sparkles },
+        { label: "Growth Autopilot", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
         { label: "Products", href: "/dashboard/products", icon: Package },
         { label: "Add Inventory", href: "/dashboard/upload-inventory", icon: Upload },
         { label: "Intelligence", href: "/dashboard/inventory-intelligence", icon: Lightbulb },
@@ -117,7 +117,7 @@ export function DashboardShell({
 
     useEffect(() => {
         const syncActiveHref = () => {
-            setActiveHref(`${window.location.pathname}${window.location.hash}`);
+            setActiveHref(`${window.location.pathname}${window.location.search}${window.location.hash}`);
         };
 
         syncActiveHref();
@@ -133,8 +133,9 @@ export function DashboardShell({
 
     const isActive = (href) => {
         const base = href.split("#")[0];
+        if (href.includes("?")) return activeHref === href;
         if (href.includes("#")) return activeHref === href;
-        return (pathname === base || pathname.startsWith(`${base}/`)) && !activeHref.includes("#");
+        return (pathname === base || pathname.startsWith(`${base}/`)) && !activeHref.includes("#") && !activeHref.includes("?");
     };
 
     const sidebar = (

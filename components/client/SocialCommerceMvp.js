@@ -328,8 +328,8 @@ export function MvpDashboard() {
                                 {[
                                     { step: "1", title: "Add inventory", detail: "Upload CSV, or send product photos with prices.", action: "Start here", href: "/dashboard/upload-inventory", icon: CloudUpload },
                                     { step: "2", title: "Review products", detail: "Check price, stock, image, and status.", action: "Manage products", href: "/dashboard/products", icon: Package },
-                                    { step: "3", title: "Growth Assistant", detail: "Get today’s best product, offers, and weekly plan.", action: "Open Growth", href: "/dashboard/growth-assistant", icon: Sparkles },
-                                    { step: "4", title: "Growth Autopilot", detail: "Prepare posts and reminders for the week.", action: "Plan week", href: "/dashboard/growth-autopilot", icon: CalendarDays },
+                                    { step: "3", title: "Growth Assistant", detail: "Get today’s best product, offers, and weekly plan.", action: "Open Growth", href: "/dashboard?view=growth-assistant", icon: Sparkles },
+                                    { step: "4", title: "Growth Autopilot", detail: "Prepare posts and reminders for the week.", action: "Plan week", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
                                     { step: "5", title: "Create reels", detail: "Upload a video or create a reel from product images.", action: "Open Reel Studio", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film },
                                     { step: "6", title: "Preview & publish", detail: "Choose one product and publish after review.", action: `${connectedChannels || 0} channels connected`, href: "/dashboard/connections", icon: Send },
                                 ].map((item) => {
