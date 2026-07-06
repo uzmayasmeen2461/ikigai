@@ -122,13 +122,53 @@ function fileToImage(file) {
     });
 }
 
+function isDataImage(value = "") {
+    return String(value || "").startsWith("data:image/");
+}
+
+function compressDataImage(dataUrl, { maxSize = 1100, quality = 0.72 } = {}) {
+    if (!isDataImage(dataUrl)) return Promise.resolve(dataUrl || "");
+
+    return new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => {
+            const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+            const width = Math.max(1, Math.round(image.width * scale));
+            const height = Math.max(1, Math.round(image.height * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d");
+            if (!context) return resolve(dataUrl);
+            context.drawImage(image, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        image.onerror = () => resolve(dataUrl);
+        image.src = dataUrl;
+    });
+}
+
+function chunkArray(items, size = 6) {
+    const chunks = [];
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
+}
+
 async function readJson(response) {
     const text = await response.text();
     if (!text) return {};
     try {
         return JSON.parse(text);
     } catch {
-        return { error: "The server returned an invalid response." };
+        if (response.status === 413) {
+            return { error: "The product images are too large for one upload. ORVA compressed them, so please click Upload Product List again." };
+        }
+        if (String(text).trim().startsWith("<")) {
+            return { error: `The server returned an HTML error page (${response.status}). Please try again after redeploying the latest ORVA build.` };
+        }
+        return { error: `The server returned an invalid response (${response.status}).` };
     }
 }
 
@@ -761,24 +801,41 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
         }
         setSaving(true);
         const token = await getToken();
-        const response = await fetch("/api/inventory", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({
-                client_id: task?.client_id,
-                products: validDrafts.map((product) => ({
-                    ...product,
-                    status: normalizeInventoryStatus(product.stock),
-                })),
-            }),
-        });
-        const result = await readJson(response);
+        const compressedProducts = await Promise.all(validDrafts.map(async (product) => ({
+            ...product,
+            image_url: await compressDataImage(product.image_url),
+            cleaned_image_url: await compressDataImage(product.cleaned_image_url),
+        })));
+
+        const savedProducts = [];
+        let result = {};
+        let failedResponse = null;
+        for (const batch of chunkArray(compressedProducts, 6)) {
+            const response = await fetch("/api/inventory", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    client_id: task?.client_id,
+                    products: batch.map((product) => ({
+                        ...product,
+                        status: normalizeInventoryStatus(product.stock),
+                    })),
+                }),
+            });
+            result = await readJson(response);
+            if (!response.ok) {
+                failedResponse = response;
+                break;
+            }
+            savedProducts.push(...(result.products || []));
+        }
+
         setSaving(false);
-        if (!response.ok) {
+        if (failedResponse) {
             setMessage({ type: "error", text: result.error || "Could not save draft products." });
             return;
         }
-        const savedByCode = new Map((result.products || []).map((product) => [productCode(product), product]));
+        const savedByCode = new Map(savedProducts.map((product) => [productCode(product), product]));
         setProducts((current) => current.map((product) => {
             if (!String(product.id).startsWith("draft-")) return product;
             return savedByCode.get(productCode(product)) || product;
