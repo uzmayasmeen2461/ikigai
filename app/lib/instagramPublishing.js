@@ -39,7 +39,7 @@ function wait(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForInstagramMediaContainer({ containerId, accessToken, maxAttempts = 8 }) {
+async function waitForInstagramMediaContainer({ containerId, accessToken, maxAttempts = 8, contentType = "media" }) {
     if (!containerId) {
         throw new Error(`${instagramPermissionMessage} Instagram did not return a media container ID.`);
     }
@@ -53,16 +53,19 @@ async function waitForInstagramMediaContainer({ containerId, accessToken, maxAtt
 
         if (status.status_code === "FINISHED") return status;
         if (status.status_code === "ERROR") {
-            throw new Error(`${instagramPermissionMessage} Instagram could not process this video. Try a shorter MP4 with a public URL.`);
+            const hint = contentType === "reel"
+                ? "Try a shorter MP4 with a public URL."
+                : "Check that the product image URL is public and uses JPEG or PNG.";
+            throw new Error(`${instagramPermissionMessage} Instagram could not process this ${contentType}. ${hint}`);
         }
         if (status.status_code === "EXPIRED") {
-            throw new Error(`${instagramPermissionMessage} Instagram media processing expired. Please upload the reel video again.`);
+            throw new Error(`${instagramPermissionMessage} Instagram media processing expired. Please upload the ${contentType === "reel" ? "reel video" : "product image"} again.`);
         }
 
         await wait(delays[attempt] || 10000);
     }
 
-    throw new Error("Instagram is still processing this reel video. Please try publishing again in a minute. Copy Caption and Download Video will still work.");
+    throw new Error(`Instagram is still processing this ${contentType}. Please try publishing again in a minute. Copy Caption and download/export fallback will still work.`);
 }
 
 export async function verifyInstagramConnection({ connection, mockMode = false }) {
@@ -104,6 +107,7 @@ export async function publishProductToInstagram({ product, connection, mockMode 
         access_token: accessToken,
     }));
     if (!container.id) throw new Error(`${instagramPermissionMessage} Instagram did not return a media container ID.`);
+    await waitForInstagramMediaContainer({ containerId: container.id, accessToken, contentType: "post" });
     const published = await graphPost(`${instagramAccountId}/media_publish`, new URLSearchParams({
         creation_id: container.id,
         access_token: accessToken,
@@ -140,7 +144,7 @@ export async function publishProductReelToInstagram({ product, connection, mockM
         caption,
         access_token: accessToken,
     }));
-    await waitForInstagramMediaContainer({ containerId: container.id, accessToken });
+    await waitForInstagramMediaContainer({ containerId: container.id, accessToken, contentType: "reel" });
     const published = await graphPost(`${instagramAccountId}/media_publish`, new URLSearchParams({
         creation_id: container.id,
         access_token: accessToken,
