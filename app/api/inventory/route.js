@@ -10,6 +10,14 @@ import { insertUpdateTasks, tasksForNewProduct } from "../../lib/updateTasks";
 import { runDynamicProductSync } from "../../lib/dynamicProductSync";
 import { publicProductImageFields } from "../../lib/productImageStorage";
 
+function jsonError(error, fallback = "Something went wrong.", status = 500) {
+    const message = typeof error === "string"
+        ? error
+        : error?.message || error?.details || fallback;
+
+    return NextResponse.json({ error: message || fallback }, { status });
+}
+
 async function getRole(supabase, userId) {
     const { data } = await supabase
         .from("users")
@@ -88,77 +96,93 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-    const { user, token, error: authError } = await getAuthenticatedUser(request);
-    if (authError || !user) {
-        return NextResponse.json({ error: authError || "Not authenticated." }, { status: 401 });
-    }
-
-    const userSupabase = createSupabaseUserClient(token);
-    const role = await getRole(userSupabase, user.id);
-    if (role === "partner") {
-        return NextResponse.json({ error: "Partners can only update inventory from assigned tasks." }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const clientId = role === "admin" && body.client_id ? body.client_id : user.id;
-    const incoming = Array.isArray(body.products) ? body.products : [body];
-    let rows = incoming.map((item, index) => serializeProduct(item, clientId, index + 1));
-    const invalid = rows.find((row) => !row.product_name);
-
-    if (invalid) {
-        return NextResponse.json({ error: "Every product needs a Product Name." }, { status: 400 });
-    }
-
     try {
-        rows = await Promise.all(rows.map((row) => publicProductImageFields(row, { userId: clientId })));
-    } catch (imageError) {
-        return NextResponse.json({ error: imageError.message || "Could not upload product images." }, { status: 500 });
-    }
-
-    const { data, error } = await userSupabase
-        .from("products")
-        .insert(rows)
-        .select("*");
-
-    if (error) {
-        return NextResponse.json({ error: error.message || "Could not save products." }, { status: 500 });
-    }
-
-    const logs = (data || []).map((product) => ({
-        product_id: product.id,
-        client_id: product.client_id,
-        action: "created",
-        old_stock: 0,
-        new_stock: product.stock || 0,
-        old_price: null,
-        new_price: product.price || 0,
-        note: "Product added to ORVA inventory.",
-    }));
-
-    if (logs.length) {
-        await userSupabase.from("inventory_logs").insert(logs);
-    }
-
-    let updateTaskWarning = "";
-    const dynamicSync = [];
-    try {
-        await insertUpdateTasks(userSupabase, (data || []).flatMap(tasksForNewProduct));
-    } catch (taskError) {
-        updateTaskWarning = taskError.message || "Update tasks could not be created.";
-    }
-
-    try {
-        const syncSupabase = hasSupabaseServiceRoleKey() ? createSupabaseServiceRole() : userSupabase;
-        for (const product of data || []) {
-            dynamicSync.push(await runDynamicProductSync(syncSupabase, {
-                userId: product.user_id || product.client_id || clientId,
-                before: null,
-                after: product,
-            }));
+        const { user, token, error: authError } = await getAuthenticatedUser(request);
+        if (authError || !user) {
+            return jsonError(authError || "Not authenticated.", "Not authenticated.", 401);
         }
-    } catch (syncError) {
-        updateTaskWarning = [updateTaskWarning, syncError.message || "Dynamic channel sync could not run."].filter(Boolean).join(" ");
-    }
 
-    return NextResponse.json({ products: data || [], update_task_warning: updateTaskWarning, dynamic_sync: dynamicSync }, { status: 201 });
+        const userSupabase = createSupabaseUserClient(token);
+        const role = await getRole(userSupabase, user.id);
+        if (role === "partner") {
+            return jsonError("Partners can only update inventory from assigned tasks.", "Not allowed.", 403);
+        }
+
+        let body = {};
+        try {
+            body = await request.json();
+        } catch {
+            return jsonError("Invalid product upload payload. Please upload a valid CSV/list and try again.", "Invalid request.", 400);
+        }
+
+        const clientId = role === "admin" && body.client_id ? body.client_id : user.id;
+        const incoming = Array.isArray(body.products) ? body.products : [body];
+        let rows = incoming.map((item, index) => serializeProduct(item, clientId, index + 1));
+        const invalid = rows.find((row) => !row.product_name);
+
+        if (invalid) {
+            return jsonError("Every product needs a Product Name.", "Invalid product.", 400);
+        }
+
+        try {
+            rows = await Promise.all(rows.map((row) => publicProductImageFields(row, { userId: clientId })));
+        } catch (imageError) {
+            return jsonError(imageError, "Could not upload product images.", 500);
+        }
+
+        const { data, error } = await userSupabase
+            .from("products")
+            .insert(rows)
+            .select("*");
+
+        if (error) {
+            return jsonError(error, "Could not save products.", 500);
+        }
+
+        const warnings = [];
+        const logs = (data || []).map((product) => ({
+            product_id: product.id,
+            client_id: product.client_id,
+            action: "created",
+            old_stock: 0,
+            new_stock: product.stock || 0,
+            old_price: null,
+            new_price: product.price || 0,
+            note: "Product added to ORVA inventory.",
+        }));
+
+        if (logs.length) {
+            const { error: logError } = await userSupabase.from("inventory_logs").insert(logs);
+            if (logError) warnings.push(logError.message || "Inventory logs could not be created.");
+        }
+
+        const dynamicSync = [];
+        try {
+            await insertUpdateTasks(userSupabase, (data || []).flatMap(tasksForNewProduct));
+        } catch (taskError) {
+            warnings.push(taskError.message || "Update tasks could not be created.");
+        }
+
+        try {
+            const syncSupabase = hasSupabaseServiceRoleKey() ? createSupabaseServiceRole() : userSupabase;
+            for (const product of data || []) {
+                dynamicSync.push(await runDynamicProductSync(syncSupabase, {
+                    userId: product.user_id || product.client_id || clientId,
+                    before: null,
+                    after: product,
+                }));
+            }
+        } catch (syncError) {
+            warnings.push(syncError.message || "Dynamic channel sync could not run.");
+        }
+
+        return NextResponse.json({
+            products: data || [],
+            update_task_warning: warnings.join(" "),
+            dynamic_sync: dynamicSync,
+        }, { status: 201 });
+    } catch (error) {
+        console.error("Inventory upload failed.", error);
+        return jsonError(error, "Could not import products.", 500);
+    }
 }
