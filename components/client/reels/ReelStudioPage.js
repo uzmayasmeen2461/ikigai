@@ -736,7 +736,7 @@ export function ReelStudioPage() {
                 });
             }
             setProgress(100);
-            setMessage({ type: "success", text: "Music uploaded. Use Save edited video or Generate Premium Reel to add it into the final reel." });
+            setMessage({ type: "success", text: "Music uploaded. Click Save edited video or Generate Premium Reel to bake the music into the publishable reel." });
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not upload reel music." });
         } finally {
@@ -929,8 +929,12 @@ export function ReelStudioPage() {
             const url = await uploadReelVideoFile(editedFile, "edited-reel");
             setProgress(98);
             setReelDraft((current) => ({ ...current, reel_video_url: url, reel_status: "draft" }));
+            await saveBasicReelRecord(url, {
+                audio_url: reelDraft.reel_audio_url,
+                audio_track_name: reelDraft.reel_audio_track_name,
+            });
             setProgress(100);
-            setMessage({ type: "success", text: "Video edits saved. Review before publishing." });
+            setMessage({ type: "success", text: reelDraft.reel_audio_url ? "Video edits saved with music. Review before publishing." : "Video edits saved. Review before publishing." });
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not edit this video." });
         } finally {
@@ -993,7 +997,7 @@ export function ReelStudioPage() {
 
                         <div className="grid items-start gap-5 xl:grid-cols-[minmax(260px,0.9fr)_minmax(320px,420px)_minmax(320px,1fr)]">
                         <section className="dashboard-panel p-5">
-                            <SectionHeading title="Media source" description="Upload a video or pick product images for ORVA to turn into a reel." />
+                            <SectionHeading title="Media source" description="Upload a video, add optional music, or pick product images for ORVA to turn into a reel." />
                             <div className="mt-4 grid gap-2">
                                 <label className="btn-primary cursor-pointer justify-center">
                                     <Upload className="h-4 w-4" />Upload video
@@ -1001,7 +1005,7 @@ export function ReelStudioPage() {
                                 </label>
                                 <label className="btn-secondary cursor-pointer justify-center">
                                     {working === "upload-audio" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
-                                    {reelDraft.reel_audio_url ? "Change music" : "Upload music"}
+                                    {reelDraft.reel_audio_url ? "Change music" : "Add music"}
                                     <input className="sr-only" type="file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg" onChange={uploadMusic} disabled={working === "upload-audio"} />
                                 </label>
                                 <button type="button" className="btn-secondary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={createAiReelFromImages}>{working === "ai-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Create from selected images</button>
@@ -1019,7 +1023,7 @@ export function ReelStudioPage() {
                                 {reelDraft.reel_audio_url ? (
                                     <audio className="mt-3 w-full" src={reelDraft.reel_audio_url} controls preload="metadata" />
                                 ) : (
-                                    <p className="mt-2 text-xs font-semibold leading-5 text-[var(--muted)]">Use music you own or have permission to use. Apply it with Save edited video or Generate Premium Reel before publishing.</p>
+                                    <p className="mt-2 text-xs font-semibold leading-5 text-[var(--muted)]">Upload MP3, M4A, AAC, WAV, or OGG music you own or have permission to use.</p>
                                 )}
                             </div>
 
@@ -1084,7 +1088,7 @@ export function ReelStudioPage() {
                             {reelDraft.reel_audio_url ? (
                                 <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
                                     <div className="flex items-center gap-2 text-sm font-black text-[var(--ink)]"><Music className="h-4 w-4 text-[var(--accent)]" />Music attached</div>
-                                    <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">If this video was uploaded before music, click Edit reel → Save edited video to bake the music into the publishable file.</p>
+                                    <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">For uploaded videos, use Edit reel → Save edited video to bake this music into the publishable file.</p>
                                 </div>
                             ) : null}
                             {reelDraft.reel_video_url ? (

@@ -997,7 +997,7 @@ export function ClientHelpSection() {
                 <h3 className="text-xl font-semibold text-slate-950">Support</h3>
                 <div className="mt-5 space-y-3 text-sm text-slate-600">
                     <div className="rounded-2xl border border-slate-200 px-4 py-3">
-                        Email: <span className="font-semibold text-slate-900">support@orva.digital</span>
+                        Email: <span className="font-semibold text-slate-900">uzma.yasmeen.ui@gmail.com</span>
                     </div>
                     <div className="rounded-2xl border border-slate-200 px-4 py-3">
                         City: <span className="font-semibold text-slate-900">Hyderabad, India</span>

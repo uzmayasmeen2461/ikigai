@@ -11,8 +11,8 @@ import {
 const contactCards = [
     {
         title: "Business Support Email",
-        value: "support@orva.digital",
-        href: "mailto:support@orva.digital",
+        value: "uzma.yasmeen.ui@gmail.com",
+        href: "mailto:uzma.yasmeen.ui@gmail.com",
         icon: Mail,
     },
     {

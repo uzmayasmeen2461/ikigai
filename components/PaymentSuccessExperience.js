@@ -246,8 +246,8 @@ function SupportCard() {
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                         Contact ORVA support and we’ll help you with invoice, payment, or task updates.
                     </p>
-                    <a href="mailto:support@orva.digital" className="mt-3 inline-flex text-sm font-semibold text-blue-700">
-                        support@orva.digital
+                    <a href="mailto:uzma.yasmeen.ui@gmail.com" className="mt-3 inline-flex text-sm font-semibold text-blue-700">
+                        uzma.yasmeen.ui@gmail.com
                     </a>
                 </div>
             </div>

@@ -523,9 +523,9 @@ export function HomeLanding() {
                                 ))}
                             </div>
                             <div className="mt-6 grid gap-3 text-sm font-semibold text-slate-700">
-                                <a href="mailto:support@orva.digital" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition duration-200 hover:border-blue-200 hover:text-blue-700">
+                                <a href="mailto:uzma.yasmeen.ui@gmail.com" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition duration-200 hover:border-blue-200 hover:text-blue-700">
                                     <Mail className="h-4 w-4 text-blue-600" />
-                                    Business support: support@orva.digital
+                                    Business support: uzma.yasmeen.ui@gmail.com
                                 </a>
                                 <a href="/contact" className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm transition duration-200 hover:border-blue-200 hover:text-blue-700">
                                     <MapPin className="h-4 w-4 text-blue-600" />
