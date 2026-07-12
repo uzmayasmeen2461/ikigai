@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Copy, Download, Film, Loader2, Music, Play, Save, SlidersHorizontal, Sparkles, Trash2, Upload } from "lucide-react";
+import { Camera, Copy, Download, Film, Loader2, Music, Play, Save, SlidersHorizontal, Sparkles, Trash2, Upload, Volume2 } from "lucide-react";
 import { supabase } from "../../../app/lib/supabase";
 import { formatINR } from "../../../app/lib/pricing";
 import { productName } from "../../../app/lib/inventory";
-import { reelMusicStyles, reelTemplates } from "../../../app/lib/reels";
+import { reelMusicLibrary, reelMusicStyles, reelTemplates } from "../../../app/lib/reels";
 import { AuthGate } from "../../AuthGate";
 import { DashboardShell } from "../../DashboardShell";
 import { FeedbackMessage, SectionHeading } from "../../DashboardUI";
@@ -552,6 +552,7 @@ export function ReelStudioPage() {
     const [currentReel, setCurrentReel] = useState(null);
     const [usage, setUsage] = useState(null);
     const [enhancerOpen, setEnhancerOpen] = useState(false);
+    const [musicModalOpen, setMusicModalOpen] = useState(false);
     const [enhanceOptions, setEnhanceOptions] = useState({
         templateId: "premium-sale",
         hookText: reelTemplates[0].hookText,
@@ -573,6 +574,10 @@ export function ReelStudioPage() {
     const selectedTemplate = useMemo(
         () => reelTemplates.find((template) => template.id === enhanceOptions.templateId) || reelTemplates[0],
         [enhanceOptions.templateId],
+    );
+    const selectedLibraryTrack = useMemo(
+        () => reelMusicLibrary.find((track) => track.url === reelDraft.reel_audio_url) || null,
+        [reelDraft.reel_audio_url],
     );
 
     const uploadReelVideoFile = useCallback(async (file, label = "orva-reel") => {
@@ -743,6 +748,26 @@ export function ReelStudioPage() {
             setWorking("");
             setTimeout(() => setProgress(0), 800);
         }
+    };
+
+    const selectLibraryMusic = async (track) => {
+        setReelDraft((current) => ({
+            ...current,
+            reel_audio_url: track.url,
+            reel_audio_track_name: track.name,
+        }));
+        setEnhanceOptions((current) => ({ ...current, musicStyle: track.style || current.musicStyle }));
+
+        if (reelDraft.reel_video_url) {
+            await saveBasicReelRecord(reelDraft.reel_video_url, {
+                audio_url: track.url,
+                audio_track_name: track.name,
+                music_style: track.style || enhanceOptions.musicStyle,
+            }).catch(() => {});
+        }
+
+        setMessage({ type: "success", text: `${track.name} selected. Generate or save the reel to bake this music into the final video.` });
+        setMusicModalOpen(false);
     };
 
     const clearMusic = async () => {
@@ -997,16 +1022,11 @@ export function ReelStudioPage() {
 
                         <div className="grid items-start gap-5 xl:grid-cols-[minmax(260px,0.9fr)_minmax(320px,420px)_minmax(320px,1fr)]">
                         <section className="dashboard-panel p-5">
-                            <SectionHeading title="Media source" description="Upload a video, add optional music, or pick product images for ORVA to turn into a reel." />
+                            <SectionHeading title="Media source" description="Upload a video, choose ORVA music, or pick product images for ORVA to turn into a reel." />
                             <div className="mt-4 grid gap-2">
                                 <label className="btn-primary cursor-pointer justify-center">
                                     <Upload className="h-4 w-4" />Upload video
                                     <input className="sr-only" type="file" accept="video/mp4,video/quicktime,video/webm" onChange={uploadVideo} disabled={working === "upload"} />
-                                </label>
-                                <label className="btn-secondary cursor-pointer justify-center">
-                                    {working === "upload-audio" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
-                                    {reelDraft.reel_audio_url ? "Change music" : "Add music"}
-                                    <input className="sr-only" type="file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg" onChange={uploadMusic} disabled={working === "upload-audio"} />
                                 </label>
                                 <button type="button" className="btn-secondary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={createAiReelFromImages}>{working === "ai-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Create from selected images</button>
                             </div>
@@ -1015,6 +1035,7 @@ export function ReelStudioPage() {
                                     <div className="min-w-0">
                                         <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Reel music</p>
                                         <p className="mt-1 truncate text-sm font-black text-[var(--ink)]">{reelDraft.reel_audio_track_name || "No music selected"}</p>
+                                        {selectedLibraryTrack ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{selectedLibraryTrack.mood}</p> : null}
                                     </div>
                                     {reelDraft.reel_audio_url ? (
                                         <button type="button" className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-red-600 shadow-sm" onClick={clearMusic} disabled={Boolean(working)}>Remove</button>
@@ -1022,9 +1043,36 @@ export function ReelStudioPage() {
                                 </div>
                                 {reelDraft.reel_audio_url ? (
                                     <audio className="mt-3 w-full" src={reelDraft.reel_audio_url} controls preload="metadata" />
-                                ) : (
-                                    <p className="mt-2 text-xs font-semibold leading-5 text-[var(--muted)]">Upload MP3, M4A, AAC, WAV, or OGG music you own or have permission to use.</p>
-                                )}
+                                ) : null}
+                            </div>
+
+                            <div className="mt-4 rounded-2xl border border-[var(--border)] bg-white p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Music</p>
+                                        <p className="mt-1 truncate text-sm font-black text-[var(--ink)]">{reelDraft.reel_audio_track_name || "No music selected"}</p>
+                                        <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">{selectedLibraryTrack?.bestFor || "Choose a licensed track or upload your own permitted audio."}</p>
+                                    </div>
+                                    <Volume2 className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+                                </div>
+                                {reelDraft.reel_audio_url ? (
+                                    <audio className="mt-3 w-full" src={reelDraft.reel_audio_url} controls preload="metadata" />
+                                ) : null}
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                                    <button type="button" className="btn-primary justify-center" onClick={() => setMusicModalOpen(true)} disabled={Boolean(working)}>
+                                        <Volume2 className="h-4 w-4" />
+                                        Choose music
+                                    </button>
+                                    <label className="btn-secondary cursor-pointer justify-center">
+                                        {working === "upload-audio" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
+                                        Upload own
+                                        <input className="sr-only" type="file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg" onChange={uploadMusic} disabled={working === "upload-audio"} />
+                                    </label>
+                                </div>
+                                {reelDraft.reel_audio_url ? (
+                                    <button type="button" className="mt-2 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-red-600 shadow-sm" onClick={clearMusic} disabled={Boolean(working)}>Remove music</button>
+                                ) : null}
+                                <p className="mt-2 text-xs font-semibold leading-5 text-[var(--muted)]">Use music only if the license allows social posts for your business.</p>
                             </div>
 
                             <div className="mt-5 flex items-center justify-between gap-3">
@@ -1164,7 +1212,7 @@ export function ReelStudioPage() {
                                         </div>
                                     </div>
                                     <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
-                                        <p className="rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold leading-5 text-[var(--muted)]">Premium rendering uses selected inventory images{reelDraft.reel_audio_url ? " and your uploaded music" : ""}. Basic reel stays safe if enhancement fails.</p>
+                                        <p className="rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold leading-5 text-[var(--muted)]">Premium rendering uses selected inventory images{reelDraft.reel_audio_url ? " and your selected music" : ""}. Basic reel stays safe if enhancement fails.</p>
                                         <button type="button" className="btn-primary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={generatePremiumReel}>
                                             {working === "premium-reel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                             Generate Premium Reel
@@ -1240,6 +1288,69 @@ export function ReelStudioPage() {
                         </div>
                     </div>
                 )}
+                {musicModalOpen ? (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm">
+                        <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl">
+                            <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] bg-[var(--surface)] px-5 py-4">
+                                <div>
+                                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">ORVA music library</p>
+                                    <h2 className="mt-1 text-2xl font-black text-[var(--ink)]">Choose reel music</h2>
+                                    <p className="mt-1 text-sm font-semibold leading-6 text-[var(--muted)]">Preview licensed tracks, then select one for your reel. The final video will include music after you save, enhance, or publish it.</p>
+                                </div>
+                                <button type="button" className="btn-secondary shrink-0" onClick={() => setMusicModalOpen(false)}>Close</button>
+                            </div>
+                            <div className="max-h-[68vh] overflow-y-auto p-5">
+                                {reelMusicLibrary.length ? (
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        {reelMusicLibrary.map((track) => {
+                                            const selected = reelDraft.reel_audio_url === track.url;
+                                            return (
+                                                <div
+                                                    key={track.id}
+                                                    className={`rounded-2xl border p-4 shadow-sm transition ${selected ? "border-[var(--accent)] bg-[var(--accent-light)] ring-4 ring-[var(--accent)]/10" : "border-[var(--border)] bg-white"}`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-base font-black text-[var(--ink)]">{track.name}</p>
+                                                            <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">{track.mood}</p>
+                                                        </div>
+                                                        <span className="rounded-full bg-[var(--surface)] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--accent)]">{track.style}</span>
+                                                    </div>
+                                                    <p className="mt-3 text-sm font-semibold leading-6 text-[var(--mid)]">{track.bestFor}</p>
+                                                    <audio className="mt-3 w-full" src={track.url} controls preload="metadata" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => selectLibraryMusic(track)}
+                                                        disabled={Boolean(working)}
+                                                        className={selected ? "btn-secondary mt-3 w-full justify-center" : "btn-primary mt-3 w-full justify-center"}
+                                                    >
+                                                        <Volume2 className="h-4 w-4" />
+                                                        {selected ? "Selected" : "Use this music"}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-6 text-center">
+                                        <Music className="mx-auto h-8 w-8 text-[var(--accent)]" />
+                                        <p className="mt-3 text-lg font-black text-[var(--ink)]">No library tracks added yet</p>
+                                        <p className="mx-auto mt-2 max-w-lg text-sm font-semibold leading-6 text-[var(--muted)]">Add licensed MP3/WAV files to <span className="font-black text-[var(--ink)]">public/orva-music</span> and list them in <span className="font-black text-[var(--ink)]">app/lib/reels.js</span>.</p>
+                                    </div>
+                                )}
+                                <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                                    <p className="text-sm font-black text-[var(--ink)]">Have your own audio?</p>
+                                    <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">Upload custom audio only if you own it or have permission to use it in business social media posts.</p>
+                                    <label className="btn-secondary mt-3 cursor-pointer justify-center">
+                                        {working === "upload-audio" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                        Upload licensed audio
+                                        <input className="sr-only" type="file" accept="audio/mpeg,audio/mp3,audio/mp4,audio/aac,audio/wav,audio/x-wav,audio/ogg" onChange={uploadMusic} disabled={working === "upload-audio"} />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
             </DashboardShell>
         </AuthGate>
     );
