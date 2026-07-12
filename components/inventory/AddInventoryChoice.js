@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, FileSpreadsheet, ImageIcon } from "lucide-react";
+import { ArrowRight, FileSpreadsheet, ImageIcon, Megaphone } from "lucide-react";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 import { SectionHeading } from "../DashboardUI";
@@ -22,6 +22,13 @@ export function AddInventoryChoice() {
             icon: ImageIcon,
             cta: "Upload Photos + Prices",
         },
+        {
+            title: "I want to post marketing images",
+            description: "Upload brand, offer, or service images. ORVA helps create captions and CTAs without asking for product prices.",
+            href: "/dashboard/upload-inventory/content",
+            icon: Megaphone,
+            cta: "Create Content Posts",
+        },
     ];
 
     return (
@@ -37,7 +44,7 @@ export function AddInventoryChoice() {
                         title="Start with inventory or photos"
                         description="Nothing gets published automatically. You review the final product list before it is saved."
                     />
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-3">
                         {options.map((option) => {
                             const Icon = option.icon;
                             return (

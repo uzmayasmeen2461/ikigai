@@ -328,6 +328,20 @@ export function AuthExperience({ mode = "login", unified = false }) {
                 return;
             }
 
+            fetchWithTimeout("/api/auth/registration-notification", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    userId: data.user.id,
+                    email: normalizedEmail,
+                    role,
+                }),
+            }, 5000).catch((notificationError) => {
+                console.warn("Could not send registration notification.", notificationError?.message || notificationError);
+            });
+
             const nextPath = checkoutIntentPath(role) || dashboardForRole(role);
 
             setEmail("");
