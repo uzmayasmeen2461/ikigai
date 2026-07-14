@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, Copy, Download, ImageIcon, Link2, Loader2, Megaphone, Sparkles, Trash2, Upload } from "lucide-react";
+import { CalendarDays, Copy, Download, ImageIcon, Link2, Loader2, Megaphone, Send, Sparkles, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../app/lib/supabase";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
@@ -154,6 +154,9 @@ export function MarketingContentFlow() {
     const [posts, setPosts] = useState([]);
     const [message, setMessage] = useState({ type: "", text: "" });
     const [analyzingIds, setAnalyzingIds] = useState([]);
+    const [savingToScheduler, setSavingToScheduler] = useState(false);
+    const [schedulerResult, setSchedulerResult] = useState(null);
+    const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram_post", "facebook_post"]);
 
     const hasPosts = posts.length > 0;
     const completedPosts = useMemo(() => posts.filter((post) => post.caption.trim() && post.cta.trim()), [posts]);
@@ -246,6 +249,49 @@ export function MarketingContentFlow() {
         setMessage({ type: "success", text: "Post caption copied." });
     };
 
+    const togglePlatform = (platform) => {
+        setSelectedPlatforms((current) => {
+            if (current.includes(platform)) {
+                const next = current.filter((item) => item !== platform);
+                return next.length ? next : current;
+            }
+            return [...current, platform];
+        });
+    };
+
+    const saveToScheduler = async () => {
+        if (!completedPosts.length) {
+            setMessage({ type: "error", text: "Add captions and CTAs before saving these images to Growth Autopilot." });
+            return;
+        }
+        setSavingToScheduler(true);
+        setSchedulerResult(null);
+        setMessage({ type: "info", text: "Saving marketing posts to Growth Autopilot..." });
+        try {
+            const token = await getAccessToken();
+            const response = await fetch("/api/marketing-content/schedule", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    posts: completedPosts,
+                    selectedPlatforms,
+                    name: "Marketing Image Posts",
+                }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(result.error || "Could not save posts to Growth Autopilot.");
+            setSchedulerResult(result);
+            setMessage({ type: "success", text: result.message || "Marketing posts saved to Growth Autopilot." });
+        } catch (error) {
+            setMessage({ type: "error", text: error.message || "Could not save posts to Growth Autopilot." });
+        } finally {
+            setSavingToScheduler(false);
+        }
+    };
+
     return (
         <AuthGate allowedRoles="client">
             <DashboardShell
@@ -279,7 +325,7 @@ export function MarketingContentFlow() {
                 <section className="dashboard-panel mt-6 p-6">
                     <SectionHeading
                         title="Prepare captions and CTAs"
-                        description="Review each image, edit the caption, add a website or WhatsApp link, then copy or download the content plan."
+                        description="Review each image, edit the caption, add a website or WhatsApp link, then save posts to Growth Autopilot for scheduling."
                     />
 
                     {!hasPosts ? (
@@ -388,7 +434,34 @@ export function MarketingContentFlow() {
 
                     {hasPosts ? (
                         <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
-                            {completedPosts.length} of {posts.length} posts have caption and CTA text ready. These are marketing posts, not product inventory.
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div>
+                                    <p className="font-bold">{completedPosts.length} of {posts.length} posts have caption and CTA text ready.</p>
+                                    <p>These are marketing posts, not product inventory. Save them to Growth Autopilot to schedule or publish them.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 font-bold text-blue-900">
+                                        <input type="checkbox" checked={selectedPlatforms.includes("instagram_post")} onChange={() => togglePlatform("instagram_post")} />
+                                        Instagram
+                                    </label>
+                                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-2 font-bold text-blue-900">
+                                        <input type="checkbox" checked={selectedPlatforms.includes("facebook_post")} onChange={() => togglePlatform("facebook_post")} />
+                                        Facebook
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="mt-4 flex flex-wrap gap-3">
+                                <button type="button" className="btn-primary" disabled={savingToScheduler || !completedPosts.length} onClick={saveToScheduler}>
+                                    {savingToScheduler ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    {savingToScheduler ? "Saving..." : "Save to Growth Autopilot"}
+                                </button>
+                                <a className="btn-secondary" href="/dashboard/growth-autopilot">Open Growth Autopilot</a>
+                            </div>
+                            {schedulerResult?.campaign?.id ? (
+                                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+                                    Saved {schedulerResult.items?.length || 0} post{schedulerResult.items?.length === 1 ? "" : "s"} to Growth Autopilot. Open the scheduler to preview, approve, pause, or publish.
+                                </div>
+                            ) : null}
                         </div>
                     ) : null}
                 </section>

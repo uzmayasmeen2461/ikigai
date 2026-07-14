@@ -291,20 +291,46 @@ export async function publishCampaignItem({ supabase, item, userId }) {
     if (!access.ok) throw new Error(access.error || "Activate your ORVA plan to schedule and publish campaigns.");
 
     const mockMode = process.env.NEXT_PUBLIC_META_MOCK_MODE === "true" || process.env.SOCIAL_PUBLISH_MOCK_MODE === "true";
-    const { data: product, error } = await supabase.from("products").select("*").eq("id", item.product_id).maybeSingle();
-    if (error) throw error;
-    if (!product || (product.user_id || product.client_id) !== userId) throw new Error("Product not found.");
+    let product;
+    if (item.product_id) {
+        const { data, error } = await supabase.from("products").select("*").eq("id", item.product_id).maybeSingle();
+        if (error) throw error;
+        if (!data || (data.user_id || data.client_id) !== userId) throw new Error("Product not found.");
+        product = data;
+    } else {
+        if (!item.media_url) throw new Error("This scheduled post is missing an image.");
+        product = {
+            id: item.id,
+            user_id: userId,
+            client_id: userId,
+            name: item.generated_title || "Marketing Post",
+            product_name: item.generated_title || "Marketing Post",
+            description: item.generated_caption || "",
+            notes: item.generated_caption || "",
+            image_url: item.media_url,
+            cleaned_image_url: item.media_url,
+            price: 0,
+            stock: 1,
+            status: "in_stock",
+        };
+    }
+
+    const campaignCaption = [
+        item.generated_caption,
+        item.generated_cta && !String(item.generated_caption || "").includes(item.generated_cta) ? item.generated_cta : "",
+        item.generated_hashtags && !String(item.generated_caption || "").includes(item.generated_hashtags) ? item.generated_hashtags : "",
+    ].filter(Boolean).join("\n\n");
 
     let result;
     if (item.content_type === "instagram_post") {
         const publishProduct = await publicProductImageFields(product, { userId, productId: product.id });
         const connection = await connectionFor(supabase, userId, "instagram");
         if (!mockMode && connection?.status !== "connected") throw new Error("Instagram is not connected. Use manual export or connect Instagram.");
-        result = await publishProductToInstagram({ product: publishProduct, connection, mockMode, caption: item.generated_caption });
+        result = await publishProductToInstagram({ product: publishProduct, connection, mockMode, caption: campaignCaption });
     } else if (item.content_type === "facebook_post") {
         const connection = await connectionFor(supabase, userId, "facebook_page");
         if (!mockMode && connection?.status !== "connected") throw new Error("Facebook Page is not connected. Use manual export or connect Facebook.");
-        result = await publishProductToFacebookPage({ product, connection, mockMode, caption: item.generated_caption });
+        result = await publishProductToFacebookPage({ product, connection, mockMode, caption: campaignCaption });
     } else if (mockMode) {
         result = { externalPostId: `mock-${item.content_type}-${item.id}`, mock: true };
     } else {
