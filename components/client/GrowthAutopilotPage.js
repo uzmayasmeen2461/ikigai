@@ -26,8 +26,8 @@ import { DashboardShell } from "../DashboardShell";
 import { EmptyState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
 
 const campaignTypes = [
-    { id: "hourly", title: "Hourly Campaign", text: "Post during business hours, for example 10 AM to 8 PM.", best: "Flash sales and launch days", icon: Clock3 },
-    { id: "weekly", title: "Weekly Campaign", text: "Build a full week of posts and promotions from your inventory.", best: "Regular social presence", icon: CalendarDays, recommended: true },
+    { id: "hourly", title: "Hourly Campaign", text: "Start now and publish one post per hour during business hours.", best: "Flash sales and launch days", icon: Clock3, recommended: true },
+    { id: "weekly", title: "Weekly Campaign", text: "Build a full week of posts and promotions from your inventory.", best: "Regular social presence", icon: CalendarDays },
     { id: "monthly", title: "Monthly Campaign", text: "Prepare a full month of content from your inventory.", best: "Managed clients and planned promotions", icon: Grid2X2 },
 ];
 
@@ -115,10 +115,28 @@ function todayISO() {
     return new Date().toISOString().slice(0, 10);
 }
 
+function currentTimeHHMM() {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
 function addDaysISO(days) {
     const date = new Date();
     date.setDate(date.getDate() + days);
     return date.toISOString().slice(0, 10);
+}
+
+function sortedCampaignItems(items = []) {
+    return (items || [])
+        .filter((item) => item.status !== "removed")
+        .sort((a, b) => String(a.scheduled_at || a.created_at || "").localeCompare(String(b.scheduled_at || b.created_at || "")));
+}
+
+function chooseDefaultCampaign(campaigns = []) {
+    return campaigns.find((item) => item.status === "active")
+        || campaigns.find((item) => item.status === "scheduled")
+        || campaigns[0]
+        || null;
 }
 
 export function GrowthAutopilotPage() {
@@ -139,14 +157,14 @@ export function GrowthAutopilotPage() {
     const [previewItem, setPreviewItem] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [form, setForm] = useState({
-        campaignType: "weekly",
-        name: "July Offers",
+        campaignType: "hourly",
+        name: "Today Growth Sprint",
         startDate: todayISO(),
-        endDate: addDaysISO(6),
-        postingWindowStart: "10:00",
+        endDate: todayISO(),
+        postingWindowStart: currentTimeHHMM(),
         postingWindowEnd: "20:00",
         goal: "mixed",
-        approvalMode: "ask_before_posting",
+        approvalMode: "auto_post_approved",
         selectedPlatforms: ["instagram_post", "facebook_post"],
         settings: { postsPerWeek: 7, storiesPerWeek: 3, reelsPerWeek: 2, postsPerDay: 8, postsPerMonth: 20, storiesPerMonth: 8, reelsPerMonth: 4 },
     });
@@ -165,12 +183,13 @@ export function GrowthAutopilotPage() {
         if (!campaignsResponse.ok) setMessage({ type: "error", text: campaignList.error || "Could not load campaigns." });
         setProducts(inventory.products || []);
         setCampaigns(campaignList.campaigns || []);
-        const latest = (campaignList.campaigns || [])[0];
-        if (latest) {
-            setCampaign(latest);
-            setItems((latest.campaign_items || []).filter((item) => item.status !== "removed").sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at))));
-            setHealth({ score: latest.health_score || 0, recommendations: [] });
+        const selected = chooseDefaultCampaign(campaignList.campaigns || []);
+        if (selected) {
+            setCampaign(selected);
+            setItems(sortedCampaignItems(selected.campaign_items || []));
+            setHealth({ score: selected.health_score || 0, recommendations: [] });
             setStep(4);
+            setViewMode(selected.campaign_type === "hourly" ? "list" : "calendar");
         }
         setLoading(false);
     }, [getToken]);
@@ -274,9 +293,10 @@ export function GrowthAutopilotPage() {
             const result = await api(`/api/campaigns/${encodeURIComponent(campaignId)}`);
             setCampaign(result.campaign);
             setDeleteConfirm(false);
-            setItems(result.items || []);
+            setItems(sortedCampaignItems(result.items || []));
             setHealth(result.health || { score: result.campaign?.health_score || 0, recommendations: [] });
             setStep(4);
+            setViewMode(result.campaign?.campaign_type === "hourly" ? "list" : "calendar");
         } catch (error) {
             if (!options.silent) setMessage({ type: "error", text: error.message });
         } finally {
@@ -328,10 +348,10 @@ export function GrowthAutopilotPage() {
             const result = await api(path, action === "delete" ? { method: "DELETE" } : { method: "POST", body: "{}" });
             if (action === "delete") {
                 const remaining = campaigns.filter((row) => row.id !== campaign.id);
-                const nextCampaign = remaining[0] || null;
+                const nextCampaign = chooseDefaultCampaign(remaining);
                 setCampaigns(remaining);
                 setCampaign(nextCampaign);
-                setItems(nextCampaign?.campaign_items?.filter((item) => item.status !== "removed") || []);
+                setItems(sortedCampaignItems(nextCampaign?.campaign_items || []));
                 setHealth({ score: nextCampaign?.health_score || 0, recommendations: [] });
                 setDeleteConfirm(false);
                 if (!nextCampaign) setStep(1);
@@ -344,6 +364,28 @@ export function GrowthAutopilotPage() {
             if (action === "schedule") setItems((current) => current.map((item) => item.status === "approved" ? { ...item, status: "scheduled" } : item));
             setDeleteConfirm(false);
             setMessage({ type: "success", text: result.message || "Campaign updated." });
+        } catch (error) {
+            setMessage({ type: "error", text: error.message });
+        } finally {
+            setWorking("");
+        }
+    }
+
+    async function startCampaignNow() {
+        if (!campaign?.id) {
+            setMessage({ type: "error", text: "Campaign id is missing. Refresh the page and try again." });
+            return;
+        }
+        setWorking("startNow");
+        try {
+            const campaignId = encodeURIComponent(campaign.id);
+            await api(`/api/campaigns/${campaignId}/approve-all`, { method: "POST", body: "{}" });
+            const result = await api(`/api/campaigns/${campaignId}/schedule-approved`, { method: "POST", body: "{}" });
+            if (result.campaign) setCampaign(result.campaign);
+            if (result.items) setItems(sortedCampaignItems(result.items));
+            setViewMode("list");
+            setDeleteConfirm(false);
+            setMessage({ type: result.failed ? "error" : "success", text: result.message || "Campaign started. Due posts will publish now." });
         } catch (error) {
             setMessage({ type: "error", text: error.message });
         } finally {
@@ -416,7 +458,7 @@ export function GrowthAutopilotPage() {
 
                     <div className={`rounded-xl border p-4 text-sm font-semibold ${form.approvalMode === "auto_post_approved" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
                         {form.approvalMode === "auto_post_approved"
-                            ? "Auto-publish is active for approved scheduled posts. You can pause the campaign anytime."
+                            ? "Default: Hourly campaign. Start time uses the current IST minute, and approved scheduled posts publish automatically."
                             : "ORVA prepares campaigns from your inventory. You approve before anything goes live."}
                     </div>
 
@@ -438,7 +480,13 @@ export function GrowthAutopilotPage() {
                                     {campaignTypes.map((type) => {
                                         const Icon = type.icon;
                                         return (
-                                            <button key={type.id} type="button" className={`rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 ${form.campaignType === type.id ? "border-[var(--accent)] bg-white shadow-lg" : "border-[var(--border)] bg-[var(--surface)]"}`} onClick={() => updateForm({ campaignType: type.id, endDate: addDaysISO(type.id === "monthly" ? 29 : type.id === "weekly" ? 6 : 0) })}>
+                                            <button key={type.id} type="button" className={`rounded-2xl border p-5 text-left transition hover:-translate-y-0.5 ${form.campaignType === type.id ? "border-[var(--accent)] bg-white shadow-lg" : "border-[var(--border)] bg-[var(--surface)]"}`} onClick={() => updateForm({
+                                                campaignType: type.id,
+                                                name: type.id === "hourly" ? "Today Growth Sprint" : type.id === "weekly" ? "Weekly Growth Plan" : "Monthly Growth Plan",
+                                                startDate: todayISO(),
+                                                endDate: addDaysISO(type.id === "monthly" ? 29 : type.id === "weekly" ? 6 : 0),
+                                                postingWindowStart: type.id === "hourly" ? currentTimeHHMM() : form.postingWindowStart,
+                                            })}>
                                                 <Icon className="h-5 w-5 text-[var(--accent)]" />
                                                 <div className="mt-4 flex items-center gap-2">
                                                     <h3 className="font-bold text-[var(--ink)]">{type.title}</h3>
@@ -547,9 +595,10 @@ export function GrowthAutopilotPage() {
                                 ) : (
                                     <>
                                         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                                            <SectionHeading title={campaign.name} description={`Health score: ${health.score || campaign.health_score || 0}/100`} />
+                                            <SectionHeading title={campaign.name} description={`Selected campaign · ${campaign.campaign_type} · Health score: ${health.score || campaign.health_score || 0}/100`} />
                                             <div className="flex flex-wrap gap-2">
                                                 <button className="btn-secondary" onClick={() => setViewMode(viewMode === "calendar" ? "list" : "calendar")}>{viewMode === "calendar" ? "List View" : "Calendar View"}</button>
+                                                {!campaignIsActive && !campaignIsPaused ? <button className="btn-primary" disabled={working === "startNow"} onClick={startCampaignNow}>{working === "startNow" ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}Start Campaign Now</button> : null}
                                                 <button className="btn-secondary" disabled={working === "approveAll" || campaignIsActive} onClick={() => campaignAction("approveAll")}>Approve All</button>
                                                 <button className="btn-primary" disabled={working === "schedule" || campaignIsActive} onClick={() => campaignAction("schedule")}>Schedule Approved</button>
                                                 {campaignIsPaused ? <button className="btn-primary" onClick={() => campaignAction("resume")}><PlayCircle className="h-4 w-4" />Resume Campaign</button> : <button className={campaignIsActive ? "btn-primary" : "btn-secondary"} onClick={() => campaignAction("pause")}><PauseCircle className="h-4 w-4" />Pause Campaign</button>}
@@ -565,6 +614,7 @@ export function GrowthAutopilotPage() {
                                                     <span className="inline-flex rounded-full bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em]">{campaignState.badge}</span>
                                                     <h3 className="mt-3 text-xl font-black">{campaignState.title}</h3>
                                                     <p className="mt-1 text-sm font-semibold opacity-80">{campaignState.text}</p>
+                                                    <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] opacity-70">Currently selected: {campaign.name}</p>
                                                 </div>
                                                 {campaignIsActive ? (
                                                     <button className="btn-primary shrink-0" disabled={working === "pause"} onClick={() => campaignAction("pause")}>
@@ -597,7 +647,19 @@ export function GrowthAutopilotPage() {
                         <section className="dashboard-panel p-5">
                             <SectionHeading title="Recent campaigns" description="Open a saved campaign to continue reviewing or scheduling." />
                             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                                {campaigns.slice(0, 6).map((row) => <button key={row.id} className="rounded-xl border border-[var(--border)] bg-white p-4 text-left" onClick={() => loadCampaign(row.id)}><b>{row.name}</b><span className="mt-1 block text-sm text-[var(--muted)]">{row.campaign_type} · {row.status}</span></button>)}
+                                {campaigns.slice(0, 6).map((row) => {
+                                    const selected = row.id === campaign?.id;
+                                    return (
+                                        <button key={row.id} className={`rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${selected ? "border-[var(--accent)] bg-blue-50 shadow-lg shadow-blue-100" : "border-[var(--border)] bg-white"}`} onClick={() => loadCampaign(row.id)}>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <b>{row.name}</b>
+                                                {selected ? <span className="badge badge-blue">Selected</span> : null}
+                                            </div>
+                                            <span className="mt-1 block text-sm text-[var(--muted)]">{row.campaign_type} · {row.status}</span>
+                                            {row.status === "active" ? <span className="badge badge-green mt-3">Active campaign</span> : null}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </section>
                     ) : null}

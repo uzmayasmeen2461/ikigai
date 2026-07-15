@@ -78,7 +78,11 @@ export async function POST(request, context) {
             .select("*")
             .single();
         if (campaignUpdateError) throw campaignUpdateError;
-        const publishResults = await publishDueCampaignItems(supabase, Math.max(1, scheduledItems.length));
+        const publishResults = await publishDueCampaignItems(supabase, {
+            campaignId: campaign.id,
+            clientId: user.id,
+            limit: Math.max(1, scheduledItems.length),
+        });
         const { data: refreshedItems, error: refreshError } = await supabase
             .from("campaign_items")
             .select("*")

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cleanPlatforms, platformOptions } from "../../../lib/campaigns";
+import { publishDueCampaignItems } from "../../../lib/campaignAutomation";
 import { nowISTISOString } from "../../../lib/istDate";
 import { uploadProductImageIfNeeded } from "../../../lib/productImageStorage";
 import { campaignsSetupError, isCampaignSchemaError, requireCampaignRequest } from "../../campaigns/_shared";
@@ -54,7 +55,7 @@ export async function POST(request) {
                 name: String(body.name || "Marketing Image Posts").trim(),
                 campaign_type: "weekly",
                 goal: "brand_awareness",
-                status: hasScheduledPosts ? "scheduled" : "generated",
+                status: hasScheduledPosts ? "active" : "generated",
                 start_date: startDate,
                 end_date: endDate,
                 posting_window_start: "10:00",
@@ -110,11 +111,25 @@ export async function POST(request) {
             throw itemsError;
         }
 
+        const publishResults = hasScheduledPosts
+            ? await publishDueCampaignItems(supabase, {
+                campaignId: campaign.id,
+                clientId: user.id,
+                limit: Math.max(1, campaignItems.length),
+            })
+            : [];
+        const published = publishResults.filter((item) => item.status === "published").length;
+        const failed = publishResults.filter((item) => item.status === "failed").length;
+
         return NextResponse.json({
             campaign,
             items: items || [],
+            published,
+            failed,
             message: hasScheduledPosts
-                ? "Marketing images saved and scheduled in Growth Autopilot."
+                ? published
+                    ? `${published} due marketing post${published === 1 ? "" : "s"} published now. Remaining posts are active in Growth Autopilot.`
+                    : "Marketing images saved to the active campaign queue in Growth Autopilot."
                 : "Marketing images saved as draft posts in Growth Autopilot.",
         }, { status: 201 });
     } catch (error) {
