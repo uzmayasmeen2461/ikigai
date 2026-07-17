@@ -23,6 +23,10 @@ export const platformOptions = [
 
 export const autoPublishablePlatformIds = ["instagram_post", "facebook_post"];
 
+function isRealUuid(value) {
+    return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 export function cleanCampaignType(value = "weekly") {
     return campaignTypes.includes(value) ? value : "weekly";
 }
@@ -292,7 +296,7 @@ export async function publishCampaignItem({ supabase, item, userId }) {
 
     const mockMode = process.env.NEXT_PUBLIC_META_MOCK_MODE === "true" || process.env.SOCIAL_PUBLISH_MOCK_MODE === "true";
     let product;
-    if (item.product_id) {
+    if (isRealUuid(item.product_id)) {
         const { data, error } = await supabase.from("products").select("*").eq("id", item.product_id).maybeSingle();
         if (error) throw error;
         if (!data || (data.user_id || data.client_id) !== userId) throw new Error("Product not found.");

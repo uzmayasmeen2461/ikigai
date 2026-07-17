@@ -7,6 +7,42 @@ import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 import { EmptyState, FeedbackMessage, SectionHeading } from "../DashboardUI";
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const POST_INTERVAL_MINUTES = 30;
+
+function formatISTDateTimeLocal(date = new Date()) {
+    const ist = new Date(date.getTime() + IST_OFFSET_MS);
+    const year = ist.getUTCFullYear();
+    const month = String(ist.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(ist.getUTCDate()).padStart(2, "0");
+    const hour = String(ist.getUTCHours()).padStart(2, "0");
+    const minute = String(ist.getUTCMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+function automaticScheduleValue(index = 0, base = new Date()) {
+    return formatISTDateTimeLocal(new Date(base.getTime() + index * POST_INTERVAL_MINUTES * 60000));
+}
+
+function readableSchedule(value = "") {
+    if (!value) return "ORVA will choose the time";
+    const [date = "", time = ""] = String(value).split("T");
+    const [year, month, day] = date.split("-");
+    let [hour, minute] = time.split(":").map((part) => Number.parseInt(part, 10));
+    if (!Number.isFinite(hour)) return "ORVA will choose the time";
+    const suffix = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+    return `${day}/${month}/${year}, ${hour}:${String(minute || 0).padStart(2, "0")} ${suffix} IST`;
+}
+
+function withAutomaticSchedules(items = [], existingCount = 0) {
+    const base = new Date();
+    return items.map((item, index) => ({
+        ...item,
+        scheduledFor: item.scheduledFor || automaticScheduleValue(existingCount + index, base),
+    }));
+}
+
 function cleanTitle(fileName = "", index = 1) {
     const title = fileName
         .replace(/\.[a-z0-9]+$/i, "")
@@ -107,7 +143,7 @@ function fileToPost(file, index) {
                 cta: copy.cta,
                 hashtags: "#ORVA #LocalBusiness #DigitalGrowth",
                 link: "https://www.orva.digital",
-                scheduledFor: "",
+                scheduledFor: automaticScheduleValue(index - 1),
             });
         };
         reader.onerror = reject;
@@ -224,10 +260,11 @@ export function MarketingContentFlow() {
         if (!files.length) return;
 
         const nextPosts = await Promise.all(files.map((file, index) => fileToPost(file, posts.length + index + 1)));
-        setPosts((current) => [...current, ...nextPosts]);
+        const scheduledPosts = withAutomaticSchedules(nextPosts, posts.length);
+        setPosts((current) => [...current, ...scheduledPosts]);
         setMessage({ type: "success", text: `${nextPosts.length} marketing image${nextPosts.length === 1 ? "" : "s"} added. AI will read each image now.` });
         event.target.value = "";
-        queueMicrotask(() => analyzeUploadedImages(nextPosts));
+        queueMicrotask(() => analyzeUploadedImages(scheduledPosts));
     };
 
     const updatePost = (id, patch) => {
@@ -269,6 +306,7 @@ export function MarketingContentFlow() {
         setMessage({ type: "info", text: "Saving marketing posts to Growth Autopilot..." });
         try {
             const token = await getAccessToken();
+            const scheduledPosts = withAutomaticSchedules(completedPosts);
             const response = await fetch("/api/marketing-content/schedule", {
                 method: "POST",
                 headers: {
@@ -276,7 +314,7 @@ export function MarketingContentFlow() {
                     Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    posts: completedPosts,
+                    posts: scheduledPosts,
                     selectedPlatforms,
                     name: "Marketing Image Posts",
                 }),
@@ -416,6 +454,9 @@ export function MarketingContentFlow() {
                                                 onChange={(event) => updatePost(post.id, { scheduledFor: event.target.value })}
                                             />
                                         </label>
+                                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">
+                                            Auto scheduled: {readableSchedule(post.scheduledFor)} · editable
+                                        </p>
                                         <div className="flex flex-wrap gap-2">
                                             <button type="button" className="btn-primary" disabled={isAnalyzing(post.id)} onClick={() => generateCaption(post, index)}>
                                                 {isAnalyzing(post.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}

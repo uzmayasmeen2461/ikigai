@@ -9,6 +9,7 @@ import {
     Clock3,
     CreditCard,
     FileText,
+    Globe2,
     Loader2,
     ReceiptText,
     Search,
@@ -574,6 +575,7 @@ export function AdminReportsPage() {
                         <StatCard label="Automation success" value={`${paidTasks.length ? Math.round((autoAssigned / paidTasks.length) * 100) : 0}%`} icon={UserCheck} accent="bg-indigo-500" />
                         <StatCard label="Avg completion" value={averageCompletionHours ? `${averageCompletionHours}h` : "N/A"} icon={Clock3} accent="bg-slate-950" />
                     </div>
+                    <WebsiteAnalyticsSection />
                     <section className="dashboard-panel mb-6 p-6">
                         <SectionHeading title="Popular services" description="Demand by service type." />
                         <div className="grid gap-3">
@@ -607,6 +609,93 @@ export function AdminReportsPage() {
                 </>
             )}
         </AdminFrame>
+    );
+}
+
+function WebsiteAnalyticsSection() {
+    const [analytics, setAnalytics] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    const loadAnalytics = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const response = await fetch("/api/admin/site-analytics?days=30", {
+            headers: { Authorization: `Bearer ${sessionData.session?.access_token || ""}` },
+        });
+        const result = await response.json().catch(() => ({}));
+        setLoading(false);
+        if (!response.ok) {
+            setError(result.error || "Could not load website analytics.");
+            return;
+        }
+        setAnalytics(result);
+    }, []);
+
+    useEffect(() => {
+        queueMicrotask(loadAnalytics);
+    }, [loadAnalytics]);
+
+    return (
+        <section className="dashboard-panel mb-6 p-6">
+            <SectionHeading
+                icon={Globe2}
+                title="Website visitors"
+                description="Public website traffic from the last 30 days."
+                action={<button type="button" className="btn-secondary" onClick={loadAnalytics} disabled={loading}>{loading ? "Refreshing..." : "Refresh"}</button>}
+            />
+            {loading ? (
+                <LoadingRow label="Loading visitor analytics..." />
+            ) : error ? (
+                <ErrorState title="Analytics not ready" message={error} onRetry={loadAnalytics} />
+            ) : (
+                <>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <StatCard label="Total visits" value={analytics?.summary?.totalVisits || 0} icon={Globe2} accent="bg-blue-500" />
+                        <StatCard label="Unique visitors" value={analytics?.summary?.uniqueVisitors || 0} icon={UserCheck} accent="bg-emerald-500" />
+                        <StatCard label="Visits today" value={analytics?.summary?.visitsToday || 0} icon={Clock3} accent="bg-amber-500" />
+                        <StatCard label="Visitors today" value={analytics?.summary?.uniqueVisitorsToday || 0} icon={CheckCircle2} accent="bg-indigo-500" />
+                    </div>
+                    <div className="mt-6 grid gap-5 xl:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-100 bg-white p-5">
+                            <h3 className="font-bold text-slate-950">Top pages</h3>
+                            <div className="mt-4 grid gap-2">
+                                {(analytics?.topPages || []).length ? analytics.topPages.map((page) => (
+                                    <div key={page.path} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                                        <span className="truncate text-sm font-semibold text-slate-700">{page.path}</span>
+                                        <span className="badge badge-blue">{page.visits} visits</span>
+                                    </div>
+                                )) : <p className="text-sm text-slate-500">No page visits tracked yet.</p>}
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-slate-100 bg-white p-5">
+                            <h3 className="font-bold text-slate-950">Recent visits</h3>
+                            <div className="mt-4 grid gap-2">
+                                {(analytics?.recent || []).slice(0, 8).map((visit) => (
+                                    <div key={visit.id} className="rounded-xl bg-slate-50 px-4 py-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="truncate text-sm font-semibold text-slate-700">{visit.path || "/"}</span>
+                                            <span className="text-xs font-semibold text-slate-400">{formatDate(visit.visited_at)}</span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-slate-500">{visit.device_type || "device"} · {visit.browser || "browser"}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    {analytics?.devices?.length ? (
+                        <div className="mt-5 flex flex-wrap gap-2">
+                            {analytics.devices.map((item) => (
+                                <span key={item.device} className="dashboard-badge bg-slate-100 text-slate-700 ring-slate-200">
+                                    {item.device}: {item.visits}
+                                </span>
+                            ))}
+                        </div>
+                    ) : null}
+                </>
+            )}
+        </section>
     );
 }
 

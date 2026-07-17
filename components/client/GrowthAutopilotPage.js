@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../app/lib/supabase";
 import { formatINR } from "../../app/lib/pricing";
-import { formatStableDateTime } from "../../app/lib/stableDate";
+import { formatStableDate, formatStableDateTime, stableDateKey } from "../../app/lib/stableDate";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 import { EmptyState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
@@ -54,6 +54,28 @@ const statusClass = {
     failed: "badge-red",
     removed: "badge-gray",
 };
+
+const destinationLabels = {
+    instagram_post: "Instagram Post",
+    facebook_post: "Facebook Page Post",
+    instagram_story: "Instagram Story",
+    facebook_story: "Facebook Story",
+    instagram_reel: "Instagram Reel",
+    facebook_reel: "Facebook Reel",
+    whatsapp_status: "WhatsApp Status",
+};
+
+const platformPostLabels = {
+    instagram_post: "Instagram",
+    facebook_post: "Facebook Page",
+    instagram_story: "Instagram Story",
+    facebook_story: "Facebook Story",
+    instagram_reel: "Instagram Reel",
+    facebook_reel: "Facebook Reel",
+    whatsapp_status: "WhatsApp Status",
+};
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 const campaignStateCopy = {
     active: {
@@ -124,6 +146,48 @@ function addDaysISO(days) {
     const date = new Date();
     date.setDate(date.getDate() + days);
     return date.toISOString().slice(0, 10);
+}
+
+function scheduledLabelFor(item = {}) {
+    const value = item.status === "published"
+        ? item.published_at || item.updated_at || item.scheduled_at
+        : item.scheduled_at;
+    const formatted = formatStableDateTime(value);
+    if (!formatted || formatted === "-") return item.status === "published" ? "Posted time unavailable" : "Schedule time pending";
+    if (item.status === "published") return `Posted at ${formatted}`;
+    if (item.status === "failed") return `Was scheduled for ${formatted}`;
+    if (item.status === "scheduled") return `Will post at ${formatted}`;
+    if (item.status === "approved") return `Ready to schedule for ${formatted}`;
+    return `Planned for ${formatted}`;
+}
+
+function scheduledTimeOnly(value) {
+    const formatted = formatStableDateTime(value);
+    if (!formatted || formatted === "-") return "-";
+    const [, time = formatted] = formatted.split(", ");
+    return time;
+}
+
+function scheduledDateOnly(value) {
+    return formatStableDate(value) || "Date pending";
+}
+
+function toDatetimeLocalIST(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const ist = new Date(date.getTime() + IST_OFFSET_MS);
+    return [
+        ist.getUTCFullYear(),
+        String(ist.getUTCMonth() + 1).padStart(2, "0"),
+        String(ist.getUTCDate()).padStart(2, "0"),
+    ].join("-") + `T${String(ist.getUTCHours()).padStart(2, "0")}:${String(ist.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+function datetimeLocalToIST(value = "") {
+    const text = String(value || "").trim();
+    if (!text) return null;
+    return `${text.length === 16 ? `${text}:00` : text}.000+05:30`;
 }
 
 function sortedCampaignItems(items = []) {
@@ -216,7 +280,7 @@ export function GrowthAutopilotPage() {
 
     const groupedItems = useMemo(() => {
         return items.reduce((acc, item) => {
-            const key = String(item.scheduled_at || "").slice(0, 10) || "Unscheduled";
+            const key = stableDateKey(item.scheduled_at) || "Unscheduled";
             acc[key] = acc[key] || [];
             acc[key].push(item);
             return acc;
@@ -677,7 +741,7 @@ function CampaignCalendar({ groupedItems, onPreview }) {
         <div className="grid gap-3 xl:grid-cols-3">
             {entries.map(([date, rows]) => (
                 <div key={date} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
-                    <p className="mb-3 font-bold text-[var(--ink)]">{date}</p>
+                    <p className="mb-3 font-bold text-[var(--ink)]">{date === "Unscheduled" ? date : formatStableDate(`${date}T00:00:00.000+05:30`)}</p>
                     <div className="space-y-2">
                         {rows.map((item) => <ScheduleCard key={item.id} item={item} onPreview={onPreview} compact />)}
                     </div>
@@ -696,16 +760,34 @@ function CampaignList({ items, onPreview, onAction, working }) {
 }
 
 function ScheduleCard({ item, onPreview, onAction, working, compact = false }) {
+    const destination = destinationLabels[item.content_type] || item.content_type?.replaceAll("_", " ") || "Social post";
+    const platformLabel = platformPostLabels[item.content_type] || destination;
+    const scheduleValue = item.status === "published" ? item.published_at || item.updated_at || item.scheduled_at : item.scheduled_at;
+    const timeLabel = scheduledLabelFor(item);
     return (
         <article className="rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+                <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap gap-2">
-                        <span className="badge badge-blue">{item.content_type?.replaceAll("_", " ")}</span>
+                        <span className="badge badge-blue">{destination}</span>
                         <span className={`badge ${statusClass[item.status] || "badge-gray"}`}>{item.status}</span>
                     </div>
                     <h3 className="mt-2 font-bold text-[var(--ink)]">{item.generated_title}</h3>
-                    <p className="text-xs font-semibold text-[var(--muted)]">{formatStableDateTime(item.scheduled_at)}</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">Page</span>
+                            <span className="mt-1 block text-sm font-black text-[var(--ink)]">{platformLabel}</span>
+                        </div>
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[var(--muted)]">Date</span>
+                            <span className="mt-1 block text-sm font-black text-[var(--ink)]">{scheduledDateOnly(scheduleValue)}</span>
+                        </div>
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-blue-500">IST Time</span>
+                            <span className="mt-1 block text-sm font-black text-blue-900">{scheduledTimeOnly(scheduleValue)}</span>
+                        </div>
+                    </div>
+                    <p className="mt-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">{timeLabel}</p>
                     {!compact ? <p className="mt-2 line-clamp-2 text-sm text-[var(--ink3)]">{item.generated_caption}</p> : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -722,6 +804,7 @@ function PreviewModal({ item, onClose, onSave, onApprove, working }) {
     const [caption, setCaption] = useState(item.generated_caption || "");
     const [hashtags, setHashtags] = useState(item.generated_hashtags || "");
     const [cta, setCta] = useState(item.generated_cta || "");
+    const [scheduledAt, setScheduledAt] = useState(toDatetimeLocalIST(item.scheduled_at));
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="max-h-[90vh] w-full max-w-5xl overflow-auto rounded-3xl bg-white p-5 shadow-2xl">
@@ -741,9 +824,19 @@ function PreviewModal({ item, onClose, onSave, onApprove, working }) {
                         <label className="field-label">Caption<textarea className="input mt-2 min-h-40" value={caption} onChange={(event) => setCaption(event.target.value)} /></label>
                         <label className="field-label">Hashtags<input className="input mt-2" value={hashtags} onChange={(event) => setHashtags(event.target.value)} /></label>
                         <label className="field-label">CTA<input className="input mt-2" value={cta} onChange={(event) => setCta(event.target.value)} /></label>
+                        <label className="field-label">
+                            Publish date and time
+                            <input
+                                type="datetime-local"
+                                className="input mt-2"
+                                value={scheduledAt}
+                                onChange={(event) => setScheduledAt(event.target.value)}
+                            />
+                            <span className="mt-1 block text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">IST schedule · editable</span>
+                        </label>
                         <div className="flex flex-wrap gap-2">
                             <button className="btn-secondary" onClick={() => navigator.clipboard?.writeText([caption, hashtags].filter(Boolean).join("\n\n"))}>Copy Caption</button>
-                            <button className="btn-secondary" disabled={working === `edit:${item.id}`} onClick={() => onSave({ generated_caption: caption, generated_hashtags: hashtags, generated_cta: cta })}>Edit</button>
+                            <button className="btn-secondary" disabled={working === `edit:${item.id}`} onClick={() => onSave({ generated_caption: caption, generated_hashtags: hashtags, generated_cta: cta, scheduled_at: datetimeLocalToIST(scheduledAt) })}>Edit</button>
                             <button className="btn-primary" disabled={working === `approve:${item.id}`} onClick={onApprove}>Approve</button>
                         </div>
                     </div>

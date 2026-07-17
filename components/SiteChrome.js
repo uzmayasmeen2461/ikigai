@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Footer } from "./Footer";
 import Navbar from "./Navbar";
 import { OrvaInteractionEffects } from "./OrvaInteractionEffects";
+import { SiteVisitTracker } from "./SiteVisitTracker";
 import { ToastProvider } from "./ToastProvider";
 import { WhatsAppButton } from "./WhatsAppButton";
 
@@ -27,6 +28,7 @@ export function SiteChrome({ children }) {
     return (
         <ToastProvider>
             <OrvaInteractionEffects />
+            <SiteVisitTracker />
             <div className="flex min-h-screen flex-col">
                 <Navbar />
                 <div className="flex-grow">{children}</div>

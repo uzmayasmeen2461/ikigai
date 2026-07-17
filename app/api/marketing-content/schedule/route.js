@@ -5,11 +5,24 @@ import { nowISTISOString } from "../../../lib/istDate";
 import { uploadProductImageIfNeeded } from "../../../lib/productImageStorage";
 import { campaignsSetupError, isCampaignSchemaError, requireCampaignRequest } from "../../campaigns/_shared";
 
+const POST_INTERVAL_MINUTES = 30;
+
 function datetimeLocalToIST(value = "") {
     const text = String(value || "").trim();
     if (!text) return null;
     if (/[zZ]|[+-]\d{2}:\d{2}$/.test(text)) return text;
     return `${text.length === 16 ? `${text}:00` : text}.000+05:30`;
+}
+
+function pad(value) {
+    return String(value).padStart(2, "0");
+}
+
+function addMinutesToISTTimestamp(value, minutes = 0) {
+    const base = new Date(value || nowISTISOString());
+    const next = new Date(base.getTime() + minutes * 60000);
+    const ist = new Date(next.getTime() + 5.5 * 60 * 60 * 1000);
+    return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())}T${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}:00.000+05:30`;
 }
 
 function dateOnly(value = "") {
@@ -43,7 +56,12 @@ export async function POST(request) {
         }
 
         const selectedPlatforms = cleanPlatforms(body.selectedPlatforms, { publishableOnly: true });
-        const scheduledValues = posts.map((post) => datetimeLocalToIST(post.scheduledFor)).filter(Boolean);
+        const baseScheduledAt = datetimeLocalToIST(posts.find((post) => post.scheduledFor)?.scheduledFor) || nowISTISOString();
+        const postsWithSchedule = posts.map((post, index) => ({
+            ...post,
+            scheduledFor: datetimeLocalToIST(post.scheduledFor) || addMinutesToISTTimestamp(baseScheduledAt, index * POST_INTERVAL_MINUTES),
+        }));
+        const scheduledValues = postsWithSchedule.map((post) => post.scheduledFor).filter(Boolean);
         const hasScheduledPosts = scheduledValues.length > 0;
         const startDate = scheduledValues.length ? dateOnly(scheduledValues[0]) : nowISTISOString().slice(0, 10);
         const endDate = scheduledValues.length ? dateOnly(scheduledValues[scheduledValues.length - 1]) : startDate;
@@ -64,7 +82,8 @@ export async function POST(request) {
                 selected_platforms: selectedPlatforms,
                 settings: {
                     source: "marketing_content_upload",
-                    postCount: posts.length,
+                    postCount: postsWithSchedule.length,
+                    scheduleIntervalMinutes: POST_INTERVAL_MINUTES,
                     note: "Standalone marketing images saved from Content Images.",
                 },
             })
@@ -77,15 +96,15 @@ export async function POST(request) {
         }
 
         const campaignItems = [];
-        for (let index = 0; index < posts.length; index += 1) {
-            const post = posts[index];
+        for (let index = 0; index < postsWithSchedule.length; index += 1) {
+            const post = postsWithSchedule[index];
             const contentType = selectedPlatforms[index % selectedPlatforms.length] || "instagram_post";
             const publicImageUrl = await uploadProductImageIfNeeded(post.imageUrl, {
                 userId: user.id,
                 productId: `marketing-${campaign.id}`,
                 label: post.title || `marketing-post-${index + 1}`,
             });
-            const scheduledAt = datetimeLocalToIST(post.scheduledFor);
+            const scheduledAt = post.scheduledFor;
             campaignItems.push({
                 campaign_id: campaign.id,
                 client_id: user.id,
