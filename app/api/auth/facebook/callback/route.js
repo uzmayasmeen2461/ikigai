@@ -32,7 +32,7 @@ export async function GET(request) {
 
     try {
         await completeFacebookLogin({ code, state, origin: url.origin });
-        return redirectToConnections(request, "select_page");
+        return redirectToConnections(request, "connected");
     } catch (error) {
         await markFacebookConnectionFailed(state, error.message);
         return redirectToConnections(request, "failed", error.message || "Could not connect Facebook.");

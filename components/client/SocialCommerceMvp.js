@@ -32,7 +32,7 @@ import { buildFacebookPageCaption, buildInstagramCaption, formatInventoryStatus,
 import { formatStableDateTime } from "../../app/lib/stableDate";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
-import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard, VisualActionCard } from "../DashboardUI";
+import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
 
 const channels = [
     { id: "whatsapp", name: "WhatsApp Business", description: "Prepare catalog-ready product text and images for manual WhatsApp setup.", icon: Send },
@@ -76,8 +76,6 @@ function connectionBadge(status = "not_connected") {
     if (status === "manual_setup") return "badge-blue";
     if (status === "api_ready") return "badge-warn";
     if (status === "connecting") return "badge-warn";
-    if (status === "page_selection_required") return "badge-warn";
-    if (status === "account_selection_required") return "badge-warn";
     if (status === "failed") return "badge-red";
     return "badge-gray";
 }
@@ -107,12 +105,6 @@ function ChannelLogo({ channel }) {
             f
         </span>
     );
-}
-
-function connectedDestinationName(connections = [], channel = "facebook") {
-    const connection = connections.find((item) => item.channel === channel && item.status === "connected");
-    if (connection?.external_account_name) return connection.external_account_name;
-    return channel === "instagram" ? "connected Instagram professional account" : "connected Facebook Page";
 }
 
 function publishCopyForChannel(channel, product = {}) {
@@ -237,19 +229,6 @@ export function MvpDashboard() {
     ];
     const connectedChannels = connections.filter((connection) => connection.status === "connected").length;
     const pendingTasks = updateTasks.filter((task) => ["pending", "in_progress", "failed"].includes(task.status)).slice(0, 4);
-    const hasProducts = products.length > 0;
-    const publishDestinationName = connectedDestinationName(connections, publishChannel);
-    const nextActions = hasProducts
-        ? [
-            { title: "Review products", detail: "Check names, prices, stock, and images.", action: "Open products", href: "/dashboard/products", icon: Package, primary: true, visual: "tap" },
-            { title: "Publish selected", detail: selectedProduct ? `Start with ${productName(selectedProduct)}.` : "Choose a product and review the copy.", action: "Go to publish", href: "#publish-selected", icon: Send, visual: "publish" },
-            { title: "Add more", detail: "Upload a CSV or add items one by one.", action: "Add products", href: "/dashboard/upload-inventory", icon: CloudUpload, visual: "upload" },
-        ]
-        : [
-            { title: "Add products", detail: "Upload a CSV, or send product photos and prices.", action: "Start here", href: "/dashboard/upload-inventory", icon: CloudUpload, primary: true, visual: "upload" },
-            { title: "Set up channels", detail: "Prepare Facebook, Instagram, and WhatsApp.", action: "Open channels", href: "/dashboard/connections", icon: Send, visual: "channels" },
-            { title: "Activate ORVA", detail: "Publishing unlocks after account verification.", action: onboarding.active ? "Already active" : "Open onboarding", href: "/dashboard/onboarding", icon: CheckCircle2, visual: "tap" },
-        ];
 
     const openPublisher = async (product, channel) => {
         setPublishChannel(channel);
@@ -331,7 +310,7 @@ export function MvpDashboard() {
 
     return (
         <AuthGate allowedRoles="client">
-            <DashboardShell role="client" eyebrow="Workspace" title="Your selling dashboard" description="Add products, review how they look, then publish them to the channels your customers use.">
+            <DashboardShell role="client" eyebrow="Workspace" title="Publish your products" description="Upload a product list, or send photos and prices so ORVA can create the inventory for you.">
                 <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
                 {loading ? <div className="dashboard-panel p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : error ? <ErrorState title="Could not load dashboard" message={error} onRetry={load} /> : (
                     <div className="grid gap-6">
@@ -345,47 +324,27 @@ export function MvpDashboard() {
                         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map((stat) => <StatCard key={stat.label} {...stat} />)}</section>
 
                         <section className="dashboard-panel p-5">
-                            <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-                                <div>
-                                    <h2 className="text-xl font-bold">Next best step</h2>
-                                    <p className="mt-1 text-sm leading-6 text-[var(--mid)]">
-                                        Start here whenever you are unsure what to do next.
-                                    </p>
-                                </div>
-                                <span className="dashboard-badge badge-blue w-fit">{connectedChannels} connected channel{connectedChannels === 1 ? "" : "s"}</span>
+                            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                                {[
+                                    { step: "1", title: "Add inventory", detail: "Upload CSV, or send product photos with prices.", action: "Start here", href: "/dashboard/upload-inventory", icon: CloudUpload },
+                                    { step: "2", title: "Review products", detail: "Check price, stock, image, and status.", action: "Manage products", href: "/dashboard/products", icon: Package },
+                                    { step: "3", title: "Growth Assistant", detail: "Get today’s best product, offers, and weekly plan.", action: "Open Growth", href: "/dashboard?view=growth-assistant", icon: Sparkles },
+                                    { step: "4", title: "Growth Autopilot", detail: "Prepare posts and reminders for the week.", action: "Plan week", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
+                                    { step: "5", title: "Create reels", detail: "Upload a video or create a reel from product images.", action: "Open Reel Studio", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film },
+                                    { step: "6", title: "Preview & publish", detail: "Choose one product and publish after review.", action: `${connectedChannels || 0} channels connected`, href: "/dashboard/connections", icon: Send },
+                                ].map((item) => {
+                                    const Icon = item.icon;
+                                    return <Link key={item.title} href={item.href} className="interactive-tile rounded-xl border border-[var(--border)] bg-white p-4 transition hover:border-[var(--accent)]">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{item.step}</span>
+                                            <Icon className="h-5 w-5 text-[var(--accent)]" />
+                                        </div>
+                                        <p className="mt-4 font-bold">{item.title}</p>
+                                        <p className="mt-1 text-sm leading-5 text-[var(--mid)]">{item.detail}</p>
+                                        <p className="mt-4 text-sm font-bold text-[var(--accent)]">{item.action}</p>
+                                    </Link>;
+                                })}
                             </div>
-                            <div className="grid gap-3 md:grid-cols-3">
-                                {nextActions.map((item) => (
-                                    <VisualActionCard
-                                        key={item.title}
-                                        title={item.title}
-                                        description={item.detail}
-                                        action={item.action}
-                                        href={item.href}
-                                        icon={item.icon}
-                                        primary={item.primary}
-                                        visual={item.visual}
-                                    />
-                                ))}
-                            </div>
-                        </section>
-
-                        <section className="grid gap-3 md:grid-cols-3">
-                            {[
-                                { title: "Marketing ideas", detail: "Best products to promote and simple offers.", action: "Open plan", href: "/dashboard?view=growth-assistant", icon: Sparkles, visual: "content" },
-                                { title: "Weekly calendar", detail: "Prepare posts and reminders ahead of time.", action: "Plan week", href: "/dashboard?view=growth-autopilot", icon: CalendarDays, visual: "calendar" },
-                                { title: "Reel Studio", detail: "Create a short video from product media.", action: "Create reel", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film, visual: "reel" },
-                            ].map((item) => (
-                                <VisualActionCard
-                                    key={item.title}
-                                    title={item.title}
-                                    description={item.detail}
-                                    action={item.action}
-                                    href={item.href}
-                                    icon={item.icon}
-                                    visual={item.visual}
-                                />
-                            ))}
                         </section>
 
                         {!products.length ? (
@@ -424,7 +383,7 @@ export function MvpDashboard() {
                                 </div>
 
                                 <div className="grid gap-6">
-                                    <section id="publish-selected" className="dashboard-panel p-5">
+                                    <section className="dashboard-panel p-5">
                                         <SectionHeading title="Live product preview" description="This is the customer-facing feel before you publish." />
                                         {selectedProduct ? (
                                             <div className="mx-auto mt-5 max-w-[290px] rounded-[2rem] border border-[var(--ink)] bg-[var(--ink)] p-3 shadow-2xl">
@@ -479,18 +438,15 @@ export function MvpDashboard() {
                                 <Link href="/dashboard/update-tasks" className="btn-secondary mt-5 inline-flex">View all updates</Link>
                             </div>
                         </section>
-                        {publishProduct ? <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-[rgba(7,18,35,0.64)] p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="dashboard-publish-title">
-                            <section className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
-                                <div className="shrink-0 border-b border-[var(--border)] p-4 sm:p-6">
+                        {publishProduct ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(7,18,35,0.64)] p-4" role="dialog" aria-modal="true" aria-labelledby="dashboard-publish-title">
+                            <section className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-white p-6 shadow-2xl">
                                 <div className="flex items-start justify-between gap-4">
-                            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="dashboard-publish-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2><p className="mt-2 text-sm font-semibold text-[var(--mid)]">Publishing to: {publishDestinationName}</p></div>
+                                    <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="dashboard-publish-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2></div>
                                     <button type="button" className="rounded-lg p-2 text-[var(--mid)] transition hover:bg-[var(--surface)]" aria-label="Close publish preview" onClick={() => setPublishProduct(null)}><X className="h-5 w-5" /></button>
                                 </div>
-                                </div>
-                                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-                                <div className="grid gap-5 sm:grid-cols-[150px_1fr]">
+                                <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
                                     <div className="space-y-3">
-                                        {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="h-32 rounded-xl border border-[var(--border)] bg-cover bg-center sm:aspect-square sm:h-auto" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] sm:aspect-square sm:h-auto"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                        {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold">{productName(publishProduct)}</h3>
@@ -504,18 +460,15 @@ export function MvpDashboard() {
                                                     <button type="button" className="btn-secondary px-3 py-2 text-xs" onClick={() => setEditingCopy((current) => !current)}><Pencil className="h-3.5 w-3.5" />{editingCopy ? "Preview" : "Edit"}</button>
                                                 </div>
                                             </div>
-                                            {editingCopy ? <textarea className="form-field max-h-[34dvh] min-h-36 bg-white text-sm leading-6" value={editedCopy} onChange={(event) => setEditedCopy(event.target.value)} placeholder="Write the caption or catalog text..." /> : <p className="max-h-[34dvh] overflow-y-auto whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>}
+                                            {editingCopy ? <textarea className="form-field min-h-44 bg-white text-sm leading-6" value={editedCopy} onChange={(event) => setEditedCopy(event.target.value)} placeholder="Write the caption or catalog text..." /> : <p className="whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>}
                                         </div>
                                     </div>
                                 </div>
                                 <p className="mt-4 text-xs leading-5 text-[var(--muted)]">{publishDetails.note}</p>
-                                </div>
-                                <div className="shrink-0 border-t border-[var(--border)] bg-white p-3 sm:p-4">
-                                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                                <div className="mt-5 flex flex-wrap justify-end gap-2">
                                     <button type="button" className="btn-secondary" onClick={copyPublishCopy}><Copy className="h-4 w-4" />{publishDetails.copyLabel}</button>
                                     <button type="button" className="btn-secondary" onClick={() => setPublishProduct(null)}>Cancel</button>
                                     <button type="button" className="btn-primary" disabled={publishing} onClick={publishSelectedProduct}>{publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{publishing ? "Publishing..." : publishDetails.actionLabel}</button>
-                                </div>
                                 </div>
                             </section>
                         </div> : null}
@@ -547,24 +500,21 @@ export function ProductsPage() {
     const [savingCaption, setSavingCaption] = useState(false);
     const [requestingWhatsApp, setRequestingWhatsApp] = useState(false);
     const [whatsappRequested, setWhatsappRequested] = useState(false);
-    const [connections, setConnections] = useState([]);
 
     const load = useCallback(async () => {
         setLoading(true);
         const token = await getToken();
         const headers = { Authorization: `Bearer ${token}` };
-        const [response, onboardingResponse, tasksResponse, connectionResponse] = await Promise.all([
+        const [response, onboardingResponse, tasksResponse] = await Promise.all([
             fetch("/api/inventory", { headers }),
             fetch("/api/onboarding/application", { headers }),
             fetch("/api/update-tasks", { headers }),
-            fetch("/api/connections", { headers }),
         ]);
-        const [result, onboardingResult, tasksResult, connectionResult] = await Promise.all([readJson(response), readJson(onboardingResponse), readJson(tasksResponse), readJson(connectionResponse)]);
+        const [result, onboardingResult, tasksResult] = await Promise.all([readJson(response), readJson(onboardingResponse), readJson(tasksResponse)]);
         const nextProducts = result.products || [];
         setProducts(nextProducts);
         setOnboarding(onboardingResponse.ok ? onboardingResult : { active: false });
         setWhatsappRequested(tasksResponse.ok ? hasOpenWhatsAppCatalogRequest(tasksResult.tasks || []) : false);
-        setConnections(connectionResponse.ok ? connectionResult.connections || [] : []);
         setSelectedProductIds((current) => current.filter((id) => nextProducts.some((product) => product.id === id)));
         setError(response.ok ? "" : result.error || "Could not load products.");
         setLoading(false);
@@ -573,7 +523,6 @@ export function ProductsPage() {
 
     const allProductsSelected = products.length > 0 && selectedProductIds.length === products.length;
     const selectedProducts = products.filter((product) => selectedProductIds.includes(product.id));
-    const publishDestinationName = connectedDestinationName(connections, publishChannel);
 
     const toggleProductSelection = (productId) => {
         setBulkDeleteConfirm(false);
@@ -666,7 +615,7 @@ export function ProductsPage() {
             copyLabel: "Copy Caption",
             actionLabel: "Publish Instagram Post",
             endpoint: "/api/instagram/publish-product",
-            note: "This publishes one reviewed image post to the Instagram professional account you connected directly.",
+            note: "This publishes one reviewed image post to the Instagram professional account linked to your connected Facebook Page.",
         }
         : {
             eyebrow: "Facebook Page Export",
@@ -757,7 +706,14 @@ export function ProductsPage() {
         <AuthGate allowedRoles="client">
             <DashboardShell role="client" eyebrow="Catalog" title="Products" description="Keep your master inventory accurate. ORVA tracks the channel updates for you.">
                 <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
-                <section className="dashboard-panel overflow-visible md:overflow-hidden">
+                {!onboarding.active ? (
+                    <section className="dashboard-panel mb-5 border-l-4 border-l-amber-400 p-5">
+                        <p className="font-bold">Publishing is locked until your ORVA account is activated.</p>
+                        <p className="mt-1 text-sm leading-6 text-[var(--mid)]">You can add and edit products now. Facebook and Instagram publishing unlock after manual account activation.</p>
+                        <Link href="/dashboard/onboarding" className="btn-primary mt-4 inline-flex">Complete onboarding</Link>
+                    </section>
+                ) : null}
+                <section className="dashboard-panel overflow-hidden">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-5">
                         <div><h2 className="text-xl font-bold">Product list</h2><p className="mt-1 text-sm text-[var(--mid)]">Update details once. ORVA adds the required channel work to your queue.</p></div>
                         <div className="flex flex-wrap gap-2">
@@ -797,78 +753,7 @@ export function ProductsPage() {
                                     ) : null}
                                 </div>
                             </div>
-                            <div className="grid gap-3 p-3 md:hidden">
-                                {products.map((product) => {
-                                    const selected = selectedProductIds.includes(product.id);
-                                    return (
-                                        <article key={product.id} className="rounded-2xl border border-[var(--border)] bg-white p-3 shadow-sm">
-                                            <div className="flex items-start gap-3">
-                                                <label className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)]" aria-label={`Select ${productName(product)}`}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selected}
-                                                        onChange={() => toggleProductSelection(product.id)}
-                                                        className="h-4 w-4 rounded border-[var(--border)]"
-                                                    />
-                                                </label>
-                                                <ProductThumb product={product} />
-                                                <div className="min-w-0 flex-1">
-                                                    <h3 className="truncate text-base font-black text-[var(--ink)]">{productName(product)}</h3>
-                                                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-[var(--mid)]">
-                                                        <span className="rounded-lg bg-[var(--surface)] px-2.5 py-1">{formatINR(product.price || 0)}</span>
-                                                        <span className="rounded-lg bg-[var(--surface)] px-2.5 py-1">Stock {productStock(product)}</span>
-                                                        {productCode(product) ? <span className="rounded-lg bg-[var(--surface)] px-2.5 py-1">{productCode(product)}</span> : null}
-                                                    </div>
-                                                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                        <span className={`dashboard-badge ${statusBadge(product.status)}`}>{prettyStatus(product.status)}</span>
-                                                        {product.category ? <span className="dashboard-badge badge-blue">{product.category}</span> : null}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="mt-4 grid w-full grid-cols-[repeat(auto-fit,minmax(112px,1fr))] gap-2">
-                                                <button
-                                                    type="button"
-                                                    className="btn-primary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none"
-                                                    title="Publish to Instagram"
-                                                    aria-label={`Publish ${productName(product)} to Instagram`}
-                                                    disabled={!onboarding.active}
-                                                    onClick={() => openPublisher(product, "instagram")}
-                                                >
-                                                    <ChannelLogo channel="instagram" />
-                                                    Instagram
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="btn-primary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none"
-                                                    title="Publish to Facebook Page"
-                                                    aria-label={`Publish ${productName(product)} to Facebook Page`}
-                                                    disabled={!onboarding.active}
-                                                    onClick={() => openPublisher(product, "facebook")}
-                                                >
-                                                    <ChannelLogo channel="facebook" />
-                                                    Facebook
-                                                </button>
-                                                <Link href={`/dashboard/products/${product.id}`} className="btn-secondary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none" title="Edit product">
-                                                    <Pencil className="h-3 w-3" />
-                                                    Edit
-                                                </Link>
-                                                <button
-                                                    type="button"
-                                                    className={`btn-secondary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none ${pendingDeleteId === product.id ? "border-red-200 bg-red-50 text-red-700" : ""}`}
-                                                    title="Delete product"
-                                                    disabled={workingId === product.id}
-                                                    onClick={() => deleteProduct(product)}
-                                                >
-                                                    <Trash2 className="h-3 w-3" />
-                                                    {pendingDeleteId === product.id ? "Confirm" : "Delete"}
-                                                </button>
-                                            </div>
-                                        </article>
-                                    );
-                                })}
-                            </div>
-                            <table className="data-table hidden min-w-[1160px] md:table">
+                            <table className="data-table min-w-[1160px]">
                                 <thead><tr><th>Select</th><th>Image</th><th>Name</th><th>SKU</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>{products.map((product) => (
                                     <tr key={product.id}>
@@ -900,18 +785,15 @@ export function ProductsPage() {
                         </div>
                     )}
                 </section>
-                {facebookProduct ? <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-[rgba(7,18,35,0.64)] p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="facebook-export-title">
-                    <section className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
-                        <div className="shrink-0 border-b border-[var(--border)] p-4 sm:p-6">
+                {facebookProduct ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(7,18,35,0.64)] p-4" role="dialog" aria-modal="true" aria-labelledby="facebook-export-title">
+                    <section className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-white p-6 shadow-2xl">
                         <div className="flex items-start justify-between gap-4">
-                            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="facebook-export-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2><p className="mt-2 text-sm font-semibold text-[var(--mid)]">Publishing to: {publishDestinationName}</p></div>
+                            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="facebook-export-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2></div>
                             <button type="button" className="rounded-lg p-2 text-[var(--mid)] transition hover:bg-[var(--surface)]" aria-label="Close Facebook export preview" onClick={() => setFacebookProduct(null)}><X className="h-5 w-5" /></button>
                         </div>
-                        </div>
-                        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-                        <div className="grid gap-5 sm:grid-cols-[150px_1fr]">
+                        <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-3">
-                                {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="h-32 rounded-xl border border-[var(--border)] bg-cover bg-center sm:aspect-square sm:h-auto" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] sm:aspect-square sm:h-auto"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
                             </div>
                             <div>
                                 <h3 className="text-lg font-bold">{productName(facebookProduct)}</h3>
@@ -936,25 +818,22 @@ export function ProductsPage() {
                                     </div>
                                     {editingCopy ? (
                                         <textarea
-                                            className="form-field max-h-[34dvh] min-h-36 bg-white text-sm leading-6"
+                                            className="form-field min-h-44 bg-white text-sm leading-6"
                                             value={editedCopy}
                                             onChange={(event) => setEditedCopy(event.target.value)}
                                             placeholder="Write the caption or catalog text..."
                                         />
                                     ) : (
-                                        <p className="max-h-[34dvh] overflow-y-auto whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>
+                                        <p className="whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>
                                     )}
                                 </div>
                             </div>
                         </div>
                         <p className="mt-4 text-xs leading-5 text-[var(--muted)]">{publishDetails.note}</p>
-                        </div>
-                        <div className="shrink-0 border-t border-[var(--border)] bg-white p-3 sm:p-4">
-                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
                             <button type="button" className="btn-secondary" onClick={copyFacebookCaption}><Copy className="h-4 w-4" />{publishDetails.copyLabel}</button>
                             <button type="button" className="btn-secondary" onClick={() => setFacebookProduct(null)}>Cancel</button>
                             <button type="button" className="btn-primary" disabled={publishing} onClick={publishFacebookProduct}>{publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{publishing ? "Publishing..." : publishDetails.actionLabel}</button>
-                        </div>
                         </div>
                     </section>
                 </div> : null}
@@ -1058,7 +937,7 @@ export function ConnectionsPage() {
     const [message, setMessage] = useState({ type: "", text: "" });
     const timeoutRef = useRef({});
     const metaMockMode = process.env.NEXT_PUBLIC_META_MOCK_MODE === "true";
-    const connectionTimeoutMessage = (channel) => `${channel === "instagram" ? "Instagram" : "Facebook"} connection is taking longer than expected. Please refresh and try again. Confirm the exact OAuth redirect URI is allowed in Meta.`;
+    const facebookTimeoutMessage = "Meta connection failed. For local testing, add localhost in App Domains and add the exact OAuth redirect URI in Facebook Login settings.";
 
     const load = useCallback(async () => {
         const token = await getToken();
@@ -1066,32 +945,19 @@ export function ConnectionsPage() {
         const connectionResponse = await fetch("/api/connections", { headers });
         const connectionResult = await readJson(connectionResponse);
         if (connectionResponse.ok) {
-            const nextConnections = connectionResult.connections || [];
-            setConnections(nextConnections);
+            setConnections(connectionResult.connections || []);
             if (connectionResult.configuration_error) setMessage({ type: "error", text: connectionResult.configuration_error });
-            return nextConnections;
         }
         else setMessage({ type: "error", text: connectionResult.error || "Could not load connections." });
-        return [];
     }, [getToken]);
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const facebookStatus = params.get("facebook");
-        const instagramStatus = params.get("instagram");
         const callbackMessage = params.get("message");
         queueMicrotask(() => {
-            load().then((nextConnections) => {
-                const facebookConnection = nextConnections.find((item) => item.channel === "facebook");
-                const instagramConnection = nextConnections.find((item) => item.channel === "instagram");
-                const facebookNeedsSelection = facebookConnection?.status === "page_selection_required" && (facebookConnection.metadata?.managed_pages || []).length > 0;
-                const instagramNeedsSelection = instagramConnection?.status === "account_selection_required" && (instagramConnection.metadata?.managed_instagram_accounts || []).length > 0;
-                if (facebookStatus === "connected" && facebookConnection?.status === "connected") setMessage({ type: "success", text: "Facebook connected successfully." });
-                if (facebookStatus === "select_page" && facebookNeedsSelection) setMessage({ type: "success", text: "Facebook access approved. Choose the Page you want ORVA to use." });
-                if (facebookStatus === "select_instagram" && instagramNeedsSelection) setMessage({ type: "success", text: "Instagram access approved. Choose the Instagram account you want ORVA to use." });
-                if (facebookStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Facebook connection failed. Please try again." });
-                if (instagramStatus === "connected" && instagramConnection?.status === "connected") setMessage({ type: "success", text: "Instagram connected successfully." });
-                if (instagramStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Instagram connection failed. Please try again." });
-            });
+            if (facebookStatus === "connected") setMessage({ type: "success", text: "Facebook connected successfully." });
+            if (facebookStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Facebook connection failed. Please try again." });
+            load();
         });
     }, [load]);
 
@@ -1121,16 +987,23 @@ export function ConnectionsPage() {
         }, Math.max(0, delay));
     }, [failConnection]);
 
+    useEffect(() => {
+        const pendingFacebook = connections.find((item) => item.channel === "facebook" && item.status === "connecting");
+        if (!pendingFacebook || working === "facebook" || timeoutRef.current.facebook) return;
+        const elapsed = Date.now() - new Date(pendingFacebook.updated_at || 0).getTime();
+        startConnectionTimeout("facebook", 15000 - elapsed, undefined, facebookTimeoutMessage);
+    }, [connections, facebookTimeoutMessage, startConnectionTimeout, working]);
+
     useEffect(() => () => {
         Object.values(timeoutRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
     }, []);
 
     const connect = async (channel) => {
         setWorking(channel);
-        setConnection({ channel, status: "connecting", updated_at: new Date().toISOString() });
+        setConnection({ channel, status: "connecting" });
         setMessage({ type: "", text: "" });
         const controller = new AbortController();
-        startConnectionTimeout(channel, 60000, () => controller.abort(), ["facebook", "instagram"].includes(channel) ? connectionTimeoutMessage(channel) : undefined);
+        startConnectionTimeout(channel, 15000, () => controller.abort(), channel === "facebook" ? facebookTimeoutMessage : undefined);
         let redirecting = false;
         try {
             if (channel === "facebook" && metaMockMode) {
@@ -1143,10 +1016,8 @@ export function ConnectionsPage() {
             const token = await getToken();
             const endpoint = channel === "whatsapp"
                 ? "/api/whatsapp/embedded-signup"
-                : channel === "facebook"
+                : channel === "facebook" || channel === "instagram"
                     ? "/api/auth/facebook/login"
-                    : channel === "instagram"
-                        ? "/api/auth/instagram/login"
                     : `/api/meta/login?channel=${channel}`;
             const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
             const result = await readJson(response);
@@ -1161,7 +1032,7 @@ export function ConnectionsPage() {
             setMessage({ type: "success", text: `${channels.find((item) => item.id === channel)?.name} connected.` });
         } catch (error) {
             clearConnectionTimeout(channel);
-            failConnection(channel, ["facebook", "instagram"].includes(channel) ? `${connectionTimeoutMessage(channel)} ${error.message || ""}`.trim() : error.message || "Could not connect channel.");
+            failConnection(channel, channel === "facebook" ? `${facebookTimeoutMessage} ${error.message || ""}`.trim() : error.message || "Could not connect channel.");
         } finally {
             if (!redirecting) {
                 clearConnectionTimeout(channel);
@@ -1213,186 +1084,23 @@ export function ConnectionsPage() {
         load();
     };
 
-    const selectFacebookPage = async (pageId) => {
-        setWorking(`facebook-page-${pageId}`);
-        setMessage({ type: "", text: "" });
-        const token = await getToken();
-        const response = await fetch("/api/auth/facebook/select-page", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ page_id: pageId }),
-        });
-        const result = await readJson(response);
-        setWorking("");
-        if (!response.ok) return setMessage({ type: "error", text: result.error || "Could not connect the selected Facebook Page." });
-        setConnection(result.connection);
-        setMessage({ type: "success", text: "Selected Facebook Page connected to ORVA." });
-        load();
-    };
-
-    const selectInstagramAccount = async (accountId) => {
-        setWorking(`instagram-account-${accountId}`);
-        setMessage({ type: "", text: "" });
-        const token = await getToken();
-        const response = await fetch("/api/auth/facebook/select-instagram", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ account_id: accountId }),
-        });
-        const result = await readJson(response);
-        setWorking("");
-        if (!response.ok) return setMessage({ type: "error", text: result.error || "Could not connect the selected Instagram account." });
-        setConnection(result.connection);
-        setMessage({ type: "success", text: "Selected Instagram account connected to ORVA." });
-        load();
-    };
-
-    const managedPagesPanel = (connection, channelId) => {
-        if (channelId !== "facebook" || !["connected", "page_selection_required"].includes(connection?.status)) return null;
-        const pages = connection.metadata?.managed_pages || [];
-        const count = connection.metadata?.connected_pages_count || pages.length || 1;
-        const needsSelection = connection.status === "page_selection_required";
-        return (
-            <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-xs leading-5 text-blue-950">
-                <p className="font-black">pages_show_list result</p>
-                <p className="mt-1">{needsSelection ? `ORVA found ${count} manageable Facebook Page${count === 1 ? "" : "s"}. Choose the one Page ORVA should use for publishing.` : `ORVA found ${count} manageable Facebook Page${count === 1 ? "" : "s"} and connected the selected Page for publishing.`}</p>
-                {pages.length ? (
-                    <div className="mt-2 grid gap-2">
-                        {pages.map((page) => (
-                            <div key={page.id || `${page.name}-${page.selected ? "selected" : "available"}`} className="flex flex-col gap-2 rounded-lg bg-white/80 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
-                                <span className="truncate font-bold">{page.name}</span>
-                                {needsSelection ? (
-                                    <button type="button" className="btn-primary min-h-10 justify-center px-3 py-2 text-xs" disabled={working === `facebook-page-${page.id}`} onClick={() => selectFacebookPage(page.id)}>
-                                        {working === `facebook-page-${page.id}` ? "Connecting..." : "Use this Page"}
-                                    </button>
-                                ) : (
-                                    <span className={`dashboard-badge ${page.selected ? "badge-green" : "badge-gray"}`}>{page.selected ? "Connected" : "Available"}</span>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
-            </div>
-        );
-    };
-
-    const managedInstagramPanel = (connection, channelId) => {
-        if (channelId !== "instagram" || !["connected", "account_selection_required"].includes(connection?.status)) return null;
-        const accounts = connection.metadata?.managed_instagram_accounts || [];
-        const count = connection.metadata?.connected_instagram_accounts_count || accounts.length || 1;
-        const needsSelection = connection.status === "account_selection_required";
-        return (
-            <div className="mt-3 rounded-xl border border-pink-100 bg-pink-50/70 p-3 text-xs leading-5 text-pink-950">
-                <p className="font-black">Instagram account result</p>
-                <p className="mt-1">{needsSelection ? `ORVA found ${count} Instagram Business account${count === 1 ? "" : "s"}. Choose the one account ORVA should use for publishing.` : "ORVA connected this Instagram professional account directly for publishing."}</p>
-                {accounts.length ? (
-                    <div className="mt-2 grid gap-2">
-                        {accounts.map((account) => (
-                            <div key={account.id || `${account.name}-${account.facebook_page_name}`} className="flex flex-col gap-2 rounded-lg bg-white/80 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between">
-                                <span className="min-w-0">
-                                    <span className="block truncate font-bold">{account.name}</span>
-                                    <span className="block truncate text-[11px] font-semibold text-[var(--mid)]">Linked Page: {account.facebook_page_name}</span>
-                                </span>
-                                {needsSelection ? (
-                                    <button type="button" className="btn-primary min-h-10 justify-center px-3 py-2 text-xs" disabled={working === `instagram-account-${account.id}`} onClick={() => selectInstagramAccount(account.id)}>
-                                        {working === `instagram-account-${account.id}` ? "Connecting..." : "Use this Account"}
-                                    </button>
-                                ) : (
-                                    <span className={`dashboard-badge ${account.selected ? "badge-green" : "badge-gray"}`}>{account.selected ? "Connected" : "Available"}</span>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : null}
-            </div>
-        );
-    };
-
-    return (
-        <AuthGate allowedRoles="client">
-            <DashboardShell role="client" eyebrow="Channels" title="Connections" description="Connect the places where customers find your products.">
-                <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
-                <section className="dashboard-panel mb-5 border-l-4 border-l-[var(--accent)] p-5 text-sm leading-6 text-[var(--mid)]">
-                    ORVA can publish reviewed posts to connected Instagram and Facebook accounts. WhatsApp catalog updates are handled as manual catalog-ready support until Meta catalog access is fully approved for each business.
-                </section>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    {channels.map((channel) => {
-                        const Icon = channel.icon;
-                        const connection = connections.find((item) => item.channel === channel.id);
-                        const rawStatus = connection?.status || "manual_setup";
-                        const status = channel.id === "whatsapp" ? "manual_setup" : rawStatus === "connecting" && working !== channel.id ? "not_connected" : rawStatus;
-                        const connected = status === "connected";
-                        const needsPageSelection = channel.id === "facebook" && status === "page_selection_required";
-                        const needsAccountSelection = channel.id === "instagram" && status === "account_selection_required";
-                        const connecting = working === channel.id;
-                        const connectLabel = channel.id === "whatsapp"
-                            ? "Connect WhatsApp Business"
-                            : channel.id === "facebook"
-                                ? "Connect Facebook"
-                                : channel.id === "instagram"
-                                    ? "Connect Instagram"
-                                    : "Connect Meta";
-
-                        return (
-                            <section key={channel.id} className="dashboard-panel p-6">
-                                <Icon className="h-6 w-6 text-[var(--accent)]" />
-                                <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                                    <h2 className="text-lg font-bold">{channel.name}</h2>
-                                    <span className={`dashboard-badge ${connectionBadge(status)}`}>{prettyStatus(status)}</span>
-                                </div>
-                                {channel.id === "facebook" && metaMockMode ? <span className="dashboard-badge badge-blue mt-3">Demo Mode</span> : null}
-                                <p className="mt-3 text-sm leading-6 text-[var(--mid)]">{channel.description}</p>
-                                {connection?.external_account_name && channel.id !== "whatsapp" ? (
-                                    <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm leading-6">
-                                        <p className="font-bold">{channel.id === "facebook" ? "Connected Facebook Page" : "Connected Instagram account"}: {connection.external_account_name}</p>
-                                        <p className="mt-1 text-xs font-semibold text-[var(--mid)]">{channel.id === "facebook" ? "Used for publishing approved product posts from ORVA." : "Used for publishing approved product posts through Instagram Business Login."}</p>
-                                        {channel.id === "facebook" && connection.metadata?.publishing_access_granted === false ? (
-                                            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold leading-5 text-amber-900">
-                                                {connection.metadata?.publishing_access_message || "Facebook Page connected, but Meta did not grant publishing access yet."}
-                                            </p>
-                                        ) : null}
-                                        {managedPagesPanel(connection, channel.id)}
-                                        {managedInstagramPanel(connection, channel.id)}
-                                    </div>
-                                ) : needsPageSelection ? managedPagesPanel(connection, channel.id) : needsAccountSelection ? managedInstagramPanel(connection, channel.id) : null}
-                                {channel.id === "whatsapp" ? (
-                                    <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm font-semibold text-[var(--mid)]">Catalog-ready support only</div>
-                                ) : channel.id === "online_store" ? (
-                                    <Link href="/dashboard/preview-studio" className="btn-secondary mt-6 w-full">Open preview</Link>
-                                ) : connected && channel.id === "instagram" ? (
-                                    <div className="mt-6 grid gap-2">
-                                        <button type="button" className="btn-primary w-full justify-center" disabled={working === channel.id} onClick={() => connect(channel.id)}>
-                                            {working === channel.id ? "Starting..." : "Reconnect from scratch"}
-                                        </button>
-                                        <button type="button" className="btn-primary w-full justify-center" disabled={working === "verify-instagram"} onClick={verifyInstagram}>
-                                            {working === "verify-instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                                            {working === "verify-instagram" ? "Verifying..." : "Verify Instagram"}
-                                        </button>
-                                        <button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button>
-                                    </div>
-                                ) : connected ? (
-                                    <div className="mt-6 grid gap-2">
-                                        {channel.id === "facebook" ? (
-                                            <button type="button" className="btn-primary w-full justify-center" disabled={working === channel.id} onClick={() => connect(channel.id)}>
-                                                {working === channel.id ? "Starting..." : "Reconnect from scratch"}
-                                            </button>
-                                        ) : null}
-                                        <button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button>
-                                    </div>
-                                ) : status === "failed" ? (
-                                    <button type="button" className="btn-secondary mt-6 w-full" onClick={() => retry(channel.id)}>Retry</button>
-                                ) : needsPageSelection || needsAccountSelection ? (
-                                    <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Cancel selection</button>
-                                ) : (
-                                    <button type="button" className="btn-secondary mt-6 w-full" disabled={connecting} onClick={() => connect(channel.id)}>{connecting ? "Connecting..." : connectLabel}</button>
-                                )}
-                            </section>
-                        );
-                    })}
-                </div>
-            </DashboardShell>
-        </AuthGate>
-    );
+    return <AuthGate allowedRoles="client"><DashboardShell role="client" eyebrow="Channels" title="Connections" description="Connect the places where customers find your products.">
+        <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
+        <section className="dashboard-panel mb-5 border-l-4 border-l-[var(--accent)] p-5 text-sm leading-6 text-[var(--mid)]">ORVA can publish reviewed posts to connected Instagram and Facebook accounts. WhatsApp catalog updates are handled as manual catalog-ready support until Meta catalog access is fully approved for each business.</section>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{channels.map((channel) => {
+            const Icon = channel.icon;
+            const connection = connections.find((item) => item.channel === channel.id);
+            const status = channel.id === "whatsapp" ? "manual_setup" : connection?.status || "manual_setup";
+            const connected = status === "connected";
+            const connecting = status === "connecting" || working === channel.id;
+            const connectLabel = channel.id === "whatsapp"
+                ? "Connect WhatsApp Business"
+                : channel.id === "facebook"
+                    ? "Connect Facebook"
+                    : "Connect Meta";
+            return <section key={channel.id} className="dashboard-panel p-6"><Icon className="h-6 w-6 text-[var(--accent)]" /><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{channel.name}</h2><span className={`dashboard-badge ${connectionBadge(status)}`}>{prettyStatus(status)}</span></div>{channel.id === "facebook" && metaMockMode ? <span className="dashboard-badge badge-blue mt-3">Demo Mode</span> : null}<p className="mt-3 text-sm leading-6 text-[var(--mid)]">{channel.description}</p>{connection?.external_account_name && channel.id !== "whatsapp" ? <p className="mt-3 text-sm font-semibold">{connection.external_account_name}</p> : null}{channel.id === "whatsapp" ? <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm font-semibold text-[var(--mid)]">Catalog-ready support only</div> : channel.id === "online_store" ? <Link href="/dashboard/preview-studio" className="btn-secondary mt-6 w-full">Open preview</Link> : connected && channel.id === "instagram" ? <div className="mt-6 grid gap-2"><button type="button" className="btn-primary w-full justify-center" disabled={working === "verify-instagram"} onClick={verifyInstagram}>{working === "verify-instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{working === "verify-instagram" ? "Verifying..." : "Verify Instagram"}</button><button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button></div> : connected ? <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button> : status === "failed" ? <button type="button" className="btn-secondary mt-6 w-full" onClick={() => retry(channel.id)}>Retry</button> : <button type="button" className="btn-secondary mt-6 w-full" disabled={connecting} onClick={() => connect(channel.id)}>{connecting ? "Connecting..." : connectLabel}</button>}</section>;
+        })}</div>
+    </DashboardShell></AuthGate>;
 }
 
 export function SyncCenterPage() {
