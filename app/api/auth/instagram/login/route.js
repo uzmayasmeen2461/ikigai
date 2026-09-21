@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../../lib/supabaseServer";
-import { beginFacebookLogin } from "../../../../lib/socialConnections";
+import { beginInstagramLogin } from "../../../../lib/socialConnections";
 
 export async function GET(request) {
     const { user, error: authError } = await getAuthenticatedUser(request);
@@ -9,14 +9,14 @@ export async function GET(request) {
     }
 
     if (!hasSupabaseServiceRoleKey()) {
-        return NextResponse.json({ error: "Add SUPABASE_SERVICE_ROLE_KEY to the server environment before connecting Facebook." }, { status: 503 });
+        return NextResponse.json({ error: "Add SUPABASE_SERVICE_ROLE_KEY to the server environment before connecting Instagram." }, { status: 503 });
     }
 
     try {
         const url = new URL(request.url);
-        const authorizationUrl = await beginFacebookLogin(user.id, url.origin);
+        const authorizationUrl = await beginInstagramLogin(user.id, url.origin);
         return NextResponse.json({ authorization_url: authorizationUrl });
     } catch (error) {
-        return NextResponse.json({ error: error.message || "Could not start Facebook Login." }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Could not start Instagram Business Login." }, { status: 500 });
     }
 }
