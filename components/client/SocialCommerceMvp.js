@@ -76,6 +76,7 @@ function connectionBadge(status = "not_connected") {
     if (status === "manual_setup") return "badge-blue";
     if (status === "api_ready") return "badge-warn";
     if (status === "connecting") return "badge-warn";
+    if (status === "page_selection_required") return "badge-warn";
     if (status === "failed") return "badge-red";
     return "badge-gray";
 }
@@ -1052,7 +1053,7 @@ export function ConnectionsPage() {
     const [message, setMessage] = useState({ type: "", text: "" });
     const timeoutRef = useRef({});
     const metaMockMode = process.env.NEXT_PUBLIC_META_MOCK_MODE === "true";
-    const facebookTimeoutMessage = "Meta connection failed. For local testing, add localhost in App Domains and add the exact OAuth redirect URI in Facebook Login settings.";
+    const connectionTimeoutMessage = (channel) => `${channel === "instagram" ? "Instagram" : "Facebook"} connection is taking longer than expected. Please refresh and try again.`;
 
     const load = useCallback(async () => {
         const token = await getToken();
@@ -1060,19 +1061,29 @@ export function ConnectionsPage() {
         const connectionResponse = await fetch("/api/connections", { headers });
         const connectionResult = await readJson(connectionResponse);
         if (connectionResponse.ok) {
-            setConnections(connectionResult.connections || []);
+            const nextConnections = connectionResult.connections || [];
+            setConnections(nextConnections);
             if (connectionResult.configuration_error) setMessage({ type: "error", text: connectionResult.configuration_error });
+            return nextConnections;
         }
         else setMessage({ type: "error", text: connectionResult.error || "Could not load connections." });
+        return [];
     }, [getToken]);
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const facebookStatus = params.get("facebook");
+        const instagramStatus = params.get("instagram");
         const callbackMessage = params.get("message");
         queueMicrotask(() => {
-            if (facebookStatus === "connected") setMessage({ type: "success", text: "Facebook connected successfully." });
-            if (facebookStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Facebook connection failed. Please try again." });
-            load();
+            load().then((nextConnections) => {
+                const facebookConnection = nextConnections.find((item) => item.channel === "facebook");
+                const instagramConnection = nextConnections.find((item) => item.channel === "instagram");
+                if (facebookStatus === "connected" && facebookConnection?.status === "connected") setMessage({ type: "success", text: "Facebook connected successfully." });
+                if (facebookStatus === "select_page" && facebookConnection?.status === "page_selection_required") setMessage({ type: "success", text: "Facebook access approved. Choose the Page ORVA should use." });
+                if (facebookStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Facebook connection failed. Please try again." });
+                if (instagramStatus === "connected" && instagramConnection?.status === "connected") setMessage({ type: "success", text: "Instagram connected successfully." });
+                if (instagramStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Instagram connection failed. Please try again." });
+            });
         });
     }, [load]);
 
@@ -1102,13 +1113,6 @@ export function ConnectionsPage() {
         }, Math.max(0, delay));
     }, [failConnection]);
 
-    useEffect(() => {
-        const pendingFacebook = connections.find((item) => item.channel === "facebook" && item.status === "connecting");
-        if (!pendingFacebook || working === "facebook" || timeoutRef.current.facebook) return;
-        const elapsed = Date.now() - new Date(pendingFacebook.updated_at || 0).getTime();
-        startConnectionTimeout("facebook", 15000 - elapsed, undefined, facebookTimeoutMessage);
-    }, [connections, facebookTimeoutMessage, startConnectionTimeout, working]);
-
     useEffect(() => () => {
         Object.values(timeoutRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
     }, []);
@@ -1118,7 +1122,7 @@ export function ConnectionsPage() {
         setConnection({ channel, status: "connecting" });
         setMessage({ type: "", text: "" });
         const controller = new AbortController();
-        startConnectionTimeout(channel, 15000, () => controller.abort(), channel === "facebook" ? facebookTimeoutMessage : undefined);
+        startConnectionTimeout(channel, 60000, () => controller.abort(), ["facebook", "instagram"].includes(channel) ? connectionTimeoutMessage(channel) : undefined);
         let redirecting = false;
         try {
             if (channel === "facebook" && metaMockMode) {
@@ -1131,8 +1135,10 @@ export function ConnectionsPage() {
             const token = await getToken();
             const endpoint = channel === "whatsapp"
                 ? "/api/whatsapp/embedded-signup"
-                : channel === "facebook" || channel === "instagram"
+                : channel === "facebook"
                     ? "/api/auth/facebook/login"
+                    : channel === "instagram"
+                        ? "/api/auth/instagram/login"
                     : `/api/meta/login?channel=${channel}`;
             const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
             const result = await readJson(response);
@@ -1147,7 +1153,7 @@ export function ConnectionsPage() {
             setMessage({ type: "success", text: `${channels.find((item) => item.id === channel)?.name} connected.` });
         } catch (error) {
             clearConnectionTimeout(channel);
-            failConnection(channel, channel === "facebook" ? `${facebookTimeoutMessage} ${error.message || ""}`.trim() : error.message || "Could not connect channel.");
+            failConnection(channel, ["facebook", "instagram"].includes(channel) ? `${connectionTimeoutMessage(channel)} ${error.message || ""}`.trim() : error.message || "Could not connect channel.");
         } finally {
             if (!redirecting) {
                 clearConnectionTimeout(channel);
@@ -1199,6 +1205,23 @@ export function ConnectionsPage() {
         load();
     };
 
+    const selectFacebookPage = async (pageId) => {
+        setWorking(`facebook-page-${pageId}`);
+        setMessage({ type: "", text: "" });
+        const token = await getToken();
+        const response = await fetch("/api/auth/facebook/select-page", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ page_id: pageId }),
+        });
+        const result = await readJson(response);
+        setWorking("");
+        if (!response.ok) return setMessage({ type: "error", text: result.error || "Could not connect the selected Facebook Page." });
+        setConnection(result.connection);
+        setMessage({ type: "success", text: "Selected Facebook Page connected to ORVA." });
+        load();
+    };
+
     return <AuthGate allowedRoles="client"><DashboardShell role="client" eyebrow="Channels" title="Connections" description="Connect the places where customers find your products.">
         <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
         <section className="dashboard-panel mb-5 border-l-4 border-l-[var(--accent)] p-5 text-sm leading-6 text-[var(--mid)]">ORVA can publish reviewed posts to connected Instagram and Facebook accounts. WhatsApp catalog updates are handled as manual catalog-ready support until Meta catalog access is fully approved for each business.</section>
@@ -1207,13 +1230,17 @@ export function ConnectionsPage() {
             const connection = connections.find((item) => item.channel === channel.id);
             const status = channel.id === "whatsapp" ? "manual_setup" : connection?.status || "manual_setup";
             const connected = status === "connected";
-            const connecting = status === "connecting" || working === channel.id;
+            const needsPageSelection = channel.id === "facebook" && status === "page_selection_required";
+            const connecting = working === channel.id;
             const connectLabel = channel.id === "whatsapp"
                 ? "Connect WhatsApp Business"
                 : channel.id === "facebook"
                     ? "Connect Facebook"
-                    : "Connect Meta";
-            return <section key={channel.id} className="dashboard-panel p-6"><Icon className="h-6 w-6 text-[var(--accent)]" /><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{channel.name}</h2><span className={`dashboard-badge ${connectionBadge(status)}`}>{prettyStatus(status)}</span></div>{channel.id === "facebook" && metaMockMode ? <span className="dashboard-badge badge-blue mt-3">Demo Mode</span> : null}<p className="mt-3 text-sm leading-6 text-[var(--mid)]">{channel.description}</p>{connection?.external_account_name && channel.id !== "whatsapp" ? <p className="mt-3 text-sm font-semibold">{connection.external_account_name}</p> : null}{channel.id === "whatsapp" ? <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm font-semibold text-[var(--mid)]">Catalog-ready support only</div> : channel.id === "online_store" ? <Link href="/dashboard/preview-studio" className="btn-secondary mt-6 w-full">Open preview</Link> : connected && channel.id === "instagram" ? <div className="mt-6 grid gap-2"><button type="button" className="btn-primary w-full justify-center" disabled={working === "verify-instagram"} onClick={verifyInstagram}>{working === "verify-instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{working === "verify-instagram" ? "Verifying..." : "Verify Instagram"}</button><button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button></div> : connected ? <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button> : status === "failed" ? <button type="button" className="btn-secondary mt-6 w-full" onClick={() => retry(channel.id)}>Retry</button> : <button type="button" className="btn-secondary mt-6 w-full" disabled={connecting} onClick={() => connect(channel.id)}>{connecting ? "Connecting..." : connectLabel}</button>}</section>;
+                    : channel.id === "instagram"
+                        ? "Connect Instagram"
+                        : "Connect Meta";
+            const managedPages = connection?.metadata?.managed_pages || [];
+            return <section key={channel.id} className="dashboard-panel p-6"><Icon className="h-6 w-6 text-[var(--accent)]" /><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{channel.name}</h2><span className={`dashboard-badge ${connectionBadge(status)}`}>{prettyStatus(status)}</span></div>{channel.id === "facebook" && metaMockMode ? <span className="dashboard-badge badge-blue mt-3">Demo Mode</span> : null}<p className="mt-3 text-sm leading-6 text-[var(--mid)]">{channel.description}</p>{connection?.external_account_name && channel.id !== "whatsapp" ? <p className="mt-3 text-sm font-semibold">{connection.external_account_name}</p> : null}{needsPageSelection ? <div className="mt-4 grid gap-2">{managedPages.map((page) => <button key={page.id} type="button" className="btn-primary w-full justify-center" disabled={working === `facebook-page-${page.id}`} onClick={() => selectFacebookPage(page.id)}>{working === `facebook-page-${page.id}` ? "Connecting..." : `Use ${page.name}`}</button>)}</div> : null}{channel.id === "whatsapp" ? <div className="mt-6 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm font-semibold text-[var(--mid)]">Catalog-ready support only</div> : channel.id === "online_store" ? <Link href="/dashboard/preview-studio" className="btn-secondary mt-6 w-full">Open preview</Link> : connected && channel.id === "instagram" ? <div className="mt-6 grid gap-2"><button type="button" className="btn-primary w-full justify-center" disabled={working === "verify-instagram"} onClick={verifyInstagram}>{working === "verify-instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{working === "verify-instagram" ? "Verifying..." : "Verify Instagram"}</button><button type="button" className="btn-secondary w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button></div> : connected ? <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Disconnect</button> : status === "failed" ? <button type="button" className="btn-secondary mt-6 w-full" onClick={() => retry(channel.id)}>Retry</button> : needsPageSelection ? <button type="button" className="btn-secondary mt-6 w-full" disabled={working === channel.id} onClick={() => disconnect(channel.id)}>Cancel selection</button> : <button type="button" className="btn-secondary mt-6 w-full" disabled={connecting} onClick={() => connect(channel.id)}>{connecting ? "Connecting..." : connectLabel}</button>}</section>;
         })}</div>
     </DashboardShell></AuthGate>;
 }
