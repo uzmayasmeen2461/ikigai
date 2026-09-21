@@ -16,8 +16,7 @@ Reel Content Studio lets a client attach one product video, generate reel-ready 
 Real Instagram Reel publishing requires:
 
 - Instagram Business or Creator account.
-- Instagram account linked to the connected Facebook Page.
-- Meta Login permissions for `instagram_basic` and `instagram_content_publish`.
+- Instagram Business Login permissions for `instagram_business_basic` and `instagram_business_content_publish`.
 - A public video URL. Local blob/data URLs cannot be published by Meta.
 - Server-side access token stored in Supabase only.
 

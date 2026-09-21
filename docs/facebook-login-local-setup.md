@@ -9,12 +9,12 @@ Add these values to `.env.local`:
 ```env
 META_APP_ID=your_meta_app_id
 META_APP_SECRET=your_meta_app_secret
+META_FACEBOOK_CONFIG_ID=your_facebook_login_for_business_configuration_id
 NEXT_PUBLIC_META_MOCK_MODE=false
-NEXT_PUBLIC_FACEBOOK_APP_ID=your_meta_app_id
 NEXT_PUBLIC_FACEBOOK_REDIRECT_URI=http://localhost:3000/api/auth/facebook/callback
 ```
 
-`META_APP_SECRET` is server-only. Never expose it in browser code or prefix it with `NEXT_PUBLIC_`.
+`META_APP_SECRET` is server-only. Never expose it in browser code or prefix it with `NEXT_PUBLIC_`. The configuration ID is not secret.
 
 ## Meta Developer Dashboard
 
@@ -31,9 +31,8 @@ NEXT_PUBLIC_FACEBOOK_REDIRECT_URI=http://localhost:3000/api/auth/facebook/callba
 
 6. Save the changes.
 
-ORVA requests:
+The Facebook Login for Business configuration requires:
 
-- `public_profile`
 - `pages_show_list`
 - `pages_read_engagement`
 - `pages_manage_posts`

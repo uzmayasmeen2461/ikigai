@@ -1,21 +1,20 @@
 # Instagram API Verification
 
-ORVA publishes Instagram posts through the Instagram Graph API. The app never exposes Page tokens or Instagram tokens to the browser.
+ORVA publishes Instagram posts through the Instagram API with Instagram Login. The app never exposes Instagram tokens to the browser.
 
 ## Required Meta setup
 
-1. Use a Facebook Page that is linked to an Instagram professional account.
-2. In Meta Developer Dashboard, configure Facebook Login with the same redirect URI used by ORVA:
-   `http://localhost:3000/api/auth/facebook/callback`
-3. Request these scopes during login:
-   `public_profile`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`
-4. Reconnect Facebook from ORVA Connections after changing permissions.
+1. Use an Instagram professional account.
+2. Configure Instagram Business Login with this redirect URI:
+   `http://localhost:3000/api/auth/instagram/callback`
+3. Request `instagram_business_basic` and `instagram_business_content_publish`.
+4. Reconnect Instagram from ORVA Connections after changing permissions.
 
 ## Verify in ORVA
 
 1. Go to `/dashboard/connections`.
-2. Connect Facebook.
-3. If Meta returns a linked Instagram professional account, the Instagram card shows Connected.
+2. Connect Instagram independently.
+3. The Instagram card shows the professional account returned by Instagram Business Login.
 4. Click `Verify Instagram`.
 5. ORVA calls the backend `/api/instagram/verify` route, checks the Instagram account with Graph API, and stores the safe verification metadata in Supabase.
 

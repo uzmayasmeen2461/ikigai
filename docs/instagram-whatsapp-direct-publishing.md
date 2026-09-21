@@ -15,11 +15,10 @@ Run these files in Supabase SQL Editor:
 Instagram publishing requires:
 
 - an Instagram professional account
-- the Instagram account linked to the connected Facebook Page
-- Meta Login permissions: `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts`
+- Instagram Business Login permissions: `instagram_business_basic` and `instagram_business_content_publish`
 - a publicly accessible product image URL
 
-After Meta permissions are enabled, disconnect and reconnect Facebook from ORVA Connections. ORVA stores the Instagram professional account and Page token server-side.
+After Meta permissions are enabled, disconnect and reconnect Instagram from ORVA Connections. ORVA stores the Instagram professional account token server-side.
 
 ## WhatsApp catalog
 
