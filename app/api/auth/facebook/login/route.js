@@ -13,8 +13,7 @@ export async function GET(request) {
     }
 
     try {
-        const url = new URL(request.url);
-        const authorizationUrl = await beginFacebookLogin(user.id, url.origin);
+        const authorizationUrl = await beginFacebookLogin(user.id, new URL(request.url).origin);
         return NextResponse.json({ authorization_url: authorizationUrl });
     } catch (error) {
         return NextResponse.json({ error: error.message || "Could not start Facebook Login." }, { status: 500 });

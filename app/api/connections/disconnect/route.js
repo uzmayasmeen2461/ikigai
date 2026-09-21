@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceRole, getAuthenticatedUser, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
-import { connectionChannels, providerForChannel } from "../../../lib/socialConnections";
+import { connectionChannels } from "../../../lib/socialConnections";
 import { nowISTISOString } from "../../../lib/istDate";
 
 export async function POST(request) {
@@ -21,7 +21,7 @@ export async function POST(request) {
         .upsert({
             user_id: user.id,
             channel,
-            provider: providerForChannel(channel),
+            provider: channel === "whatsapp" ? "whatsapp_business" : "meta",
             external_account_id: null,
             external_account_name: null,
             access_token: null,

@@ -1,13 +1,9 @@
 import { buildInstagramCaption, buildReelContent } from "./inventory";
 
-export const instagramPermissionMessage = "Instagram publishing requires an Instagram professional account plus instagram_business_basic and instagram_business_content_publish permissions. Reconnect Instagram after enabling these permissions.";
+export const instagramPermissionMessage = "Instagram publishing requires an Instagram professional account linked to your Facebook Page plus instagram_basic and instagram_content_publish permissions. Reconnect Meta after enabling these permissions.";
 
 function graphVersion() {
-    return process.env.INSTAGRAM_GRAPH_VERSION || process.env.META_GRAPH_VERSION || "v22.0";
-}
-
-function graphBaseUrl() {
-    return `https://graph.instagram.com/${graphVersion()}`;
+    return process.env.META_GRAPH_VERSION || "v22.0";
 }
 
 function mockExternalPostId(productId) {
@@ -15,7 +11,7 @@ function mockExternalPostId(productId) {
 }
 
 async function graphPost(path, params) {
-    const response = await fetch(`${graphBaseUrl()}/${path}`, {
+    const response = await fetch(`https://graph.facebook.com/${graphVersion()}/${path}`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params.toString(),
@@ -29,7 +25,7 @@ async function graphPost(path, params) {
 }
 
 async function graphGet(path, params) {
-    const response = await fetch(`${graphBaseUrl()}/${path}?${params.toString()}`, {
+    const response = await fetch(`https://graph.facebook.com/${graphVersion()}/${path}?${params.toString()}`, {
         cache: "no-store",
     });
     const result = await response.json().catch(() => ({}));
