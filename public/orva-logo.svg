@@ -1,0 +1,39 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="markBg" x1="45" y1="32" x2="312" y2="328" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1438FF"/>
+      <stop offset="0.52" stop-color="#1F66E8"/>
+      <stop offset="1" stop-color="#071F38"/>
+    </linearGradient>
+    <linearGradient id="markFill" x1="109" y1="89" x2="277" y2="292" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDFBFF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="232" y1="86" x2="299" y2="171" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A9FFF6"/>
+      <stop offset="1" stop-color="#39D6F1"/>
+    </linearGradient>
+    <linearGradient id="word" x1="360" y1="83" x2="870" y2="255" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071C35"/>
+      <stop offset="1" stop-color="#1B4FD8"/>
+    </linearGradient>
+    <filter id="shadow" x="56" y="53" width="278" height="280" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#01182B" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="32" y="34" width="292" height="292" rx="70" fill="url(#markBg)"/>
+  <path d="M273 78C289 99 297 123 296 151C294 184 281 213 258 237C235 261 204 274 168 278C132 274 101 261 78 237C55 213 42 184 40 151C39 123 47 99 63 78C85 98 120 109 168 109C216 109 251 98 273 78Z" fill="#6EEEF6" opacity="0.12" transform="translate(22 22)"/>
+
+  <g filter="url(#shadow)">
+    <text x="170" y="266" text-anchor="middle" fill="url(#markFill)" font-family="Arial, Helvetica, sans-serif" font-size="228" font-weight="800">α</text>
+    <path d="M258 95C263 115 275 127 295 132C275 137 263 149 258 169C253 149 241 137 221 132C241 127 253 115 258 95Z" fill="url(#accent)"/>
+  </g>
+
+  <path d="M407 242C391 242 376 239 363 232C350 225 339 216 332 203C324 190 320 176 320 160C320 144 324 130 332 117C339 104 350 95 363 88C376 81 391 78 407 78C424 78 439 81 452 88C465 95 475 104 483 117C491 130 495 144 495 160C495 176 491 190 483 203C475 216 465 225 452 232C439 239 424 242 407 242ZM407 207C422 207 435 203 444 194C453 185 458 174 458 160C458 146 453 134 444 126C435 117 422 113 407 113C392 113 380 117 371 126C362 134 357 146 357 160C357 174 362 185 371 194C380 203 392 207 407 207Z" fill="url(#word)"/>
+  <path d="M522 82H595C615 82 631 87 642 97C653 107 659 121 659 138C659 151 656 162 649 171C642 180 633 187 621 191L665 238H620L581 196H558V238H522V82ZM590 164C601 164 609 162 615 157C620 152 623 146 623 138C623 130 620 124 615 119C609 114 601 112 590 112H558V164H590Z" fill="url(#word)"/>
+  <path d="M672 82H712L762 196L812 82H851L782 238H741L672 82Z" fill="url(#word)"/>
+  <path d="M902 82H945L1017 238H977L964 207H883L870 238H830L902 82ZM951 177L924 114L897 177H951Z" fill="url(#word)"/>
+  <path d="M362 285H871" stroke="#D6E3F3" stroke-width="3" stroke-linecap="round"/>
+  <text x="362" y="317" fill="#52627A" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="4">MAKE DIGITAL WORK SIMPLE</text>
+</svg>

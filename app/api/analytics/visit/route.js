@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { createSupabaseServiceRole, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
+import { getUserRole } from "../../../lib/onboarding";
+import { createSupabaseAuthClient, createSupabaseServiceRole, getBearerToken, hasSupabaseServiceRoleKey } from "../../../lib/supabaseServer";
 
 export const runtime = "nodejs";
 
@@ -54,8 +55,23 @@ export async function POST(request) {
         const path = cleanText(body.path || "/", 700);
         const userAgent = cleanText(body.userAgent || request.headers.get("user-agent") || "", 1000);
         const supabase = createSupabaseServiceRole();
+        const token = getBearerToken(request);
+        let user = null;
+        let userRole = "";
+
+        if (token) {
+            const authClient = createSupabaseAuthClient();
+            const { data } = await authClient.auth.getUser(token).catch(() => ({ data: null }));
+            user = data?.user || null;
+            if (user?.id) userRole = await getUserRole(supabase, user.id).catch(() => "");
+        }
+
         const { error } = await supabase.from("site_visits").insert({
+            event_type: cleanText(body.eventType || "page_view", 60),
             session_id: cleanText(body.sessionId || "", 160),
+            user_id: user?.id || null,
+            user_email: cleanText(user?.email || "", 320),
+            user_role: cleanText(userRole, 60),
             path,
             title: cleanText(body.title || "", 180),
             referrer: cleanText(body.referrer || "", 700),
@@ -64,6 +80,10 @@ export async function POST(request) {
             utm_campaign: searchParam(path, "utm_campaign"),
             device_type: detectDevice(userAgent),
             browser: detectBrowser(userAgent),
+            app_context: cleanText(body.appContext || "", 60),
+            language: cleanText(body.language || "", 40),
+            screen_width: Number(body.screen?.width || 0) || null,
+            screen_height: Number(body.screen?.height || 0) || null,
             user_agent: userAgent,
             ip_hash: hashIp(requestIp(request)),
         });

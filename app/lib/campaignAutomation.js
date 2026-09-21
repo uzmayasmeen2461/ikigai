@@ -1,4 +1,4 @@
-import { publishCampaignItem } from "./campaigns";
+import { publishCampaignItem, refreshCampaignCompletion } from "./campaigns";
 import { nowISTISOString } from "./istDate";
 
 export async function publishDueCampaignItems(supabase, options = 10) {
@@ -39,5 +39,9 @@ export async function publishDueCampaignItems(supabase, options = 10) {
             results.push({ id: item.id, status: "failed", error: publishError.message || "Could not publish campaign item." });
         }
     }
+
+    const campaignIds = [...new Set((items || []).map((item) => item.campaign_id).filter(Boolean))];
+    await Promise.all(campaignIds.map((campaignId) => refreshCampaignCompletion(supabase, campaignId)));
+
     return results;
 }

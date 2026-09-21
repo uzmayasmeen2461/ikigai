@@ -38,7 +38,7 @@ export async function GET(request) {
     const since = startDateForDays(days);
     const { data, error } = await supabase
         .from("site_visits")
-        .select("id, session_id, path, referrer, device_type, browser, visited_at")
+        .select("id, event_type, session_id, user_id, user_email, user_role, path, referrer, device_type, browser, app_context, language, screen_width, screen_height, visited_at")
         .gte("visited_at", since)
         .order("visited_at", { ascending: false })
         .limit(5000);
@@ -52,6 +52,9 @@ export async function GET(request) {
 
     const rows = data || [];
     const uniqueSessions = new Set(rows.map((row) => row.session_id).filter(Boolean));
+    const loggedInUsers = new Set(rows.map((row) => row.user_id).filter(Boolean));
+    const appInstalls = rows.filter((row) => row.event_type === "app_install").length;
+    const installedAppVisits = rows.filter((row) => row.app_context === "installed_app").length;
     const today = dayKey(new Date().toISOString());
     const todayRows = rows.filter((row) => dayKey(row.visited_at) === today);
     const pageCounts = rows.reduce((acc, row) => {
@@ -79,6 +82,9 @@ export async function GET(request) {
             uniqueVisitors: uniqueSessions.size,
             visitsToday: todayRows.length,
             uniqueVisitorsToday: new Set(todayRows.map((row) => row.session_id).filter(Boolean)).size,
+            loggedInUsers: loggedInUsers.size,
+            appInstalls,
+            installedAppVisits,
         },
         topPages: Object.entries(pageCounts)
             .map(([path, visits]) => ({ path, visits }))

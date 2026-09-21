@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactCrop from "react-image-crop";
 import {
     AlertTriangle,
-    CheckCircle2,
+    CalendarDays,
     Download,
     FileArchive,
     ImageIcon,
     Loader2,
+    Send,
     Sparkles,
     Star,
     Trash2,
@@ -18,7 +20,7 @@ import {
 import { supabase } from "../../app/lib/supabase";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
-import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
+import { EmptyState, ErrorState, FeedbackMessage, SectionHeading } from "../DashboardUI";
 import { formatINR } from "../../app/lib/pricing";
 import {
     cleanText,
@@ -39,7 +41,6 @@ import {
     productCopyPaste,
     productReadyForExport,
     productStudioGuide,
-    productStudioSteps,
     whatsappCatalogCsv,
 } from "../../app/lib/productStudio";
 
@@ -104,6 +105,16 @@ function downloadText(filename, text, type = "text/plain") {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+}
+
+function datetimeLocalFromNow(minutesFromNow = 30) {
+    const next = new Date(Date.now() + minutesFromNow * 60000);
+    const year = next.getFullYear();
+    const month = String(next.getMonth() + 1).padStart(2, "0");
+    const day = String(next.getDate()).padStart(2, "0");
+    const hour = String(next.getHours()).padStart(2, "0");
+    const minute = String(next.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function fileToImage(file) {
@@ -237,6 +248,10 @@ function ProductImage({ product }) {
     return <div className="h-14 w-14 shrink-0 rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />;
 }
 
+function productPostImage(product = {}) {
+    return product.cleaned_image_url || product.image_url || "";
+}
+
 function getImageExtension(url = "", fallback = "jpg") {
     if (url.startsWith("data:image/png")) return "png";
     if (url.startsWith("data:image/webp")) return "webp";
@@ -285,6 +300,7 @@ function photoProductName(fileName = "", index = 1) {
 }
 
 export function ProductStudio({ role = "client", taskId = "", channel = "", workflow = "inventory" }) {
+    const router = useRouter();
     const shellRole = role === "admin" ? "admin" : role === "partner" ? "partner" : "client";
     const allowedRole = role === "admin" ? "admin" : role === "partner" ? "partner" : "client";
     const canGenerateAndExport = role === "partner" || role === "admin";
@@ -302,6 +318,8 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
     const [pendingDeleteId, setPendingDeleteId] = useState("");
     const [imageBusyId, setImageBusyId] = useState("");
     const [activeImageId, setActiveImageId] = useState("");
+    const [postDrafts, setPostDrafts] = useState({});
+    const [publishingAction, setPublishingAction] = useState("");
     const [cropMode, setCropMode] = useState(false);
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState(null);
@@ -315,6 +333,7 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
     const unmatchedImages = useMemo(() => images.filter((image) => !image.productId), [images]);
     const matchedImages = useMemo(() => images.filter((image) => image.productId), [images]);
     const draftProducts = useMemo(() => products.filter((product) => String(product.id).startsWith("draft-")), [products]);
+    const savedPostProducts = useMemo(() => products.filter((product) => !String(product.id).startsWith("draft-")), [products]);
     const hasUnsavedDrafts = draftProducts.length > 0;
     const validPreviewRows = useMemo(() => previewRows.filter((row) => !row.errors?.length), [previewRows]);
     const activeImage = useMemo(() => images.find((image) => image.id === activeImageId) || null, [activeImageId, images]);
@@ -330,6 +349,30 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
         : exportChannel === "instagram"
             ? "Download reviewed captions, hashtags, a content plan, and product images for Instagram."
             : "Review first. Exports are ready-to-upload files, not direct posting.";
+
+    const postDraftForProduct = useCallback((product) => {
+        const existing = postDrafts[product.id];
+        if (existing) return existing;
+
+        const output = outputs[product.id] || generateProductContent(product);
+        return {
+            title: `Post: ${productName(product)}`,
+            caption: output.instagram_caption || "",
+            hashtags: output.instagram_hashtags || "#ORVA #ShopLocal #LocalBusiness",
+            cta: "DM to order",
+            scheduledFor: datetimeLocalFromNow(30),
+        };
+    }, [outputs, postDrafts]);
+
+    const updatePostDraft = (productId, patch) => {
+        setPostDrafts((current) => ({
+            ...current,
+            [productId]: {
+                ...(current[productId] || postDraftForProduct(products.find((product) => product.id === productId) || {})),
+                ...patch,
+            },
+        }));
+    };
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -422,8 +465,8 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
         setMessage({
             type: matchedCount ? "success" : "error",
             text: matchedCount
-                ? `AI matched ${matchedCount} image${matchedCount === 1 ? "" : "s"} and created a demo product list below. Review it, adjust any unmatched images, then save products.`
-                : "AI could not confidently match images. A demo product list was created below; please manually assign images before saving.",
+                ? `AI matched ${matchedCount} image${matchedCount === 1 ? "" : "s"} and created a review product list below. Review it, adjust any unmatched images, then save products.`
+                : "AI could not confidently match images. A review product list was created below; please manually assign images before saving.",
         });
     };
 
@@ -432,25 +475,6 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
         if (!file) return;
         setPreviewRows(parseInventoryCsv(await file.text()));
         setMessage({ type: "", text: "" });
-    };
-
-    const loadDemoProducts = async () => {
-        if (role !== "client") return;
-        setSaving(true);
-        setMessage({ type: "", text: "" });
-        const token = await getToken();
-        const response = await fetch("/api/inventory/demo", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const result = await readJson(response);
-        setSaving(false);
-        if (!response.ok) {
-            setMessage({ type: "error", text: result.error || "Could not load demo products." });
-            return;
-        }
-        setProducts(result.products || []);
-        setMessage({ type: "success", text: "Demo products loaded." });
     };
 
     const handleImages = async (event) => {
@@ -643,8 +667,8 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
         setMessage({
             type: fallbackCount ? "warning" : "success",
             text: fallbackCount
-                ? `Demo inventory created. ${fallbackCount} item${fallbackCount === 1 ? "" : "s"} used fallback text, so review before uploading.`
-                : "AI read your photos and created a demo inventory list with titles, categories, and descriptions.",
+                ? `Draft inventory created. ${fallbackCount} item${fallbackCount === 1 ? "" : "s"} used fallback text, so review before uploading.`
+                : "AI read your photos and created a draft inventory list with titles, categories, and descriptions.",
         });
     };
 
@@ -654,7 +678,7 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
             return;
         }
         if (!products.length) {
-            setMessage({ type: "error", text: "Upload inventory first, then click Match Images with AI to create the demo list." });
+            setMessage({ type: "error", text: "Upload inventory first, then click Match Images with AI to create the review list." });
             return;
         }
 
@@ -845,6 +869,95 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
             return saved ? { ...image, productId: saved.id } : image;
         }));
         setMessage({ type: "success", text: "Final product list saved to Products." });
+        router.push("/dashboard/products");
+    };
+
+    const scheduleProductsInGrowthAutopilot = async () => {
+        if (hasUnsavedDrafts) {
+            setMessage({ type: "error", text: "Upload the product list first, then schedule posts." });
+            return;
+        }
+
+        const readyProducts = savedPostProducts.filter((product) => productName(product) && productPostImage(product));
+        if (!readyProducts.length) {
+            setMessage({ type: "error", text: "Add at least one saved product with an image before scheduling." });
+            return;
+        }
+
+        setPublishingAction("schedule");
+        setMessage({ type: "", text: "" });
+
+        try {
+            const token = await getToken();
+            const posts = readyProducts.map((product, index) => {
+                const draft = postDraftForProduct(product);
+                return {
+                    id: product.id,
+                    imageUrl: productPostImage(product),
+                    title: draft.title || productName(product),
+                    caption: draft.caption,
+                    hashtags: draft.hashtags,
+                    cta: draft.cta,
+                    scheduledFor: draft.scheduledFor || datetimeLocalFromNow((index + 1) * 30),
+                };
+            });
+
+            const response = await fetch("/api/marketing-content/schedule", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    name: "Product posts from upload",
+                    selectedPlatforms: ["instagram_post"],
+                    posts,
+                }),
+            });
+            const result = await readJson(response);
+            if (!response.ok) throw new Error(result.error || "Could not schedule product posts.");
+
+            setMessage({ type: "success", text: result.message || "Product posts saved to Growth Autopilot." });
+        } catch (error) {
+            setMessage({ type: "error", text: error.message || "Could not schedule product posts." });
+        } finally {
+            setPublishingAction("");
+        }
+    };
+
+    const publishProductToInstagramNow = async (product) => {
+        if (String(product.id).startsWith("draft-")) {
+            setMessage({ type: "error", text: "Upload the product list first, then publish to Instagram." });
+            return;
+        }
+        if (!productPostImage(product)) {
+            setMessage({ type: "error", text: "Add a product image before publishing to Instagram." });
+            return;
+        }
+
+        const draft = postDraftForProduct(product);
+        const caption = [draft.caption, draft.cta, draft.hashtags].filter(Boolean).join("\n\n");
+        if (!caption.trim()) {
+            setMessage({ type: "error", text: "Write a caption before publishing." });
+            return;
+        }
+
+        setPublishingAction(`instagram-${product.id}`);
+        setMessage({ type: "", text: "" });
+
+        try {
+            const token = await getToken();
+            const response = await fetch("/api/instagram/publish-product", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ productId: product.id, caption }),
+            });
+            const result = await readJson(response);
+            if (!response.ok) throw new Error(result.error || "Could not publish to Instagram.");
+
+            setMessage({ type: "success", text: result.message || "Product published to Instagram." });
+        } catch (error) {
+            setMessage({ type: "error", text: error.message || "Could not publish to Instagram." });
+        } finally {
+            setPublishingAction("");
+        }
     };
 
     const exportKit = async (type = "complete") => {
@@ -918,8 +1031,6 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
         }
     };
 
-    const contentCount = Object.keys(outputs).length;
-
     return (
         <AuthGate allowedRoles={allowedRole}>
             <DashboardShell
@@ -943,22 +1054,6 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                             </section>
                         ) : null}
 
-                        <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
-                            {productStudioSteps.map((step, index) => (
-                                <div key={step} className="interactive-tile rounded-xl border border-[var(--border)] bg-white p-4">
-                                    <p className="text-xs font-bold text-[var(--accent)]">0{index + 1}</p>
-                                    <p className="mt-2 text-sm font-semibold text-[var(--ink)]">{step}</p>
-                                </div>
-                            ))}
-                        </section>
-
-                        <section className="grid gap-5 md:grid-cols-4">
-                            <StatCard label="Products" value={products.length} icon={Upload} accent="bg-[var(--accent)]" />
-                            <StatCard label="Images" value={images.length} icon={ImageIcon} accent="bg-[var(--accent-mid)]" />
-                            <StatCard label="Matched" value={matchedImages.length} icon={CheckCircle2} accent="bg-emerald-500" />
-                            <StatCard label="Generated" value={contentCount} icon={Sparkles} accent="bg-amber-500" />
-                        </section>
-
                         {!photosOnlyFlow ? (
                             <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
                                 <div className="dashboard-panel p-6">
@@ -967,10 +1062,11 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                                     description="Add the product names, prices, stock, codes, and notes. Nothing is saved until you review the matched list."
                                     action={<button type="button" className="btn-secondary" onClick={() => downloadText("orva-product-studio-sample.csv", sampleInventoryCsv(), "text/csv")}>Download Sample CSV</button>}
                                 />
-                                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-7 text-center transition hover:border-[var(--accent)] hover:bg-white">
-                                    <Upload className="h-7 w-7 text-[var(--accent)]" />
-                                    <span className="mt-3 text-sm font-semibold">Upload Inventory CSV</span>
-                                    <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleInventoryFile} />
+                                <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--accent)] bg-[var(--accent-light)] px-5 py-8 text-center transition hover:-translate-y-0.5 hover:bg-white hover:shadow-xl hover:shadow-[rgba(27,79,216,0.12)]">
+                                    <Upload className="h-8 w-8 text-[var(--accent)]" />
+                                    <span className="mt-3 text-base font-bold text-[var(--ink)]">Tap to upload CSV</span>
+                                    <span className="mt-1 text-sm leading-5 text-[var(--mid)]">Works from phone files, Google Sheets export, or Excel CSV.</span>
+                                    <input type="file" accept=".csv,text/csv,application/vnd.ms-excel" className="hidden" onChange={handleInventoryFile} />
                                 </label>
                                 {previewRows.length ? (
                                     <div className="mt-5 overflow-x-auto">
@@ -1000,10 +1096,11 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                                     title="2. Upload Product Images"
                                     description="Upload product photos separately. ORVA will compare image filenames with product code, name, and category."
                                 />
-                                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-7 text-center transition hover:border-[var(--accent)] hover:bg-white">
-                                    <ImageIcon className="h-7 w-7 text-[var(--accent)]" />
-                                    <span className="mt-3 text-sm font-semibold">Upload Product Images</span>
-                                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleImages} />
+                                <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--accent)] bg-[var(--accent-light)] px-5 py-8 text-center transition hover:-translate-y-0.5 hover:bg-white hover:shadow-xl hover:shadow-[rgba(27,79,216,0.12)]">
+                                    <ImageIcon className="h-8 w-8 text-[var(--accent)]" />
+                                    <span className="mt-3 text-base font-bold text-[var(--ink)]">Tap to add product photos</span>
+                                    <span className="mt-1 text-sm leading-5 text-[var(--mid)]">Choose from gallery or camera. JPG, PNG, WebP, HEIC supported.</span>
+                                    <input type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleImages} />
                                 </label>
                                 {images.length ? (
                                     <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -1022,12 +1119,13 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                             <section className="dashboard-panel p-6">
                                 <SectionHeading
                                     title="Upload Photos + Prices"
-                                    description="Upload product photos and enter the price below each photo. ORVA will create a demo inventory list for review."
+                                    description="Upload product photos and enter the price below each photo. ORVA will create a draft inventory list for review."
                                 />
-                                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-7 text-center transition hover:border-[var(--accent)] hover:bg-white">
-                                    <ImageIcon className="h-7 w-7 text-[var(--accent)]" />
-                                    <span className="mt-3 text-sm font-semibold">Upload Product Photos</span>
-                                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleImages} />
+                                <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--accent)] bg-[var(--accent-light)] px-5 py-10 text-center transition hover:-translate-y-0.5 hover:bg-white hover:shadow-xl hover:shadow-[rgba(27,79,216,0.12)]">
+                                    <ImageIcon className="h-8 w-8 text-[var(--accent)]" />
+                                    <span className="mt-3 text-base font-bold text-[var(--ink)]">Tap to add product photos</span>
+                                    <span className="mt-1 text-sm leading-5 text-[var(--mid)]">Use phone gallery or camera, then enter the price below each photo.</span>
+                                    <input type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleImages} />
                                 </label>
                                 {images.length ? (
                                     <>
@@ -1076,10 +1174,10 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                         {!photosOnlyFlow ? <section className="dashboard-panel p-6">
                             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                 <div>
-                                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent)]">3. Match and Create Demo List</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--accent)]">3. Match and Create Review List</p>
                                     <h2 className="mt-2 text-2xl font-semibold text-[var(--ink)]">Match images with AI</h2>
                                     <p className="mt-2 text-sm text-[var(--mid)]">
-                                        Once both inventory and images are uploaded, ORVA creates a demo product list below. You can review it before uploading products.
+                                        Once both inventory and images are uploaded, ORVA creates a review product list below. You can review it before uploading products.
                                     </p>
                                 </div>
                                 <button
@@ -1129,16 +1227,17 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
 
                         <section className="dashboard-panel p-6">
                             <SectionHeading
-                                title={photosOnlyFlow ? "Review Demo Inventory List" : "4. Review Demo Product List"}
-                                description={hasUnsavedDrafts ? "This is the demo list created from your inventory and images. Review it, then upload the final list to Products." : "After matching, your demo product list will appear here before anything is saved."}
+                                title={photosOnlyFlow ? "Review Draft Inventory List" : "4. Review Product List"}
+                                description={hasUnsavedDrafts ? "This list was created from your inventory and images. Review it, then upload the final list to Products." : "After matching, your product list will appear here before anything is saved."}
                                 action={
                                     <div className="flex flex-wrap gap-2">
-                                        {draftProducts.length && role !== "partner" ? <button type="button" className="btn-secondary" disabled={saving} onClick={saveDraftProducts}>{saving ? "Uploading..." : "Upload Product List"}</button> : null}
+                                        {draftProducts.length && role !== "partner" ? <button type="button" className="btn-primary" disabled={saving} onClick={saveDraftProducts}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}{saving ? "Uploading..." : "Upload Product List"}</button> : null}
                                         {canGenerateAndExport ? <button type="button" className="btn-primary" onClick={generateContent}><Sparkles className="mr-2 h-4 w-4" />Generate Content</button> : null}
                                     </div>
                                 }
                             />
                             {products.length ? (
+                                <>
                                 <div className="grid gap-3">
                                     {products.map((product) => {
                                         const missing = missingProductFields(product);
@@ -1193,17 +1292,23 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                                         );
                                     })}
                                 </div>
+                                {draftProducts.length && role !== "partner" ? (
+                                    <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                                        <button type="button" className="btn-primary w-full justify-center" disabled={saving} onClick={saveDraftProducts}>
+                                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                            {saving ? "Uploading..." : "Upload Product List"}
+                                        </button>
+                                    </div>
+                                ) : null}
+                                </>
                             ) : (
                                 <EmptyState
                                     title="No products yet"
-                                    description="Upload inventory, add products, or load demo products."
+                                    description="Upload inventory or add a product to start building your catalog."
                                     action={
                                         role === "client" ? (
                                             <div className="mt-6 flex flex-wrap justify-center gap-3">
-                                                <button type="button" className="btn-primary" disabled={saving} onClick={loadDemoProducts}>
-                                                    {saving ? "Loading..." : "Load Demo Products"}
-                                                </button>
-                                                <Link href="/dashboard/inventory/new" className="btn-secondary inline-flex">Add Product</Link>
+                                                <Link href="/dashboard/inventory/new" className="btn-primary inline-flex">Add Product</Link>
                                             </div>
                                         ) : (
                                             <Link href="/dashboard/inventory/new" className="btn-primary mt-6 inline-flex">Add Product</Link>
@@ -1213,22 +1318,118 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                             )}
                         </section>
 
-                        <section className="dashboard-panel p-6">
+                        {role === "client" ? (
+                            <section className="dashboard-panel p-6">
+                                <SectionHeading
+                                    title="Publish or schedule posts"
+                                    description={hasUnsavedDrafts ? "Upload the product list first. Then edit captions and send products to Growth Autopilot or Instagram." : "Edit the image, caption, description, and schedule before posting."}
+                                    action={
+                                        savedPostProducts.length ? (
+                                            <button type="button" className="btn-primary" disabled={Boolean(publishingAction)} onClick={scheduleProductsInGrowthAutopilot}>
+                                                {publishingAction === "schedule" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarDays className="mr-2 h-4 w-4" />}
+                                                {publishingAction === "schedule" ? "Scheduling..." : "Schedule all in Growth Autopilot"}
+                                            </button>
+                                        ) : null
+                                    }
+                                />
+                                {hasUnsavedDrafts ? (
+                                    <div className="rounded-xl border border-[var(--warn)]/20 bg-[var(--warn-bg)] p-4 text-sm font-semibold text-[var(--warn)]">
+                                        Upload Product List first so ORVA can publish real saved products instead of temporary drafts.
+                                    </div>
+                                ) : savedPostProducts.length ? (
+                                    <div className="grid gap-4">
+                                        {savedPostProducts.map((product) => {
+                                            const draft = postDraftForProduct(product);
+                                            const image = productPostImage(product);
+                                            return (
+                                                <article key={product.id} className="rounded-2xl border border-[var(--border)] bg-white p-4">
+                                                    <div className="grid gap-4 lg:grid-cols-[96px_1fr]">
+                                                        <div className="aspect-square overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                                                            {image ? (
+                                                                <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: `url(${image})` }} />
+                                                            ) : (
+                                                                <div className="flex h-full w-full items-center justify-center text-[var(--muted)]">
+                                                                    <ImageIcon className="h-7 w-7" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="grid gap-3">
+                                                            <div className="grid gap-3 md:grid-cols-2">
+                                                                <input
+                                                                    className="form-field"
+                                                                    value={draft.title}
+                                                                    onChange={(event) => updatePostDraft(product.id, { title: event.target.value })}
+                                                                    placeholder="Post title"
+                                                                />
+                                                                <input
+                                                                    className="form-field"
+                                                                    type="datetime-local"
+                                                                    value={draft.scheduledFor}
+                                                                    onChange={(event) => updatePostDraft(product.id, { scheduledFor: event.target.value })}
+                                                                />
+                                                            </div>
+                                                            <textarea
+                                                                className="form-field min-h-28"
+                                                                value={draft.caption}
+                                                                onChange={(event) => updatePostDraft(product.id, { caption: event.target.value })}
+                                                                placeholder="Instagram caption"
+                                                            />
+                                                            <div className="grid gap-3 md:grid-cols-2">
+                                                                <input
+                                                                    className="form-field"
+                                                                    value={draft.cta}
+                                                                    onChange={(event) => updatePostDraft(product.id, { cta: event.target.value })}
+                                                                    placeholder="CTA"
+                                                                />
+                                                                <input
+                                                                    className="form-field"
+                                                                    value={draft.hashtags}
+                                                                    onChange={(event) => updatePostDraft(product.id, { hashtags: event.target.value })}
+                                                                    placeholder="#hashtags"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-primary"
+                                                                    disabled={Boolean(publishingAction) || !image}
+                                                                    onClick={() => publishProductToInstagramNow(product)}
+                                                                >
+                                                                    {publishingAction === `instagram-${product.id}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                                                                    {publishingAction === `instagram-${product.id}` ? "Publishing..." : "Publish to Instagram now"}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-secondary"
+                                                                    disabled={Boolean(publishingAction) || !image}
+                                                                    onClick={scheduleProductsInGrowthAutopilot}
+                                                                >
+                                                                    <CalendarDays className="mr-2 h-4 w-4" />
+                                                                    Schedule in Growth Autopilot
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <EmptyState title="No saved products ready" description="Upload photos and prices, review the product list, then upload the list to unlock posting." />
+                                )}
+                            </section>
+                        ) : null}
+
+                        {canGenerateAndExport ? <section className="dashboard-panel p-6">
                             <SectionHeading title={exportTitle} description={exportDescription} />
-                            {canGenerateAndExport ? (
-                                <div className={`grid gap-3 ${exportChannel ? "md:grid-cols-1" : "md:grid-cols-4"}`}>
-                                    {!exportChannel || exportChannel === "whatsapp" ? <button type="button" className="btn-secondary" onClick={() => exportKit("whatsapp")}><FileArchive className="mr-2 h-4 w-4" />WhatsApp Catalog ZIP</button> : null}
-                                    {!exportChannel || exportChannel === "instagram" ? <button type="button" className="btn-secondary" onClick={() => exportKit("instagram")}><FileArchive className="mr-2 h-4 w-4" />Instagram Post ZIP</button> : null}
-                                    {!exportChannel ? <button type="button" className="btn-secondary" onClick={() => exportKit("facebook")}><FileArchive className="mr-2 h-4 w-4" />Facebook ZIP</button> : null}
-                                    {!exportChannel ? <button type="button" className="btn-primary" onClick={() => exportKit("complete")}><Download className="mr-2 h-4 w-4" />Complete Kit</button> : null}
-                                </div>
-                            ) : (
-                                <div className="rounded-xl border border-[var(--border)] bg-white p-4 text-sm text-[var(--mid)]">
-                                    Your products and images can be prepared here. ORVA will generate and export marketing kits through a reviewed specialist task.
-                                </div>
-                            )}
+                            <div className={`grid gap-3 ${exportChannel ? "md:grid-cols-1" : "md:grid-cols-4"}`}>
+                                {!exportChannel || exportChannel === "whatsapp" ? <button type="button" className="btn-secondary" onClick={() => exportKit("whatsapp")}><FileArchive className="mr-2 h-4 w-4" />WhatsApp Catalog ZIP</button> : null}
+                                {!exportChannel || exportChannel === "instagram" ? <button type="button" className="btn-secondary" onClick={() => exportKit("instagram")}><FileArchive className="mr-2 h-4 w-4" />Instagram Post ZIP</button> : null}
+                                {!exportChannel ? <button type="button" className="btn-secondary" onClick={() => exportKit("facebook")}><FileArchive className="mr-2 h-4 w-4" />Facebook ZIP</button> : null}
+                                {!exportChannel ? <button type="button" className="btn-primary" onClick={() => exportKit("complete")}><Download className="mr-2 h-4 w-4" />Complete Kit</button> : null}
+                            </div>
                             <p className="mt-4 text-sm text-[var(--mid)]">{exportableProducts.length}/{featuredProducts.length} selected products are export-ready.</p>
-                        </section>
+                        </section> : null}
                     </div>
                 )}
                 {activeImage ? (
@@ -1330,6 +1531,14 @@ export function ProductStudio({ role = "client", taskId = "", channel = "", work
                                 </aside>
                             </div>
                         </div>
+                    </div>
+                ) : null}
+                {draftProducts.length && role !== "partner" ? (
+                    <div className="fixed inset-x-3 bottom-[5.35rem] z-50 lg:hidden">
+                        <button type="button" className="btn-primary w-full justify-center shadow-2xl shadow-blue-950/25" disabled={saving} onClick={saveDraftProducts}>
+                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                            {saving ? "Uploading..." : "Upload Product List"}
+                        </button>
                     </div>
                 ) : null}
             </DashboardShell>

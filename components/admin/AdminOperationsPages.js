@@ -656,6 +656,9 @@ function WebsiteAnalyticsSection() {
                         <StatCard label="Unique visitors" value={analytics?.summary?.uniqueVisitors || 0} icon={UserCheck} accent="bg-emerald-500" />
                         <StatCard label="Visits today" value={analytics?.summary?.visitsToday || 0} icon={Clock3} accent="bg-amber-500" />
                         <StatCard label="Visitors today" value={analytics?.summary?.uniqueVisitorsToday || 0} icon={CheckCircle2} accent="bg-indigo-500" />
+                        <StatCard label="Logged-in users" value={analytics?.summary?.loggedInUsers || 0} icon={UserCheck} accent="bg-slate-950" />
+                        <StatCard label="App installs" value={analytics?.summary?.appInstalls || 0} icon={CheckCircle2} accent="bg-cyan-500" />
+                        <StatCard label="Installed app visits" value={analytics?.summary?.installedAppVisits || 0} icon={Globe2} accent="bg-violet-500" />
                     </div>
                     <div className="mt-6 grid gap-5 xl:grid-cols-2">
                         <div className="rounded-2xl border border-slate-100 bg-white p-5">
@@ -678,7 +681,10 @@ function WebsiteAnalyticsSection() {
                                             <span className="truncate text-sm font-semibold text-slate-700">{visit.path || "/"}</span>
                                             <span className="text-xs font-semibold text-slate-400">{formatDate(visit.visited_at)}</span>
                                         </div>
-                                        <p className="mt-1 text-xs text-slate-500">{visit.device_type || "device"} · {visit.browser || "browser"}</p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            {visit.user_email || "Guest visitor"}{visit.user_role ? ` · ${visit.user_role}` : ""} · {visit.event_type === "app_install" ? "App install" : "Visit"}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">{visit.device_type || "device"} · {visit.browser || "browser"} · {visit.app_context || "browser"}</p>
                                     </div>
                                 ))}
                             </div>

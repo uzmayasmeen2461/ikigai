@@ -63,6 +63,7 @@ export function OrvaInteractionEffects() {
         const handleKeyDown = (event) => {
             if (!isTextEntryElement(event.target)) return;
             if (event.metaKey || event.ctrlKey || event.altKey) return;
+            if (typeof event.key !== "string") return;
             if (event.key.length > 1 && !["Backspace", "Enter", " "].includes(event.key)) return;
 
             const rect = event.target.getBoundingClientRect();

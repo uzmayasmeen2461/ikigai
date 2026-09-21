@@ -19,6 +19,7 @@ import {
     Package,
     PanelLeft,
     RefreshCw,
+    Send,
     Settings,
     ShieldCheck,
     Sparkles,
@@ -54,15 +55,14 @@ const navConfig = {
         { label: "Reports", href: "/admin/reports", icon: BarChart3 },
     ],
     client: [
-        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        { label: "Onboarding", href: "/dashboard/onboarding", icon: ShieldCheck },
-        { label: "Growth Studio", href: "/dashboard?view=growth-assistant", icon: Sparkles },
-        { label: "Growth Autopilot", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
+        { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Add Products", href: "/dashboard/upload-inventory", icon: Upload },
         { label: "Products", href: "/dashboard/products", icon: Package },
-        { label: "Add Inventory", href: "/dashboard/upload-inventory", icon: Upload },
-        { label: "Intelligence", href: "/dashboard/inventory-intelligence", icon: Lightbulb },
+        { label: "Publish", href: "/dashboard/connections", icon: Send },
+        { label: "Marketing Plan", href: "/dashboard?view=growth-assistant", icon: Sparkles },
+        { label: "Weekly Calendar", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
         { label: "Reel Studio", href: "/dashboard/reel-studio", icon: Film },
-        { label: "Connections", href: "/dashboard/connections", icon: ClipboardList },
+        { label: "Insights", href: "/dashboard/inventory-intelligence", icon: Lightbulb },
         { label: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
     partner: [
@@ -80,7 +80,6 @@ export function DashboardShell({
     role = "client",
     eyebrow = "Workspace",
     title,
-    description,
     children,
 }) {
     const pathname = usePathname();
@@ -92,6 +91,10 @@ export function DashboardShell({
     const [activeHref, setActiveHref] = useState(pathname);
 
     const navItems = useMemo(() => navConfig[role] || navConfig.client, [role]);
+    const mobileNavItems = useMemo(() => {
+        if (role !== "client") return navItems.slice(0, 4);
+        return navItems.filter((item) => ["Home", "Add Products", "Products", "Publish", "Marketing Plan"].includes(item.label));
+    }, [navItems, role]);
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -145,7 +148,7 @@ export function DashboardShell({
                 <Link href="/" className="group flex items-center gap-3">
                     <BrandLogo size="compact" />
                 </Link>
-                <p className="mt-2 pl-[2.75rem] text-xs font-medium text-white/30">Product workspace</p>
+                <p className="mt-2 pl-[2.75rem] text-xs font-medium text-white/30">Sell products online</p>
             </div>
 
             <nav className="flex-1 space-y-1 p-3">
@@ -252,11 +255,11 @@ export function DashboardShell({
                     </div>
                 </header>
 
-                <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-                    <section className="dashboard-panel hero-noise relative mb-8 overflow-hidden p-6">
+                <main className="mx-auto max-w-[1500px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:py-8">
+                    <section className="dashboard-panel hero-noise relative mb-8 overflow-hidden p-5 sm:p-6">
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent)] via-[#7BA7F0] to-[var(--success)]" />
-                        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                            <div>
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+                            <div className="min-w-0">
                                 <div className="dashboard-eyebrow">
                                     <PanelLeft className="h-3.5 w-3.5" />
                                     {roleLabels[role] || roleLabels.client}
@@ -264,27 +267,36 @@ export function DashboardShell({
                                 <h2 className="mt-4 text-3xl font-bold tracking-[-0.01em] text-[var(--ink)] md:text-4xl">
                                     {title}
                                 </h2>
-                                {description && (
-                                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--mid)] md:text-base">
-                                        {description}
-                                    </p>
-                                )}
                             </div>
-                            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                                <div className="interactive-tile rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-                                    <BarChart3 className="mb-2 h-4 w-4 text-[var(--accent)]" />
-                                    <p className="font-semibold text-[var(--ink)]">Live</p>
-                                    <p className="text-xs text-[var(--mid)]">Workspace</p>
+                            <div className="visual-demo" data-visual="publish" aria-hidden="true">
+                                <div className="visual-demo-topbar">
+                                    <span />
+                                    <span />
+                                    <span />
                                 </div>
-                                <div className="interactive-tile rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-                                    <ShieldCheck className="mb-2 h-4 w-4 text-[var(--accent)]" />
-                                    <p className="font-semibold text-[var(--ink)]">Managed</p>
-                                    <p className="text-xs text-[var(--mid)]">Access</p>
-                                </div>
-                                <div className="interactive-tile hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 sm:block">
-                                    <FileText className="mb-2 h-4 w-4 text-[var(--accent)]" />
-                                    <p className="font-semibold text-[var(--ink)]">Clear</p>
-                                    <p className="text-xs text-[var(--mid)]">Updates</p>
+                                <div className="visual-demo-screen">
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                                            <Upload className="mb-2 h-4 w-4 text-[var(--accent)]" />
+                                            <p className="text-xs font-bold">Add</p>
+                                        </div>
+                                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                                            <Package className="mb-2 h-4 w-4 text-[var(--accent)]" />
+                                            <p className="text-xs font-bold">Check</p>
+                                        </div>
+                                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                                            <Send className="mb-2 h-4 w-4 text-[var(--success)]" />
+                                            <p className="text-xs font-bold">Publish</p>
+                                        </div>
+                                    </div>
+                                    <div className="visual-demo-row visual-demo-row-wide mt-4" />
+                                    <div className="visual-demo-row" />
+                                    <div className="visual-demo-button">
+                                        <Send className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div className="visual-demo-click">
+                                        <PanelLeft className="h-4 w-4" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -313,6 +325,24 @@ export function DashboardShell({
                     </footer>
                 </main>
             </div>
+            <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 gap-1 px-2 pb-[calc(env(safe-area-inset-bottom)+0.35rem)] pt-2 lg:hidden">
+                {mobileNavItems.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[11px] font-bold transition ${
+                                active ? "bg-[var(--accent-light)] text-[var(--accent)]" : "text-[var(--mid)]"
+                            }`}
+                        >
+                            <Icon className="h-5 w-5" />
+                            <span className="max-w-full truncate">{item.label.replace(" Products", "")}</span>
+                        </Link>
+                    );
+                })}
+            </nav>
         </div>
     );
 }

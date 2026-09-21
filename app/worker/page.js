@@ -108,7 +108,12 @@ function canOpenInstagramTool(task) {
     return (
         (normalizedService.includes("instagram") ||
             normalizedService.includes("social") ||
-            normalizedService.includes("facebook")) &&
+            normalizedService.includes("facebook") ||
+            normalizedService.includes("meta") ||
+            normalizedService.includes("page setup") ||
+            normalizedService.includes("business profile") ||
+            normalizedService.includes("digital presence") ||
+            normalizedService.includes("account_setup")) &&
         task.payment_status === "paid" &&
         status !== "completed" &&
         status !== "cancelled"
@@ -166,7 +171,7 @@ function getToolAction(task) {
 
     if (canOpenInstagramTool(task)) {
         return {
-            label: "Open Instagram Post Export",
+            label: "Open Meta Setup Assistant",
             href: `/partner/tools/instagram-setup?taskId=${task.id}&channel=instagram`,
             available: true,
         };

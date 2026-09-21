@@ -49,7 +49,7 @@ const plans = [
     {
         name: "Catalog Management",
         price: 7000,
-        period: "/month",
+        period: "/3 months",
         badge: "Human-assisted",
         description: "For businesses that want ORVA to help with WhatsApp catalog management and regular manual channel updates.",
         icon: RefreshCw,
@@ -67,7 +67,7 @@ const plans = [
     {
         name: "Advanced Automation",
         price: 15000,
-        period: "/month",
+        period: "/3 months",
         badge: "Advanced",
         description: "For businesses that want advanced automation, messaging workflows, and stronger growth support.",
         icon: RefreshCw,

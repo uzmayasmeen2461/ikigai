@@ -32,7 +32,7 @@ import { buildFacebookPageCaption, buildInstagramCaption, formatInventoryStatus,
 import { formatStableDateTime } from "../../app/lib/stableDate";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
-import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
+import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard, VisualActionCard } from "../DashboardUI";
 
 const channels = [
     { id: "whatsapp", name: "WhatsApp Business", description: "Prepare catalog-ready product text and images for manual WhatsApp setup.", icon: Send },
@@ -105,6 +105,12 @@ function ChannelLogo({ channel }) {
             f
         </span>
     );
+}
+
+function connectedDestinationName(connections = [], channel = "facebook") {
+    const connection = connections.find((item) => item.channel === channel && item.status === "connected");
+    if (connection?.external_account_name) return connection.external_account_name;
+    return channel === "instagram" ? "connected Instagram professional account" : "connected Facebook Page";
 }
 
 function publishCopyForChannel(channel, product = {}) {
@@ -229,6 +235,19 @@ export function MvpDashboard() {
     ];
     const connectedChannels = connections.filter((connection) => connection.status === "connected").length;
     const pendingTasks = updateTasks.filter((task) => ["pending", "in_progress", "failed"].includes(task.status)).slice(0, 4);
+    const hasProducts = products.length > 0;
+    const publishDestinationName = connectedDestinationName(connections, publishChannel);
+    const nextActions = hasProducts
+        ? [
+            { title: "Review products", detail: "Check names, prices, stock, and images.", action: "Open products", href: "/dashboard/products", icon: Package, primary: true, visual: "tap" },
+            { title: "Publish selected", detail: selectedProduct ? `Start with ${productName(selectedProduct)}.` : "Choose a product and review the copy.", action: "Go to publish", href: "#publish-selected", icon: Send, visual: "publish" },
+            { title: "Add more", detail: "Upload a CSV or add items one by one.", action: "Add products", href: "/dashboard/upload-inventory", icon: CloudUpload, visual: "upload" },
+        ]
+        : [
+            { title: "Add products", detail: "Upload a CSV, or send product photos and prices.", action: "Start here", href: "/dashboard/upload-inventory", icon: CloudUpload, primary: true, visual: "upload" },
+            { title: "Set up channels", detail: "Prepare Facebook, Instagram, and WhatsApp.", action: "Open channels", href: "/dashboard/connections", icon: Send, visual: "channels" },
+            { title: "Activate ORVA", detail: "Publishing unlocks after account verification.", action: onboarding.active ? "Already active" : "Open onboarding", href: "/dashboard/onboarding", icon: CheckCircle2, visual: "tap" },
+        ];
 
     const openPublisher = async (product, channel) => {
         setPublishChannel(channel);
@@ -310,7 +329,7 @@ export function MvpDashboard() {
 
     return (
         <AuthGate allowedRoles="client">
-            <DashboardShell role="client" eyebrow="Workspace" title="Publish your products" description="Upload a product list, or send photos and prices so ORVA can create the inventory for you.">
+            <DashboardShell role="client" eyebrow="Workspace" title="Your selling dashboard" description="Add products, review how they look, then publish them to the channels your customers use.">
                 <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
                 {loading ? <div className="dashboard-panel p-6"><Loader2 className="h-5 w-5 animate-spin" /></div> : error ? <ErrorState title="Could not load dashboard" message={error} onRetry={load} /> : (
                     <div className="grid gap-6">
@@ -324,27 +343,47 @@ export function MvpDashboard() {
                         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map((stat) => <StatCard key={stat.label} {...stat} />)}</section>
 
                         <section className="dashboard-panel p-5">
-                            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-                                {[
-                                    { step: "1", title: "Add inventory", detail: "Upload CSV, or send product photos with prices.", action: "Start here", href: "/dashboard/upload-inventory", icon: CloudUpload },
-                                    { step: "2", title: "Review products", detail: "Check price, stock, image, and status.", action: "Manage products", href: "/dashboard/products", icon: Package },
-                                    { step: "3", title: "Growth Assistant", detail: "Get today’s best product, offers, and weekly plan.", action: "Open Growth", href: "/dashboard?view=growth-assistant", icon: Sparkles },
-                                    { step: "4", title: "Growth Autopilot", detail: "Prepare posts and reminders for the week.", action: "Plan week", href: "/dashboard?view=growth-autopilot", icon: CalendarDays },
-                                    { step: "5", title: "Create reels", detail: "Upload a video or create a reel from product images.", action: "Open Reel Studio", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film },
-                                    { step: "6", title: "Preview & publish", detail: "Choose one product and publish after review.", action: `${connectedChannels || 0} channels connected`, href: "/dashboard/connections", icon: Send },
-                                ].map((item) => {
-                                    const Icon = item.icon;
-                                    return <Link key={item.title} href={item.href} className="interactive-tile rounded-xl border border-[var(--border)] bg-white p-4 transition hover:border-[var(--accent)]">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{item.step}</span>
-                                            <Icon className="h-5 w-5 text-[var(--accent)]" />
-                                        </div>
-                                        <p className="mt-4 font-bold">{item.title}</p>
-                                        <p className="mt-1 text-sm leading-5 text-[var(--mid)]">{item.detail}</p>
-                                        <p className="mt-4 text-sm font-bold text-[var(--accent)]">{item.action}</p>
-                                    </Link>;
-                                })}
+                            <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                                <div>
+                                    <h2 className="text-xl font-bold">Next best step</h2>
+                                    <p className="mt-1 text-sm leading-6 text-[var(--mid)]">
+                                        Start here whenever you are unsure what to do next.
+                                    </p>
+                                </div>
+                                <span className="dashboard-badge badge-blue w-fit">{connectedChannels} connected channel{connectedChannels === 1 ? "" : "s"}</span>
                             </div>
+                            <div className="grid gap-3 md:grid-cols-3">
+                                {nextActions.map((item) => (
+                                    <VisualActionCard
+                                        key={item.title}
+                                        title={item.title}
+                                        description={item.detail}
+                                        action={item.action}
+                                        href={item.href}
+                                        icon={item.icon}
+                                        primary={item.primary}
+                                        visual={item.visual}
+                                    />
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="grid gap-3 md:grid-cols-3">
+                            {[
+                                { title: "Marketing ideas", detail: "Best products to promote and simple offers.", action: "Open plan", href: "/dashboard?view=growth-assistant", icon: Sparkles, visual: "content" },
+                                { title: "Weekly calendar", detail: "Prepare posts and reminders ahead of time.", action: "Plan week", href: "/dashboard?view=growth-autopilot", icon: CalendarDays, visual: "calendar" },
+                                { title: "Reel Studio", detail: "Create a short video from product media.", action: "Create reel", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film, visual: "reel" },
+                            ].map((item) => (
+                                <VisualActionCard
+                                    key={item.title}
+                                    title={item.title}
+                                    description={item.detail}
+                                    action={item.action}
+                                    href={item.href}
+                                    icon={item.icon}
+                                    visual={item.visual}
+                                />
+                            ))}
                         </section>
 
                         {!products.length ? (
@@ -383,7 +422,7 @@ export function MvpDashboard() {
                                 </div>
 
                                 <div className="grid gap-6">
-                                    <section className="dashboard-panel p-5">
+                                    <section id="publish-selected" className="dashboard-panel p-5">
                                         <SectionHeading title="Live product preview" description="This is the customer-facing feel before you publish." />
                                         {selectedProduct ? (
                                             <div className="mx-auto mt-5 max-w-[290px] rounded-[2rem] border border-[var(--ink)] bg-[var(--ink)] p-3 shadow-2xl">
@@ -438,15 +477,18 @@ export function MvpDashboard() {
                                 <Link href="/dashboard/update-tasks" className="btn-secondary mt-5 inline-flex">View all updates</Link>
                             </div>
                         </section>
-                        {publishProduct ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(7,18,35,0.64)] p-4" role="dialog" aria-modal="true" aria-labelledby="dashboard-publish-title">
-                            <section className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-white p-6 shadow-2xl">
+                        {publishProduct ? <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-[rgba(7,18,35,0.64)] p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="dashboard-publish-title">
+                            <section className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+                                <div className="shrink-0 border-b border-[var(--border)] p-4 sm:p-6">
                                 <div className="flex items-start justify-between gap-4">
-                                    <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="dashboard-publish-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2></div>
+                            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="dashboard-publish-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2><p className="mt-2 text-sm font-semibold text-[var(--mid)]">Publishing to: {publishDestinationName}</p></div>
                                     <button type="button" className="rounded-lg p-2 text-[var(--mid)] transition hover:bg-[var(--surface)]" aria-label="Close publish preview" onClick={() => setPublishProduct(null)}><X className="h-5 w-5" /></button>
                                 </div>
-                                <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
+                                </div>
+                                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                                <div className="grid gap-5 sm:grid-cols-[150px_1fr]">
                                     <div className="space-y-3">
-                                        {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                        {publishProduct.cleaned_image_url || publishProduct.image_url ? <div className="h-32 rounded-xl border border-[var(--border)] bg-cover bg-center sm:aspect-square sm:h-auto" style={{ backgroundImage: `url(${publishProduct.cleaned_image_url || publishProduct.image_url})` }} /> : <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] sm:aspect-square sm:h-auto"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold">{productName(publishProduct)}</h3>
@@ -460,15 +502,18 @@ export function MvpDashboard() {
                                                     <button type="button" className="btn-secondary px-3 py-2 text-xs" onClick={() => setEditingCopy((current) => !current)}><Pencil className="h-3.5 w-3.5" />{editingCopy ? "Preview" : "Edit"}</button>
                                                 </div>
                                             </div>
-                                            {editingCopy ? <textarea className="form-field min-h-44 bg-white text-sm leading-6" value={editedCopy} onChange={(event) => setEditedCopy(event.target.value)} placeholder="Write the caption or catalog text..." /> : <p className="whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>}
+                                            {editingCopy ? <textarea className="form-field max-h-[34dvh] min-h-36 bg-white text-sm leading-6" value={editedCopy} onChange={(event) => setEditedCopy(event.target.value)} placeholder="Write the caption or catalog text..." /> : <p className="max-h-[34dvh] overflow-y-auto whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>}
                                         </div>
                                     </div>
                                 </div>
                                 <p className="mt-4 text-xs leading-5 text-[var(--muted)]">{publishDetails.note}</p>
-                                <div className="mt-5 flex flex-wrap justify-end gap-2">
+                                </div>
+                                <div className="shrink-0 border-t border-[var(--border)] bg-white p-3 sm:p-4">
+                                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                                     <button type="button" className="btn-secondary" onClick={copyPublishCopy}><Copy className="h-4 w-4" />{publishDetails.copyLabel}</button>
                                     <button type="button" className="btn-secondary" onClick={() => setPublishProduct(null)}>Cancel</button>
                                     <button type="button" className="btn-primary" disabled={publishing} onClick={publishSelectedProduct}>{publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{publishing ? "Publishing..." : publishDetails.actionLabel}</button>
+                                </div>
                                 </div>
                             </section>
                         </div> : null}
@@ -706,14 +751,7 @@ export function ProductsPage() {
         <AuthGate allowedRoles="client">
             <DashboardShell role="client" eyebrow="Catalog" title="Products" description="Keep your master inventory accurate. ORVA tracks the channel updates for you.">
                 <FeedbackMessage type={message.type} className="mb-5">{message.text}</FeedbackMessage>
-                {!onboarding.active ? (
-                    <section className="dashboard-panel mb-5 border-l-4 border-l-amber-400 p-5">
-                        <p className="font-bold">Publishing is locked until your ORVA account is activated.</p>
-                        <p className="mt-1 text-sm leading-6 text-[var(--mid)]">You can add and edit products now. Facebook and Instagram publishing unlock after manual account activation.</p>
-                        <Link href="/dashboard/onboarding" className="btn-primary mt-4 inline-flex">Complete onboarding</Link>
-                    </section>
-                ) : null}
-                <section className="dashboard-panel overflow-hidden">
+                <section className="dashboard-panel overflow-visible md:overflow-hidden">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] p-5">
                         <div><h2 className="text-xl font-bold">Product list</h2><p className="mt-1 text-sm text-[var(--mid)]">Update details once. ORVA adds the required channel work to your queue.</p></div>
                         <div className="flex flex-wrap gap-2">
@@ -753,7 +791,78 @@ export function ProductsPage() {
                                     ) : null}
                                 </div>
                             </div>
-                            <table className="data-table min-w-[1160px]">
+                            <div className="grid gap-3 p-3 md:hidden">
+                                {products.map((product) => {
+                                    const selected = selectedProductIds.includes(product.id);
+                                    return (
+                                        <article key={product.id} className="rounded-2xl border border-[var(--border)] bg-white p-3 shadow-sm">
+                                            <div className="flex items-start gap-3">
+                                                <label className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)]" aria-label={`Select ${productName(product)}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selected}
+                                                        onChange={() => toggleProductSelection(product.id)}
+                                                        className="h-4 w-4 rounded border-[var(--border)]"
+                                                    />
+                                                </label>
+                                                <ProductThumb product={product} />
+                                                <div className="min-w-0 flex-1">
+                                                    <h3 className="truncate text-base font-black text-[var(--ink)]">{productName(product)}</h3>
+                                                    <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-[var(--mid)]">
+                                                        <span className="rounded-lg bg-[var(--surface)] px-2.5 py-1">{formatINR(product.price || 0)}</span>
+                                                        <span className="rounded-lg bg-[var(--surface)] px-2.5 py-1">Stock {productStock(product)}</span>
+                                                        {productCode(product) ? <span className="rounded-lg bg-[var(--surface)] px-2.5 py-1">{productCode(product)}</span> : null}
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                        <span className={`dashboard-badge ${statusBadge(product.status)}`}>{prettyStatus(product.status)}</span>
+                                                        {product.category ? <span className="dashboard-badge badge-blue">{product.category}</span> : null}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="mt-4 grid w-full grid-cols-[repeat(auto-fit,minmax(112px,1fr))] gap-2">
+                                                <button
+                                                    type="button"
+                                                    className="btn-primary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none"
+                                                    title="Publish to Instagram"
+                                                    aria-label={`Publish ${productName(product)} to Instagram`}
+                                                    disabled={!onboarding.active}
+                                                    onClick={() => openPublisher(product, "instagram")}
+                                                >
+                                                    <ChannelLogo channel="instagram" />
+                                                    Instagram
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="btn-primary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none"
+                                                    title="Publish to Facebook Page"
+                                                    aria-label={`Publish ${productName(product)} to Facebook Page`}
+                                                    disabled={!onboarding.active}
+                                                    onClick={() => openPublisher(product, "facebook")}
+                                                >
+                                                    <ChannelLogo channel="facebook" />
+                                                    Facebook
+                                                </button>
+                                                <Link href={`/dashboard/products/${product.id}`} className="btn-secondary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none" title="Edit product">
+                                                    <Pencil className="h-3 w-3" />
+                                                    Edit
+                                                </Link>
+                                                <button
+                                                    type="button"
+                                                    className={`btn-secondary h-10 w-full min-w-0 justify-center gap-1.5 px-2 text-xs leading-none ${pendingDeleteId === product.id ? "border-red-200 bg-red-50 text-red-700" : ""}`}
+                                                    title="Delete product"
+                                                    disabled={workingId === product.id}
+                                                    onClick={() => deleteProduct(product)}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                    {pendingDeleteId === product.id ? "Confirm" : "Delete"}
+                                                </button>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                            <table className="data-table hidden min-w-[1160px] md:table">
                                 <thead><tr><th>Select</th><th>Image</th><th>Name</th><th>SKU</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
                                 <tbody>{products.map((product) => (
                                     <tr key={product.id}>
@@ -785,15 +894,18 @@ export function ProductsPage() {
                         </div>
                     )}
                 </section>
-                {facebookProduct ? <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(7,18,35,0.64)] p-4" role="dialog" aria-modal="true" aria-labelledby="facebook-export-title">
-                    <section className="w-full max-w-xl rounded-2xl border border-[var(--border)] bg-white p-6 shadow-2xl">
+                {facebookProduct ? <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-[rgba(7,18,35,0.64)] p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="facebook-export-title">
+                    <section className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+                        <div className="shrink-0 border-b border-[var(--border)] p-4 sm:p-6">
                         <div className="flex items-start justify-between gap-4">
-                            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="facebook-export-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2></div>
+                            <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent)]">{publishDetails.eyebrow}</p><h2 id="facebook-export-title" className="mt-2 text-2xl font-bold">{publishDetails.title}</h2><p className="mt-2 text-sm font-semibold text-[var(--mid)]">Publishing to: {publishDestinationName}</p></div>
                             <button type="button" className="rounded-lg p-2 text-[var(--mid)] transition hover:bg-[var(--surface)]" aria-label="Close Facebook export preview" onClick={() => setFacebookProduct(null)}><X className="h-5 w-5" /></button>
                         </div>
-                        <div className="mt-5 grid gap-5 sm:grid-cols-[150px_1fr]">
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                        <div className="grid gap-5 sm:grid-cols-[150px_1fr]">
                             <div className="space-y-3">
-                                {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="aspect-square rounded-xl border border-[var(--border)] bg-cover bg-center" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)]"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
+                                {facebookProduct.cleaned_image_url || facebookProduct.image_url ? <div className="h-32 rounded-xl border border-[var(--border)] bg-cover bg-center sm:aspect-square sm:h-auto" style={{ backgroundImage: `url(${facebookProduct.cleaned_image_url || facebookProduct.image_url})` }} /> : <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] sm:aspect-square sm:h-auto"><ImageIcon className="h-8 w-8 text-[var(--muted)]" /></div>}
                             </div>
                             <div>
                                 <h3 className="text-lg font-bold">{productName(facebookProduct)}</h3>
@@ -818,22 +930,25 @@ export function ProductsPage() {
                                     </div>
                                     {editingCopy ? (
                                         <textarea
-                                            className="form-field min-h-44 bg-white text-sm leading-6"
+                                            className="form-field max-h-[34dvh] min-h-36 bg-white text-sm leading-6"
                                             value={editedCopy}
                                             onChange={(event) => setEditedCopy(event.target.value)}
                                             placeholder="Write the caption or catalog text..."
                                         />
                                     ) : (
-                                        <p className="whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>
+                                        <p className="max-h-[34dvh] overflow-y-auto whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{editedCopy || publishDetails.copy}</p>
                                     )}
                                 </div>
                             </div>
                         </div>
                         <p className="mt-4 text-xs leading-5 text-[var(--muted)]">{publishDetails.note}</p>
-                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                        </div>
+                        <div className="shrink-0 border-t border-[var(--border)] bg-white p-3 sm:p-4">
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                             <button type="button" className="btn-secondary" onClick={copyFacebookCaption}><Copy className="h-4 w-4" />{publishDetails.copyLabel}</button>
                             <button type="button" className="btn-secondary" onClick={() => setFacebookProduct(null)}>Cancel</button>
                             <button type="button" className="btn-primary" disabled={publishing} onClick={publishFacebookProduct}>{publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{publishing ? "Publishing..." : publishDetails.actionLabel}</button>
+                        </div>
                         </div>
                     </section>
                 </div> : null}

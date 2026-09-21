@@ -84,6 +84,12 @@ const campaignStateCopy = {
         text: "ORVA will publish approved scheduled posts when they are due. You can pause it anytime.",
         tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
     },
+    completed: {
+        badge: "Completed",
+        title: "Campaign completed",
+        text: "All posts in this campaign have been published. Create a new campaign when you are ready for the next batch.",
+        tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    },
     paused: {
         badge: "Paused",
         title: "This campaign is paused",
@@ -196,9 +202,36 @@ function sortedCampaignItems(items = []) {
         .sort((a, b) => String(a.scheduled_at || a.created_at || "").localeCompare(String(b.scheduled_at || b.created_at || "")));
 }
 
+function normalizedStatus(item = {}) {
+    return String(item.status || "").trim().toLowerCase();
+}
+
+function hasAllPublishedCampaignItems(campaign = {}) {
+    const visibleItems = (campaign.campaign_items || []).filter((item) => normalizedStatus(item) !== "removed");
+    const statuses = visibleItems.map(normalizedStatus);
+    const hasPostedItems = statuses.some((status) => ["published", "posted"].includes(status));
+    const hasUnfinishedItems = statuses.some((status) => ["draft", "approved", "scheduled"].includes(status));
+    return visibleItems.length > 0 && hasPostedItems && !hasUnfinishedItems;
+}
+
+function hasActionableCampaignItems(items = []) {
+    return (items || []).some((item) => ["draft", "approved", "scheduled"].includes(normalizedStatus(item)));
+}
+
+function hasPostedCampaignItems(items = []) {
+    return (items || []).some((item) => ["published", "posted"].includes(normalizedStatus(item)));
+}
+
+function campaignEffectiveStatus(campaign = {}) {
+    if (campaign?.status === "completed" || hasAllPublishedCampaignItems(campaign)) return "completed";
+    return campaign?.status || "draft";
+}
+
 function chooseDefaultCampaign(campaigns = []) {
-    return campaigns.find((item) => item.status === "active")
-        || campaigns.find((item) => item.status === "scheduled")
+    return campaigns.find((item) => campaignEffectiveStatus(item) === "active")
+        || campaigns.find((item) => campaignEffectiveStatus(item) === "scheduled")
+        || campaigns.find((item) => campaignEffectiveStatus(item) === "generated")
+        || campaigns.find((item) => campaignEffectiveStatus(item) === "approved")
         || campaigns[0]
         || null;
 }
@@ -287,6 +320,18 @@ export function GrowthAutopilotPage() {
         }, {});
     }, [items]);
 
+    const allCampaignItemsPublished = useMemo(() => {
+        return hasAllPublishedCampaignItems({ campaign_items: items || [] });
+    }, [items]);
+    const campaignHasActionableItems = useMemo(() => hasActionableCampaignItems(items), [items]);
+    const campaignHasPostedItems = useMemo(() => hasPostedCampaignItems(items), [items]);
+
+    useEffect(() => {
+        if (!campaign?.id || campaign.status === "completed" || !allCampaignItemsPublished) return;
+        setCampaign((current) => current?.id === campaign.id ? { ...current, status: "completed" } : current);
+        setCampaigns((current) => current.map((row) => row.id === campaign.id ? { ...row, status: "completed", campaign_items: items } : row));
+    }, [allCampaignItemsPublished, campaign?.id, campaign?.status, items]);
+
     function updateForm(patch) {
         setForm((current) => ({ ...current, ...patch }));
     }
@@ -301,6 +346,19 @@ export function GrowthAutopilotPage() {
             const selectedPlatforms = exists ? current.selectedPlatforms.filter((id) => id !== platformId) : [...current.selectedPlatforms, platformId];
             return { ...current, selectedPlatforms: selectedPlatforms.length ? selectedPlatforms : current.selectedPlatforms };
         });
+    }
+
+    function createNewCampaign() {
+        setCampaign(null);
+        setItems([]);
+        setHealth({ score: 0, recommendations: [] });
+        setSelectedProductIds([]);
+        setPreviewItem(null);
+        setDeleteConfirm(false);
+        setWorking("");
+        setMessage({ type: "", text: "" });
+        setStep(1);
+        setViewMode("calendar");
     }
 
     const api = useCallback(async (path, options = {}) => {
@@ -358,6 +416,9 @@ export function GrowthAutopilotPage() {
             setCampaign(result.campaign);
             setDeleteConfirm(false);
             setItems(sortedCampaignItems(result.items || []));
+            setCampaigns((current) => current.map((row) => row.id === result.campaign?.id
+                ? { ...row, ...result.campaign, campaign_items: sortedCampaignItems(result.items || []) }
+                : row));
             setHealth(result.health || { score: result.campaign?.health_score || 0, recommendations: [] });
             setStep(4);
             setViewMode(result.campaign?.campaign_type === "hourly" ? "list" : "calendar");
@@ -423,7 +484,12 @@ export function GrowthAutopilotPage() {
                 return;
             }
             if (result.items) setItems((current) => current.map((item) => result.items.find((row) => row.id === item.id) || item));
-            if (result.campaign) setCampaign(result.campaign);
+            if (result.campaign) {
+                setCampaign(result.campaign);
+                setCampaigns((current) => current.map((row) => row.id === result.campaign.id
+                    ? { ...row, ...result.campaign, campaign_items: result.items || row.campaign_items }
+                    : row));
+            }
             if (action === "approveAll") setItems((current) => current.map((item) => item.status === "draft" ? { ...item, status: "approved" } : item));
             if (action === "schedule") setItems((current) => current.map((item) => item.status === "approved" ? { ...item, status: "scheduled" } : item));
             setDeleteConfirm(false);
@@ -447,6 +513,11 @@ export function GrowthAutopilotPage() {
             const result = await api(`/api/campaigns/${campaignId}/schedule-approved`, { method: "POST", body: "{}" });
             if (result.campaign) setCampaign(result.campaign);
             if (result.items) setItems(sortedCampaignItems(result.items));
+            if (result.campaign) {
+                setCampaigns((current) => current.map((row) => row.id === result.campaign.id
+                    ? { ...row, ...result.campaign, campaign_items: sortedCampaignItems(result.items || []) }
+                    : row));
+            }
             setViewMode("list");
             setDeleteConfirm(false);
             setMessage({ type: result.failed ? "error" : "success", text: result.message || "Campaign started. Due posts will publish now." });
@@ -476,24 +547,26 @@ export function GrowthAutopilotPage() {
         }
     }, [api, loadCampaign]);
 
-    const campaignState = campaignStateCopy[campaign?.status] || {
+    const campaignIsCompleted = campaign?.status === "completed" || allCampaignItemsPublished || (campaignHasPostedItems && !campaignHasActionableItems);
+    const effectiveCampaignStatus = campaignIsCompleted ? "completed" : campaign?.status;
+    const campaignState = campaignStateCopy[effectiveCampaignStatus] || {
         badge: campaign?.status || "Draft",
         title: "Campaign is being prepared",
         text: "Generate, review, and approve posts before scheduling.",
         tone: "border-slate-200 bg-slate-50 text-slate-900",
     };
-    const campaignIsActive = campaign?.status === "active";
-    const campaignIsPaused = campaign?.status === "paused";
+    const campaignIsActive = campaign?.status === "active" && !campaignIsCompleted;
+    const campaignIsPaused = campaign?.status === "paused" && !campaignIsCompleted;
 
     useEffect(() => {
-        if (!campaignIsActive || !campaign?.id) return undefined;
+        if (!campaignIsActive || campaignIsCompleted || !campaign?.id) return undefined;
         publishDuePosts(campaign.id, { silent: true });
         const interval = window.setInterval(() => {
             publishDuePosts(campaign.id, { silent: true });
             loadCampaign(campaign.id, { silent: true });
         }, 60000);
         return () => window.clearInterval(interval);
-    }, [campaignIsActive, campaign?.id, loadCampaign, publishDuePosts]);
+    }, [campaignIsActive, campaignIsCompleted, campaign?.id, loadCampaign, publishDuePosts]);
 
     return (
         <AuthGate allowedRoles="client">
@@ -501,29 +574,8 @@ export function GrowthAutopilotPage() {
                 <div className="space-y-6">
                     <FeedbackMessage type={message.type}>{message.text}</FeedbackMessage>
 
-                    <section className="dashboard-hero p-6">
-                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                            <SectionHeading
-                                eyebrow="GROWTH"
-                                title="AI Marketing Autopilot"
-                                description="ORVA turns your inventory into ready-to-approve Instagram and Facebook posts."
-                            />
-                            <div className="grid grid-cols-3 gap-2 text-xs font-bold text-[var(--ink)]">
-                                {["Live Workspace", "Managed Access", form.approvalMode === "auto_post_approved" ? "Auto-post Ready" : "Approval Required"].map((label) => (
-                                    <div key={label} className="rounded-xl border border-[var(--border)] bg-white/80 p-3 shadow-sm">{label}</div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {stats.map((stat) => <StatCard key={stat.label} {...stat} />)}
-                    </div>
-
-                    <div className={`rounded-xl border p-4 text-sm font-semibold ${form.approvalMode === "auto_post_approved" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-blue-200 bg-blue-50 text-blue-800"}`}>
-                        {form.approvalMode === "auto_post_approved"
-                            ? "Default: Hourly campaign. Start time uses the current IST minute, and approved scheduled posts publish automatically."
-                            : "ORVA prepares campaigns from your inventory. You approve before anything goes live."}
                     </div>
 
                     <section className="dashboard-panel p-5 sm:p-6">
@@ -662,10 +714,11 @@ export function GrowthAutopilotPage() {
                                             <SectionHeading title={campaign.name} description={`Selected campaign · ${campaign.campaign_type} · Health score: ${health.score || campaign.health_score || 0}/100`} />
                                             <div className="flex flex-wrap gap-2">
                                                 <button className="btn-secondary" onClick={() => setViewMode(viewMode === "calendar" ? "list" : "calendar")}>{viewMode === "calendar" ? "List View" : "Calendar View"}</button>
-                                                {!campaignIsActive && !campaignIsPaused ? <button className="btn-primary" disabled={working === "startNow"} onClick={startCampaignNow}>{working === "startNow" ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}Start Campaign Now</button> : null}
-                                                <button className="btn-secondary" disabled={working === "approveAll" || campaignIsActive} onClick={() => campaignAction("approveAll")}>Approve All</button>
-                                                <button className="btn-primary" disabled={working === "schedule" || campaignIsActive} onClick={() => campaignAction("schedule")}>Schedule Approved</button>
-                                                {campaignIsPaused ? <button className="btn-primary" onClick={() => campaignAction("resume")}><PlayCircle className="h-4 w-4" />Resume Campaign</button> : <button className={campaignIsActive ? "btn-primary" : "btn-secondary"} onClick={() => campaignAction("pause")}><PauseCircle className="h-4 w-4" />Pause Campaign</button>}
+                                                {campaignIsCompleted ? <button className="btn-primary" type="button" onClick={createNewCampaign}><Sparkles className="h-4 w-4" />Create New Campaign</button> : null}
+                                                {!campaignIsCompleted && !campaignIsActive && !campaignIsPaused ? <button className="btn-primary" disabled={working === "startNow"} onClick={startCampaignNow}>{working === "startNow" ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}Start Campaign Now</button> : null}
+                                                {!campaignIsCompleted ? <button className="btn-secondary" disabled={working === "approveAll" || campaignIsActive} onClick={() => campaignAction("approveAll")}>Approve All</button> : null}
+                                                {!campaignIsCompleted ? <button className="btn-primary" disabled={working === "schedule" || campaignIsActive} onClick={() => campaignAction("schedule")}>Schedule Approved</button> : null}
+                                                {!campaignIsCompleted ? (campaignIsPaused ? <button className="btn-primary" onClick={() => campaignAction("resume")}><PlayCircle className="h-4 w-4" />Resume Campaign</button> : <button className={campaignIsActive ? "btn-primary" : "btn-secondary"} onClick={() => campaignAction("pause")}><PauseCircle className="h-4 w-4" />Pause Campaign</button>) : null}
                                                 <button className={`${deleteConfirm ? "btn-primary bg-rose-600 hover:bg-rose-700" : "btn-secondary text-rose-700"}`} disabled={working === "delete"} onClick={() => campaignAction("delete")}>
                                                     {working === "delete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                                     {deleteConfirm ? "Confirm Delete" : "Delete Campaign"}
@@ -680,7 +733,12 @@ export function GrowthAutopilotPage() {
                                                     <p className="mt-1 text-sm font-semibold opacity-80">{campaignState.text}</p>
                                                     <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] opacity-70">Currently selected: {campaign.name}</p>
                                                 </div>
-                                                {campaignIsActive ? (
+                                                {campaignIsCompleted ? (
+                                                    <button className="btn-primary shrink-0" type="button" onClick={createNewCampaign}>
+                                                        <Sparkles className="h-4 w-4" />
+                                                        Create New Campaign
+                                                    </button>
+                                                ) : campaignIsActive ? (
                                                     <button className="btn-primary shrink-0" disabled={working === "pause"} onClick={() => campaignAction("pause")}>
                                                         {working === "pause" ? <Loader2 className="h-4 w-4 animate-spin" /> : <PauseCircle className="h-4 w-4" />}
                                                         Pause Active Campaign
@@ -713,14 +771,16 @@ export function GrowthAutopilotPage() {
                             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                                 {campaigns.slice(0, 6).map((row) => {
                                     const selected = row.id === campaign?.id;
+                                    const rowStatus = campaignEffectiveStatus(row);
                                     return (
                                         <button key={row.id} className={`rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${selected ? "border-[var(--accent)] bg-blue-50 shadow-lg shadow-blue-100" : "border-[var(--border)] bg-white"}`} onClick={() => loadCampaign(row.id)}>
                                             <div className="flex items-start justify-between gap-3">
                                                 <b>{row.name}</b>
                                                 {selected ? <span className="badge badge-blue">Selected</span> : null}
                                             </div>
-                                            <span className="mt-1 block text-sm text-[var(--muted)]">{row.campaign_type} · {row.status}</span>
-                                            {row.status === "active" ? <span className="badge badge-green mt-3">Active campaign</span> : null}
+                                            <span className="mt-1 block text-sm text-[var(--muted)]">{row.campaign_type} · {rowStatus}</span>
+                                            {rowStatus === "active" ? <span className="badge badge-green mt-3">Active campaign</span> : null}
+                                            {rowStatus === "completed" ? <span className="badge badge-green mt-3">Completed</span> : null}
                                         </button>
                                     );
                                 })}

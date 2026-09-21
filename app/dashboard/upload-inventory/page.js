@@ -1,5 +1,5 @@
-import { ClientOnboardingFlow } from "../../../components/onboarding/ClientOnboardingFlow";
+import { AddInventoryChoice } from "../../../components/inventory/AddInventoryChoice";
 
 export default function UploadInventory() {
-    return <ClientOnboardingFlow showActiveInventory />;
+    return <AddInventoryChoice />;
 }

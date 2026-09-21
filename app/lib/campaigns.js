@@ -279,6 +279,33 @@ export async function writeCampaignLog(supabase, values = {}) {
     });
 }
 
+export async function refreshCampaignCompletion(supabase, campaignId) {
+    if (!campaignId) return null;
+
+    const { data: items, error: itemsError } = await supabase
+        .from("campaign_items")
+        .select("status")
+        .eq("campaign_id", campaignId)
+        .neq("status", "removed");
+    if (itemsError) throw itemsError;
+
+    const rows = items || [];
+    const statuses = rows.map((item) => String(item.status || "").trim().toLowerCase());
+    const hasPostedItems = statuses.some((status) => ["published", "posted"].includes(status));
+    const hasUnfinishedItems = statuses.some((status) => ["draft", "approved", "scheduled"].includes(status));
+    if (!rows.length || !hasPostedItems || hasUnfinishedItems) return null;
+
+    const { data, error } = await supabase
+        .from("campaigns")
+        .update({ status: "completed", updated_at: nowISTISOString() })
+        .eq("id", campaignId)
+        .neq("status", "completed")
+        .select("*")
+        .maybeSingle();
+    if (error) throw error;
+    return data;
+}
+
 async function connectionFor(supabase, userId, channel) {
     const lookup = channel === "facebook_page" ? "facebook" : channel;
     const { data } = await supabase

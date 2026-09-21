@@ -11,8 +11,8 @@ const tools = [
         href: "/partner/tools/whatsapp-catalog",
     },
     {
-        title: "Instagram Setup Assistant",
-        description: "Open from a paid assigned Instagram or Social Media task.",
+        title: "Meta Setup Assistant",
+        description: "Guide Facebook Page and Instagram professional setup safely.",
         href: "/partner/tools/instagram-setup",
     },
     {

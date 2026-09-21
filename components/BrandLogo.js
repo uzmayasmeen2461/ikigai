@@ -8,7 +8,7 @@ export function BrandLogo({ size = "default", showTagline = false, className = "
     return (
         <div className={`inline-flex items-center gap-3 ${className}`}>
             <Image
-                src="/orva-logo-mark.svg"
+                src="/orva-logo-mark-alpha.svg"
                 alt=""
                 width={markSize}
                 height={markSize}

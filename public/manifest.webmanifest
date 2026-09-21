@@ -1,0 +1,57 @@
+{
+  "name": "ORVA",
+  "short_name": "ORVA",
+  "description": "Upload products, manage catalog content, and schedule social posts from your phone.",
+  "id": "/?source=pwa",
+  "start_url": "/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#f4f8fb",
+  "theme_color": "#1b4fd8",
+  "categories": ["business", "productivity", "shopping"],
+  "icons": [
+    {
+      "src": "/icons/orva-alpha-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/orva-alpha-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/orva-logo-mark-alpha.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Products",
+      "short_name": "Add",
+      "description": "Upload product photos or prices.",
+      "url": "/dashboard/upload-inventory?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/orva-alpha-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Products",
+      "short_name": "Products",
+      "description": "Review products and publish posts.",
+      "url": "/dashboard/products?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/orva-alpha-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Growth Autopilot",
+      "short_name": "Growth",
+      "description": "Open scheduled campaigns.",
+      "url": "/dashboard/growth-autopilot?source=pwa_shortcut",
+      "icons": [{ "src": "/icons/orva-alpha-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

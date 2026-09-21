@@ -1,11 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import {
     AlertCircle,
+    ArrowRight,
     CheckCircle2,
     ClipboardList,
+    FileSpreadsheet,
     Filter,
+    Megaphone,
+    MousePointerClick,
+    Smartphone,
 } from "lucide-react";
 import { useToast } from "./ToastProvider";
 
@@ -63,10 +69,14 @@ export function DashboardCard({ children, interactive = false, className = "" })
     );
 }
 
-export function SectionHeading({ eyebrow, icon: Icon, title, description, action, className = "" }) {
+export function SectionHeading({ eyebrow, icon: Icon, title, action, className = "" }) {
     return (
         <div className={`mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between ${className}`}>
-            <div>
+            <div className="flex min-w-0 gap-4">
+                <div className="mt-1 hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[rgba(27,79,216,0.14)] bg-[var(--accent-light)] text-[var(--accent)] sm:flex">
+                    {Icon ? <Icon className="h-6 w-6" /> : <MousePointerClick className="h-6 w-6" />}
+                </div>
+                <div className="min-w-0">
                 {eyebrow && (
                     <div className="dashboard-eyebrow">
                         {Icon && <Icon className="h-3.5 w-3.5" />}
@@ -76,11 +86,7 @@ export function SectionHeading({ eyebrow, icon: Icon, title, description, action
                 <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">
                     {title}
                 </h2>
-                {description && (
-                    <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                        {description}
-                    </p>
-                )}
+                </div>
             </div>
             {action}
         </div>
@@ -202,9 +208,19 @@ export function EmptyState({
             : "border-[var(--border)] bg-white";
 
     return (
-        <div className={`rounded-xl border border-dashed ${toneClass} p-10 text-center ${className}`}>
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-light)] text-[var(--accent)]">
-                <Icon className="h-7 w-7" />
+        <div className={`rounded-xl border border-dashed ${toneClass} p-6 text-center sm:p-10 ${className}`}>
+            <div className="visual-demo mx-auto max-w-[240px]" data-visual="empty">
+                <div className="visual-demo-screen">
+                    <div className="visual-demo-row visual-demo-row-wide" />
+                    <div className="visual-demo-grid">
+                        <span />
+                        <span />
+                        <span />
+                    </div>
+                    <div className="visual-demo-click">
+                        <Icon className="h-4 w-4" />
+                    </div>
+                </div>
             </div>
             <h3 className="mt-5 text-xl font-bold text-[var(--ink)]">{title}</h3>
             {description && (
@@ -214,6 +230,161 @@ export function EmptyState({
             )}
             {action}
         </div>
+    );
+}
+
+export function VisualActionCard({
+    icon: Icon = MousePointerClick,
+    title,
+    description,
+    action,
+    href,
+    primary = false,
+    visual = "tap",
+    className = "",
+}) {
+    const productTiles = [
+        { name: "Shoe", price: "1499", color: "bg-[#dbeafe]" },
+        { name: "Bag", price: "899", color: "bg-[#dcfce7]" },
+        { name: "Kurti", price: "1299", color: "bg-[#fef3c7]" },
+    ];
+
+    const productCard = (item) => (
+        <div key={item.name} className="rounded-lg border border-[var(--border)] bg-white p-1.5 shadow-sm">
+            <div className={`h-10 rounded-md ${item.color}`} />
+            <p className="mt-1 truncate text-[9px] font-black leading-none text-[var(--ink)]">{item.name}</p>
+            <p className="mt-0.5 text-[8px] font-bold leading-none text-[var(--success)]">Rs {item.price}</p>
+        </div>
+    );
+
+    const visualContent = (() => {
+        if (visual === "upload") {
+            return (
+                <div className="absolute inset-x-4 bottom-4 flex items-center justify-center gap-2">
+                    <div className="w-24 rounded-xl border border-[var(--border)] bg-white p-2 shadow-lg">
+                        <div className="mb-2 flex items-center gap-1 text-[8px] font-black text-[var(--success)]">
+                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                            CSV list
+                        </div>
+                        {[1, 2, 3, 4].map((row) => (
+                            <div key={row} className="mb-1 grid grid-cols-[1fr_0.55fr] gap-1">
+                                <span className="h-2 rounded bg-[var(--accent-soft)]" />
+                                <span className="h-2 rounded bg-[var(--success-bg)]" />
+                            </div>
+                        ))}
+                    </div>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+                    <div className="grid w-28 grid-cols-2 gap-1.5">
+                        {productTiles.slice(0, 2).map(productCard)}
+                        <div className="col-span-2 rounded-lg bg-[var(--success-bg)] px-2 py-1 text-center text-[8px] font-black text-[var(--success)] shadow-sm">
+                            AI matched
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (visual === "photo") {
+            return (
+                <div className="absolute inset-x-4 bottom-4 flex items-center justify-center gap-2">
+                    <div className="w-24 rounded-[1.2rem] border-[5px] border-[var(--ink)] bg-[var(--ink)] shadow-xl">
+                        <div className="overflow-hidden rounded-[0.75rem] bg-white p-1.5">
+                            <div className="mb-1 flex items-center gap-1 text-[8px] font-black text-[var(--accent)]">
+                                <Smartphone className="h-3.5 w-3.5" />
+                                Phone photos
+                            </div>
+                            <div className="grid grid-cols-2 gap-1">
+                                {productTiles.slice(0, 4).map((item) => (
+                                    <span key={item.name} className={`h-9 rounded-md ${item.color}`} />
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+                    <div className="w-24 space-y-1.5">
+                        {["Rs 499", "Rs 899", "Rs 1299"].map((price) => (
+                            <div key={price} className="rounded-lg bg-white px-2 py-1 text-center text-[9px] font-black text-[var(--success)] shadow-md">
+                                {price}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        if (visual === "content") {
+            return (
+                <div className="absolute inset-x-4 bottom-4 flex items-center justify-center gap-2">
+                    <div className="grid w-28 grid-cols-2 gap-1.5">
+                        <div className="h-16 rounded-xl bg-[#fef3c7] shadow-sm" />
+                        <div className="h-16 rounded-xl bg-[#dbeafe] shadow-sm" />
+                        <div className="col-span-2 rounded-lg bg-white px-2 py-1 text-center text-[8px] font-black text-[var(--accent)] shadow-sm">
+                            Offer images
+                        </div>
+                    </div>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+                    <div className="w-24 rounded-xl border border-[var(--border)] bg-white p-2 shadow-lg">
+                        <Megaphone className="mb-1 h-4 w-4 text-[var(--success)]" />
+                        <p className="rounded bg-[var(--accent-light)] px-1 py-0.5 text-[8px] font-black text-[var(--accent)]">Caption</p>
+                        <p className="mt-1 rounded bg-[var(--success-bg)] px-1 py-0.5 text-[8px] font-black text-[var(--success)]">CTA</p>
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <>
+                <div className="visual-demo-row visual-demo-row-wide" />
+                <div className="visual-demo-row" />
+                <div className="visual-demo-grid">
+                    <span />
+                    <span />
+                    <span />
+                </div>
+                <div className="visual-demo-button">
+                    <Icon className="h-3.5 w-3.5" />
+                </div>
+                <div className="visual-demo-click">
+                    <MousePointerClick className="h-4 w-4" />
+                </div>
+            </>
+        );
+    })();
+
+    const content = (
+        <div className={`visual-action-card interactive-tile ${primary ? "visual-action-card-primary" : ""} ${className}`}>
+            <div className="visual-demo" data-visual={visual}>
+                <div className="visual-demo-topbar">
+                    <span />
+                    <span />
+                    <span />
+                </div>
+                <div className="visual-demo-screen">
+                    {visualContent}
+                </div>
+            </div>
+            <div className="mt-4 flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-light)] text-[var(--accent)]">
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                    <h3 className="text-lg font-bold leading-tight text-[var(--ink)]">{title}</h3>
+                    {description ? <p className="mt-1 text-sm leading-5 text-[var(--mid)]">{description}</p> : null}
+                </div>
+            </div>
+            <span className={primary ? "btn-primary mt-5 w-full" : "btn-secondary mt-5 w-full"}>
+                {action}
+                <ArrowRight className="h-4 w-4" />
+            </span>
+        </div>
+    );
+
+    if (!href) return content;
+
+    return (
+        <Link href={href} className="block h-full">
+            {content}
+        </Link>
     );
 }
 

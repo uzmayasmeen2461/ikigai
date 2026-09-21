@@ -11,6 +11,7 @@ import { BrandLogo } from "./BrandLogo";
 
 const navItems = [
     { label: "Home", href: "/", match: "/" },
+    { label: "Services", href: "/services", match: "/services" },
     { label: "Pricing", href: "/pricing", match: "/pricing" },
 ];
 

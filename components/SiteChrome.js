@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Footer } from "./Footer";
 import Navbar from "./Navbar";
 import { OrvaInteractionEffects } from "./OrvaInteractionEffects";
+import { PwaInstallPrompt } from "./PwaInstallPrompt";
 import { SiteVisitTracker } from "./SiteVisitTracker";
 import { ToastProvider } from "./ToastProvider";
 import { WhatsAppButton } from "./WhatsAppButton";
@@ -20,6 +21,8 @@ export function SiteChrome({ children }) {
         return (
             <ToastProvider>
                 <OrvaInteractionEffects />
+                <PwaInstallPrompt />
+                <SiteVisitTracker />
                 <div className="min-h-screen">{children}</div>
             </ToastProvider>
         );
@@ -28,6 +31,7 @@ export function SiteChrome({ children }) {
     return (
         <ToastProvider>
             <OrvaInteractionEffects />
+            <PwaInstallPrompt />
             <SiteVisitTracker />
             <div className="flex min-h-screen flex-col">
                 <Navbar />

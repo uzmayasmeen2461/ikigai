@@ -536,9 +536,16 @@ export function AuthExperience({ mode = "login", unified = false }) {
                             </div>
 
                             <div>
-                                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                                    Password
-                                </label>
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                    <label className="block text-sm font-semibold text-slate-700">
+                                        Password
+                                    </label>
+                                    {!isSignup ? (
+                                        <Link href="/forgot-password" className="text-sm font-semibold text-blue-700 transition hover:text-blue-800">
+                                            Forgot password?
+                                        </Link>
+                                    ) : null}
+                                </div>
                                 <div className="relative">
                                     <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                                     <input

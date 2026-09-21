@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { cleanPlatforms, platformOptions } from "../../../lib/campaigns";
+import { cleanPlatforms, platformOptions, refreshCampaignCompletion } from "../../../lib/campaigns";
 import { publishDueCampaignItems } from "../../../lib/campaignAutomation";
 import { nowISTISOString } from "../../../lib/istDate";
 import { uploadProductImageIfNeeded } from "../../../lib/productImageStorage";
@@ -139,10 +139,19 @@ export async function POST(request) {
             : [];
         const published = publishResults.filter((item) => item.status === "published").length;
         const failed = publishResults.filter((item) => item.status === "failed").length;
+        const completedCampaign = await refreshCampaignCompletion(supabase, campaign.id);
+        const { data: refreshedItems, error: refreshError } = await supabase
+            .from("campaign_items")
+            .select("*")
+            .eq("campaign_id", campaign.id)
+            .eq("client_id", user.id)
+            .neq("status", "removed")
+            .order("scheduled_at", { ascending: true });
+        if (refreshError) throw refreshError;
 
         return NextResponse.json({
-            campaign,
-            items: items || [],
+            campaign: completedCampaign || campaign,
+            items: refreshedItems || items || [],
             published,
             failed,
             message: hasScheduledPosts

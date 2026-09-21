@@ -26,5 +26,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-darwin-x64": "^4.2.2",
+    "lightningcss-darwin-x64": "^1.32.0"
   }
 }

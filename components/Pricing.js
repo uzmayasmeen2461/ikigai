@@ -26,7 +26,7 @@ export function Pricing() {
         },
         {
             name: "Managed",
-            price: "₹7,000/mo",
+            price: "₹7,000/3 months",
             subtitle: "Catalog and manual channel support",
             features: [
                 "WhatsApp catalog management",
@@ -99,7 +99,7 @@ export function Pricing() {
 
             {/* TRUST LINE */}
             <p className="text-center text-sm text-gray-500 mt-10">
-                7-day free trial • Manual payment confirmation • Advanced automation from ₹15,000/month
+                7-day free trial • Manual payment confirmation • Advanced automation from ₹15,000/3 months
             </p>
         </section>
     );

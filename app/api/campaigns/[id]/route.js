@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calculateCampaignHealth } from "../../../lib/campaigns";
+import { calculateCampaignHealth, refreshCampaignCompletion } from "../../../lib/campaigns";
 import { campaignsSetupError, isCampaignSchemaError, loadCampaign, loadProducts, requireCampaignRequest, routeParamId } from "../_shared";
 
 export async function GET(request, context) {
@@ -22,7 +22,8 @@ export async function GET(request, context) {
         if (error) throw error;
         const products = await loadProducts(supabase, user.id, (items || []).map((item) => item.product_id).filter(Boolean));
         const health = calculateCampaignHealth(items || [], products);
-        return NextResponse.json({ campaign, items: items || [], health });
+        const completedCampaign = await refreshCampaignCompletion(supabase, campaign.id);
+        return NextResponse.json({ campaign: completedCampaign || campaign, items: items || [], health });
     } catch (error) {
         if (isCampaignSchemaError(error)) return NextResponse.json({ error: campaignsSetupError() }, { status: 503 });
         return NextResponse.json({ error: error.message || "Could not load campaign." }, { status: 500 });

@@ -1,6 +1,6 @@
-import { MvpDashboard } from "../../components/client/SocialCommerceMvp";
 import { GrowthAssistantPage } from "../../components/client/GrowthAssistantPage";
 import { GrowthAutopilotPage } from "../../components/client/GrowthAutopilotPage";
+import { AddInventoryChoice } from "../../components/inventory/AddInventoryChoice";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,5 +12,5 @@ export default async function ClientDashboard({ searchParams }) {
     if (view === "growth-assistant") return <GrowthAssistantPage />;
     if (view === "growth-autopilot") return <GrowthAutopilotPage />;
 
-    return <MvpDashboard />;
+    return <AddInventoryChoice />;
 }

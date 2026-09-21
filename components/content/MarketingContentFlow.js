@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CalendarDays, Copy, Download, ImageIcon, Link2, Loader2, Megaphone, Send, Sparkles, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../app/lib/supabase";
@@ -187,6 +188,7 @@ function downloadCsv(posts) {
 }
 
 export function MarketingContentFlow() {
+    const router = useRouter();
     const [posts, setPosts] = useState([]);
     const [message, setMessage] = useState({ type: "", text: "" });
     const [analyzingIds, setAnalyzingIds] = useState([]);
@@ -323,6 +325,7 @@ export function MarketingContentFlow() {
             if (!response.ok) throw new Error(result.error || "Could not save posts to Growth Autopilot.");
             setSchedulerResult(result);
             setMessage({ type: "success", text: result.message || "Marketing posts saved to Growth Autopilot." });
+            router.push("/dashboard/products");
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not save posts to Growth Autopilot." });
         } finally {
@@ -352,11 +355,11 @@ export function MarketingContentFlow() {
                         ) : null}
                     />
 
-                    <label className="mt-5 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--accent)] bg-[var(--accent-light)] px-6 py-10 text-center transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[rgba(27,79,216,0.12)]">
+                    <label className="mt-5 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--accent)] bg-[var(--accent-light)] px-5 py-10 text-center transition hover:-translate-y-0.5 hover:bg-white hover:shadow-xl hover:shadow-[rgba(27,79,216,0.12)]">
                         <Upload className="h-8 w-8 text-[var(--accent)]" />
-                        <span className="mt-3 text-base font-bold text-[var(--ink)]">Upload marketing images</span>
-                        <span className="mt-1 text-sm text-[var(--mid)]">JPG, PNG, or WebP. No price fields in this flow.</span>
-                        <input type="file" accept="image/*" multiple className="hidden" onChange={handleFiles} />
+                        <span className="mt-3 text-base font-bold text-[var(--ink)]">Tap to add marketing images</span>
+                        <span className="mt-1 text-sm leading-5 text-[var(--mid)]">Choose from phone gallery or camera. JPG, PNG, WebP, HEIC supported.</span>
+                        <input type="file" accept="image/*,.heic,.heif" multiple className="hidden" onChange={handleFiles} />
                     </label>
                 </section>
 
