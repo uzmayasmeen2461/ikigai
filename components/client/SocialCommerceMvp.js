@@ -32,7 +32,7 @@ import { buildFacebookPageCaption, buildInstagramCaption, formatInventoryStatus,
 import { formatStableDateTime } from "../../app/lib/stableDate";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
-import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard, VisualActionCard } from "../DashboardUI";
+import { EmptyState, ErrorState, FeedbackMessage, SectionHeading, StatCard } from "../DashboardUI";
 
 const channels = [
     { id: "whatsapp", name: "WhatsApp Business", description: "Prepare catalog-ready product text and images for manual WhatsApp setup.", icon: Send },
@@ -355,18 +355,17 @@ export function MvpDashboard() {
                                 <span className="dashboard-badge badge-blue w-fit">{connectedChannels} connected channel{connectedChannels === 1 ? "" : "s"}</span>
                             </div>
                             <div className="grid gap-3 md:grid-cols-3">
-                                {nextActions.map((item) => (
-                                    <VisualActionCard
-                                        key={item.title}
-                                        title={item.title}
-                                        description={item.detail}
-                                        action={item.action}
-                                        href={item.href}
-                                        icon={item.icon}
-                                        primary={item.primary}
-                                        visual={item.visual}
-                                    />
-                                ))}
+                                {nextActions.map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <Link key={item.title} href={item.href} className={`interactive-tile rounded-xl border bg-white p-4 transition hover:border-[var(--accent)] ${item.primary ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>
+                                            <Icon className="h-5 w-5 text-[var(--accent)]" />
+                                            <h3 className="mt-4 font-bold">{item.title}</h3>
+                                            <p className="mt-1 text-sm leading-5 text-[var(--mid)]">{item.detail}</p>
+                                            <p className="mt-4 text-sm font-bold text-[var(--accent)]">{item.action}</p>
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         </section>
 
@@ -375,17 +374,17 @@ export function MvpDashboard() {
                                 { title: "Marketing ideas", detail: "Best products to promote and simple offers.", action: "Open plan", href: "/dashboard?view=growth-assistant", icon: Sparkles, visual: "content" },
                                 { title: "Weekly calendar", detail: "Prepare posts and reminders ahead of time.", action: "Plan week", href: "/dashboard?view=growth-autopilot", icon: CalendarDays, visual: "calendar" },
                                 { title: "Reel Studio", detail: "Create a short video from product media.", action: "Create reel", href: selectedProduct ? `/dashboard/reel-studio?productId=${selectedProduct.id}` : "/dashboard/reel-studio", icon: Film, visual: "reel" },
-                            ].map((item) => (
-                                <VisualActionCard
-                                    key={item.title}
-                                    title={item.title}
-                                    description={item.detail}
-                                    action={item.action}
-                                    href={item.href}
-                                    icon={item.icon}
-                                    visual={item.visual}
-                                />
-                            ))}
+                            ].map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <Link key={item.title} href={item.href} className="interactive-tile rounded-xl border border-[var(--border)] bg-white p-4 transition hover:border-[var(--accent)]">
+                                        <Icon className="h-5 w-5 text-[var(--accent)]" />
+                                        <h3 className="mt-4 font-bold">{item.title}</h3>
+                                        <p className="mt-1 text-sm leading-5 text-[var(--mid)]">{item.detail}</p>
+                                        <p className="mt-4 text-sm font-bold text-[var(--accent)]">{item.action}</p>
+                                    </Link>
+                                );
+                            })}
                         </section>
 
                         {!products.length ? (
