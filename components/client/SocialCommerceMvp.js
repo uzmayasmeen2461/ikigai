@@ -569,6 +569,7 @@ export function ProductsPage() {
 
     const allProductsSelected = products.length > 0 && selectedProductIds.length === products.length;
     const selectedProducts = products.filter((product) => selectedProductIds.includes(product.id));
+    const publishDestinationName = publishChannel === "instagram" ? "Instagram account" : "Facebook Page";
 
     const toggleProductSelection = (productId) => {
         setBulkDeleteConfirm(false);
