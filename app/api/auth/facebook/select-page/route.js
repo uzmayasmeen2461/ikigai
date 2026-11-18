@@ -13,6 +13,7 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const pageId = String(body.page_id || "").trim();
     if (!pageId) return NextResponse.json({ error: "Choose a Facebook Page to connect." }, { status: 400 });
+    if (!/^\d+$/.test(pageId)) return NextResponse.json({ error: "Enter a valid numeric Facebook Page ID." }, { status: 400 });
 
     try {
         const connection = await selectFacebookPageForConnection(user.id, pageId);
