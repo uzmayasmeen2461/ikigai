@@ -385,9 +385,37 @@ export async function completeFacebookLogin({ code, state, origin }) {
         });
         return metaCollection(`https://graph.facebook.com/${facebookGraphVersion}/me/accounts?${pageParams.toString()}`);
     };
+    const loadBusinessManagedPages = async (candidateToken) => {
+        const businessParams = new URLSearchParams({
+            fields: "id,name",
+            limit: "100",
+            access_token: candidateToken,
+        });
+        const businesses = await metaCollection(`https://graph.facebook.com/${facebookGraphVersion}/me/businesses?${businessParams.toString()}`).catch(() => []);
+        const pages = [];
+        for (const business of businesses) {
+            if (!business?.id) continue;
+            for (const edge of ["owned_pages", "client_pages"]) {
+                const pageParams = new URLSearchParams({
+                    fields: "id,name,access_token,tasks",
+                    limit: "100",
+                    access_token: candidateToken,
+                });
+                const businessPages = await metaCollection(`https://graph.facebook.com/${facebookGraphVersion}/${business.id}/${edge}?${pageParams.toString()}`).catch(() => []);
+                pages.push(...businessPages);
+            }
+        }
+        return [...new Map(pages.filter((page) => page?.id).map((page) => [page.id, page])).values()];
+    };
     let managedPages = await loadManagedPages(accessToken);
+    if (!managedPages.some((page) => page?.id)) {
+        managedPages = await loadBusinessManagedPages(accessToken);
+    }
     if (!managedPages.some((page) => page?.id) && token.access_token && token.access_token !== accessToken) {
-        const shortTokenPages = await loadManagedPages(token.access_token);
+        let shortTokenPages = await loadManagedPages(token.access_token);
+        if (!shortTokenPages.some((page) => page?.id)) {
+            shortTokenPages = await loadBusinessManagedPages(token.access_token);
+        }
         if (shortTokenPages.some((page) => page?.id)) {
             managedPages = shortTokenPages;
             accessToken = token.access_token;
@@ -405,7 +433,7 @@ export async function completeFacebookLogin({ code, state, origin }) {
         if (missingPermissions.length) {
             throw new Error(`Meta did not grant the required Page permissions: ${missingPermissions.join(", ")}. Remove ORVA Social Commerce from Facebook Business Integrations, then reconnect and keep every permission enabled.`);
         }
-        throw new Error("Meta granted the required Page permissions but returned no Pages for this account. Remove ORVA Social Commerce from Facebook Business Integrations, reconnect, and select the Page again. If this continues, contact ORVA support so the Meta token diagnostics can be reviewed.");
+        throw new Error("Meta granted the required Page permissions, but neither the account nor its Business Portfolios returned a Page. Confirm the selected Page is owned by the same Business Portfolio shown during authorization, then reconnect.");
     }
     const expiresIn = Number(tokenDetails.expires_in || 0);
     const tokenExpiresAt = expiresIn
