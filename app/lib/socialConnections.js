@@ -373,19 +373,41 @@ export async function completeFacebookLogin({ code, state, origin }) {
         fb_exchange_token: token.access_token,
     });
     const longToken = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/oauth/access_token?${longTokenParams.toString()}`);
-    const accessToken = longToken.access_token || token.access_token;
+    let accessToken = longToken.access_token || token.access_token;
+    let tokenDetails = longToken.access_token ? longToken : token;
     const profileParams = new URLSearchParams({ fields: "id,name", access_token: accessToken });
     const profile = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/me?${profileParams.toString()}`);
-    const pageParams = new URLSearchParams({
-        fields: "id,name,access_token",
-        limit: "100",
-        access_token: accessToken,
-    });
-    const managedPages = await metaCollection(`https://graph.facebook.com/${facebookGraphVersion}/me/accounts?${pageParams.toString()}`);
-    if (!managedPages.some((page) => page?.id)) {
-        throw new Error("No Facebook Page was returned by Meta. Confirm this Facebook account has full control/admin access to the Page in Business Settings, then remove ORVA from Facebook Business Integrations and reconnect.");
+    const loadManagedPages = (candidateToken) => {
+        const pageParams = new URLSearchParams({
+            fields: "id,name,access_token,tasks",
+            limit: "100",
+            access_token: candidateToken,
+        });
+        return metaCollection(`https://graph.facebook.com/${facebookGraphVersion}/me/accounts?${pageParams.toString()}`);
+    };
+    let managedPages = await loadManagedPages(accessToken);
+    if (!managedPages.some((page) => page?.id) && token.access_token && token.access_token !== accessToken) {
+        const shortTokenPages = await loadManagedPages(token.access_token);
+        if (shortTokenPages.some((page) => page?.id)) {
+            managedPages = shortTokenPages;
+            accessToken = token.access_token;
+            tokenDetails = token;
+        }
     }
-    const expiresIn = Number(longToken.expires_in || token.expires_in || 0);
+    if (!managedPages.some((page) => page?.id)) {
+        const permissionParams = new URLSearchParams({ access_token: accessToken });
+        const permissionResult = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/me/permissions?${permissionParams.toString()}`).catch(() => ({ data: [] }));
+        const grantedPermissions = new Set((permissionResult.data || [])
+            .filter((permission) => permission.status === "granted")
+            .map((permission) => permission.permission));
+        const missingPermissions = ["pages_show_list", "pages_read_engagement", "pages_manage_posts"]
+            .filter((permission) => !grantedPermissions.has(permission));
+        if (missingPermissions.length) {
+            throw new Error(`Meta did not grant the required Page permissions: ${missingPermissions.join(", ")}. Remove ORVA Social Commerce from Facebook Business Integrations, then reconnect and keep every permission enabled.`);
+        }
+        throw new Error("Meta granted the required Page permissions but returned no Pages for this account. Remove ORVA Social Commerce from Facebook Business Integrations, reconnect, and select the Page again. If this continues, contact ORVA support so the Meta token diagnostics can be reviewed.");
+    }
+    const expiresIn = Number(tokenDetails.expires_in || 0);
     const tokenExpiresAt = expiresIn
         ? toISTISOString(new Date(Date.now() + expiresIn * 1000))
         : null;
