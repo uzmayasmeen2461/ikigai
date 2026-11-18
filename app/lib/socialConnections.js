@@ -462,13 +462,28 @@ export async function completeFacebookLogin({ code, state, origin }) {
         }
     }
     if (!managedPages.some((page) => page?.id) && payload.requestedPageId) {
-        const pageParams = new URLSearchParams({
-            fields: "id,name,access_token,tasks",
-            access_token: accessToken,
-        });
-        const requestedPage = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/${payload.requestedPageId}?${pageParams.toString()}`)
-            .catch(() => null);
-        if (requestedPage?.id) managedPages = [requestedPage];
+        const directTokens = [...new Set([accessToken, token.access_token].filter(Boolean))];
+        let directPageError = null;
+        for (const candidateToken of directTokens) {
+            const pageParams = new URLSearchParams({
+                fields: "id,name,access_token,tasks",
+                access_token: candidateToken,
+            });
+            try {
+                const requestedPage = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/${payload.requestedPageId}?${pageParams.toString()}`);
+                if (requestedPage?.id) {
+                    managedPages = [requestedPage];
+                    accessToken = candidateToken;
+                    tokenDetails = candidateToken === token.access_token ? token : longToken;
+                    break;
+                }
+            } catch (error) {
+                directPageError = error;
+            }
+        }
+        if (!managedPages.some((page) => page?.id) && directPageError?.message) {
+            throw new Error(`Meta could not verify Page ${payload.requestedPageId}: ${directPageError.message}`);
+        }
     }
     if (!managedPages.some((page) => page?.id)) {
         const permissionParams = new URLSearchParams({ access_token: accessToken });
