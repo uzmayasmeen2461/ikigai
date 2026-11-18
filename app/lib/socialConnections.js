@@ -570,6 +570,10 @@ export async function markFacebookConnectionFailed(state, message) {
     await supabase
         .from("social_connections")
         .update({
+            external_account_id: null,
+            external_account_name: null,
+            access_token: null,
+            token_expires_at: null,
             status: "failed",
             metadata: { reason: message || "facebook_oauth_failed" },
             updated_at: nowISTISOString(),
@@ -598,6 +602,10 @@ export async function markInstagramConnectionFailed(state, message) {
     await supabase
         .from("social_connections")
         .update({
+            external_account_id: null,
+            external_account_name: null,
+            access_token: null,
+            token_expires_at: null,
             status: "failed",
             metadata: { reason: message || "instagram_oauth_failed" },
             updated_at: nowISTISOString(),
