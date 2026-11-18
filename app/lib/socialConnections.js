@@ -279,13 +279,13 @@ export function instagramCallbackUrl(origin) {
     return `${String(configuredOrigin).replace(/\/$/, "")}/api/auth/instagram/callback`;
 }
 
-export async function beginFacebookLogin(userId, origin, requestedPageId = "") {
+export async function beginFacebookLogin(userId, origin) {
     const { appId, configurationId } = requireFacebookLoginConfig();
     const supabase = createSupabaseServiceRole();
     const nonce = randomBytes(24).toString("hex");
     const expiresAt = Date.now() + oauthStateLifetimeMs;
     const redirectUri = facebookCallbackUrl(origin);
-    const state = encodeState({ userId, nonce, expiresAt, channel: facebookChannel, requestedPageId });
+    const state = encodeState({ userId, nonce, expiresAt, channel: facebookChannel });
 
     const { error } = await supabase
         .from("social_connections")
@@ -461,42 +461,18 @@ export async function completeFacebookLogin({ code, state, origin }) {
             tokenDetails = token;
         }
     }
-    if (!managedPages.some((page) => page?.id) && payload.requestedPageId) {
-        const directTokens = [...new Set([accessToken, token.access_token].filter(Boolean))];
-        let directPageError = null;
-        for (const candidateToken of directTokens) {
-            const pageParams = new URLSearchParams({
-                fields: "id,name,access_token,tasks",
-                access_token: candidateToken,
-            });
-            try {
-                const requestedPage = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/${payload.requestedPageId}?${pageParams.toString()}`);
-                if (requestedPage?.id) {
-                    managedPages = [requestedPage];
-                    accessToken = candidateToken;
-                    tokenDetails = candidateToken === token.access_token ? token : longToken;
-                    break;
-                }
-            } catch (error) {
-                directPageError = error;
-            }
-        }
-        if (!managedPages.some((page) => page?.id) && directPageError?.message) {
-            throw new Error(`Meta could not verify Page ${payload.requestedPageId}: ${directPageError.message}`);
-        }
-    }
     if (!managedPages.some((page) => page?.id)) {
         const permissionParams = new URLSearchParams({ access_token: accessToken });
         const permissionResult = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/me/permissions?${permissionParams.toString()}`).catch(() => ({ data: [] }));
         const grantedPermissions = new Set((permissionResult.data || [])
             .filter((permission) => permission.status === "granted")
             .map((permission) => permission.permission));
-        const missingPermissions = ["pages_show_list", "pages_read_engagement", "pages_manage_posts"]
+        const missingPermissions = ["business_management", "pages_show_list", "pages_read_engagement", "pages_manage_posts"]
             .filter((permission) => !grantedPermissions.has(permission));
         if (missingPermissions.length) {
             throw new Error(`Meta did not grant the required Page permissions: ${missingPermissions.join(", ")}. Remove ORVA Social Commerce from Facebook Business Integrations, then reconnect and keep every permission enabled.`);
         }
-        throw new Error("Meta could not verify the Facebook Page ID selected in ORVA. Confirm the Page ID and that the same Facebook account has full control, then reconnect.");
+        throw new Error("Meta granted the required permissions but returned no Facebook Pages. Confirm the Page belongs to the authorized Business Portfolio, then reconnect.");
     }
     const expiresIn = Number(tokenDetails.expires_in || 0);
     const tokenExpiresAt = expiresIn
