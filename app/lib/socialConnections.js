@@ -558,6 +558,15 @@ export async function markFacebookConnectionFailed(state, message) {
         return;
     }
     const supabase = createSupabaseServiceRole();
+    const { data: pending } = await supabase
+        .from("social_connections")
+        .select("id, status, metadata")
+        .eq("user_id", payload.userId)
+        .eq("channel", facebookChannel)
+        .maybeSingle();
+    if (!pending || pending.status !== "connecting" || pending.metadata?.oauth_state_nonce !== payload.nonce) {
+        return;
+    }
     await supabase
         .from("social_connections")
         .update({
@@ -565,8 +574,8 @@ export async function markFacebookConnectionFailed(state, message) {
             metadata: { reason: message || "facebook_oauth_failed" },
             updated_at: nowISTISOString(),
         })
-        .eq("user_id", payload.userId)
-        .eq("channel", facebookChannel);
+        .eq("id", pending.id)
+        .eq("status", "connecting");
 }
 
 export async function markInstagramConnectionFailed(state, message) {
@@ -577,6 +586,15 @@ export async function markInstagramConnectionFailed(state, message) {
         return;
     }
     const supabase = createSupabaseServiceRole();
+    const { data: pending } = await supabase
+        .from("social_connections")
+        .select("id, status, metadata")
+        .eq("user_id", payload.userId)
+        .eq("channel", instagramChannel)
+        .maybeSingle();
+    if (!pending || pending.status !== "connecting" || pending.metadata?.oauth_state_nonce !== payload.nonce) {
+        return;
+    }
     await supabase
         .from("social_connections")
         .update({
@@ -584,8 +602,8 @@ export async function markInstagramConnectionFailed(state, message) {
             metadata: { reason: message || "instagram_oauth_failed" },
             updated_at: nowISTISOString(),
         })
-        .eq("user_id", payload.userId)
-        .eq("channel", instagramChannel);
+        .eq("id", pending.id)
+        .eq("status", "connecting");
 }
 
 export async function recordPlaceholderConnection(userId, channel) {

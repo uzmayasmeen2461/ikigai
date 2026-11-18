@@ -1075,15 +1075,30 @@ export function ConnectionsPage() {
         const facebookStatus = params.get("facebook");
         const instagramStatus = params.get("instagram");
         const callbackMessage = params.get("message");
+        if (facebookStatus || instagramStatus || callbackMessage) {
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete("facebook");
+            cleanUrl.searchParams.delete("instagram");
+            cleanUrl.searchParams.delete("message");
+            window.history.replaceState({}, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+        }
         queueMicrotask(() => {
             load().then((nextConnections) => {
                 const facebookConnection = nextConnections.find((item) => item.channel === "facebook");
                 const instagramConnection = nextConnections.find((item) => item.channel === "instagram");
                 if (facebookStatus === "connected" && facebookConnection?.status === "connected") setMessage({ type: "success", text: "Facebook connected successfully." });
                 if (facebookStatus === "select_page" && facebookConnection?.status === "page_selection_required") setMessage({ type: "success", text: "Facebook access approved. Choose the Page ORVA should use." });
-                if (facebookStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Facebook connection failed. Please try again." });
+                if (facebookStatus === "failed") {
+                    setMessage(facebookConnection?.status === "connected"
+                        ? { type: "success", text: "Facebook connected successfully." }
+                        : { type: "error", text: callbackMessage || "Facebook connection failed. Please try again." });
+                }
                 if (instagramStatus === "connected" && instagramConnection?.status === "connected") setMessage({ type: "success", text: "Instagram connected successfully." });
-                if (instagramStatus === "failed") setMessage({ type: "error", text: callbackMessage || "Instagram connection failed. Please try again." });
+                if (instagramStatus === "failed") {
+                    setMessage(instagramConnection?.status === "connected"
+                        ? { type: "success", text: "Instagram connected successfully." }
+                        : { type: "error", text: callbackMessage || "Instagram connection failed. Please try again." });
+                }
             });
         });
     }, [load]);
