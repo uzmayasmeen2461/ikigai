@@ -407,14 +407,53 @@ export async function completeFacebookLogin({ code, state, origin }) {
         }
         return [...new Map(pages.filter((page) => page?.id).map((page) => [page.id, page])).values()];
     };
+    const loadGranularScopePages = async (candidateToken) => {
+        const debugParams = new URLSearchParams({
+            input_token: candidateToken,
+            access_token: `${appId}|${appSecret}`,
+        });
+        const debugResult = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/debug_token?${debugParams.toString()}`).catch(() => ({ data: {} }));
+        const requiredPermissions = ["pages_show_list", "pages_read_engagement", "pages_manage_posts"];
+        const targetIdsByPermission = new Map(
+            (debugResult.data?.granular_scopes || [])
+                .filter((scope) => requiredPermissions.includes(scope?.scope))
+                .map((scope) => [scope.scope, new Set(scope.target_ids || [])]),
+        );
+        const targetSets = requiredPermissions
+            .map((permission) => targetIdsByPermission.get(permission))
+            .filter((targetIds) => targetIds?.size);
+        if (!targetSets.length) return [];
+
+        let targetIds = [...targetSets[0]].filter((pageId) => targetSets.every((ids) => ids.has(pageId)));
+        if (!targetIds.length) {
+            targetIds = [...new Set(targetSets.flatMap((ids) => [...ids]))];
+        }
+
+        const pages = [];
+        for (const pageId of targetIds) {
+            const pageParams = new URLSearchParams({
+                fields: "id,name,access_token,tasks",
+                access_token: candidateToken,
+            });
+            const page = await metaRequest(`https://graph.facebook.com/${facebookGraphVersion}/${pageId}?${pageParams.toString()}`).catch(() => null);
+            if (page?.id) pages.push(page);
+        }
+        return pages;
+    };
     let managedPages = await loadManagedPages(accessToken);
     if (!managedPages.some((page) => page?.id)) {
         managedPages = await loadBusinessManagedPages(accessToken);
+    }
+    if (!managedPages.some((page) => page?.id)) {
+        managedPages = await loadGranularScopePages(accessToken);
     }
     if (!managedPages.some((page) => page?.id) && token.access_token && token.access_token !== accessToken) {
         let shortTokenPages = await loadManagedPages(token.access_token);
         if (!shortTokenPages.some((page) => page?.id)) {
             shortTokenPages = await loadBusinessManagedPages(token.access_token);
+        }
+        if (!shortTokenPages.some((page) => page?.id)) {
+            shortTokenPages = await loadGranularScopePages(token.access_token);
         }
         if (shortTokenPages.some((page) => page?.id)) {
             managedPages = shortTokenPages;
