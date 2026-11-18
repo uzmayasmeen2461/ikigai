@@ -1245,7 +1245,7 @@ export function ConnectionsPage() {
             const Icon = channel.icon;
             const connection = connections.find((item) => item.channel === channel.id);
             const status = channel.id === "whatsapp" ? "manual_setup" : connection?.status || "manual_setup";
-            const connected = status === "connected" || (status === "failed" && Boolean(connection?.external_account_id));
+            const connected = status === "connected" || status === "failed";
             const needsPageSelection = channel.id === "facebook" && status === "page_selection_required";
             const connecting = working === channel.id;
             const connectLabel = channel.id === "whatsapp"
