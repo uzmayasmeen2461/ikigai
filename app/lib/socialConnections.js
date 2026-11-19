@@ -11,6 +11,7 @@ const instagramChannel = "instagram";
 const instagramProvider = "instagram";
 const instagramGraphVersion = process.env.INSTAGRAM_GRAPH_VERSION || facebookGraphVersion;
 const oauthStateLifetimeMs = 10 * 60 * 1000;
+const facebookPageScopes = "pages_show_list,pages_read_engagement,pages_manage_posts";
 const instagramScopes = "instagram_business_basic,instagram_business_content_publish";
 
 export function providerForChannel(channel) {
@@ -81,15 +82,6 @@ function requireMetaConfig() {
         throw new Error("Facebook Login is not configured. Add META_APP_ID and META_APP_SECRET to the server environment.");
     }
     return { appId, appSecret };
-}
-
-function requireFacebookLoginConfig() {
-    const config = requireMetaConfig();
-    const configurationId = process.env.META_FACEBOOK_CONFIG_ID;
-    if (!configurationId) {
-        throw new Error("Facebook Login for Business is not configured. Add META_FACEBOOK_CONFIG_ID to the server environment.");
-    }
-    return { ...config, configurationId };
 }
 
 function requireInstagramConfig() {
@@ -280,7 +272,7 @@ export function instagramCallbackUrl(origin) {
 }
 
 export async function beginFacebookLogin(userId, origin) {
-    const { appId, configurationId } = requireFacebookLoginConfig();
+    const { appId } = requireMetaConfig();
     const supabase = createSupabaseServiceRole();
     const nonce = randomBytes(24).toString("hex");
     const expiresAt = Date.now() + oauthStateLifetimeMs;
@@ -301,10 +293,11 @@ export async function beginFacebookLogin(userId, origin) {
 
     const params = new URLSearchParams({
         client_id: appId,
-        config_id: configurationId,
         redirect_uri: redirectUri,
         state,
         response_type: "code",
+        scope: facebookPageScopes,
+        return_scopes: "true",
         auth_type: "rerequest",
     });
     return `https://www.facebook.com/${facebookGraphVersion}/dialog/oauth?${params.toString()}`;
@@ -442,18 +435,18 @@ export async function completeFacebookLogin({ code, state, origin }) {
     };
     let managedPages = await loadManagedPages(accessToken);
     if (!managedPages.some((page) => page?.id)) {
-        managedPages = await loadBusinessManagedPages(accessToken);
+        managedPages = await loadGranularScopePages(accessToken);
     }
     if (!managedPages.some((page) => page?.id)) {
-        managedPages = await loadGranularScopePages(accessToken);
+        managedPages = await loadBusinessManagedPages(accessToken);
     }
     if (!managedPages.some((page) => page?.id) && token.access_token && token.access_token !== accessToken) {
         let shortTokenPages = await loadManagedPages(token.access_token);
         if (!shortTokenPages.some((page) => page?.id)) {
-            shortTokenPages = await loadBusinessManagedPages(token.access_token);
+            shortTokenPages = await loadGranularScopePages(token.access_token);
         }
         if (!shortTokenPages.some((page) => page?.id)) {
-            shortTokenPages = await loadGranularScopePages(token.access_token);
+            shortTokenPages = await loadBusinessManagedPages(token.access_token);
         }
         if (shortTokenPages.some((page) => page?.id)) {
             managedPages = shortTokenPages;
@@ -467,12 +460,12 @@ export async function completeFacebookLogin({ code, state, origin }) {
         const grantedPermissions = new Set((permissionResult.data || [])
             .filter((permission) => permission.status === "granted")
             .map((permission) => permission.permission));
-        const missingPermissions = ["business_management", "pages_show_list", "pages_read_engagement", "pages_manage_posts"]
+        const missingPermissions = ["pages_show_list", "pages_read_engagement", "pages_manage_posts"]
             .filter((permission) => !grantedPermissions.has(permission));
         if (missingPermissions.length) {
             throw new Error(`Meta did not grant the required Page permissions: ${missingPermissions.join(", ")}. Remove ORVA Social Commerce from Facebook Business Integrations, then reconnect and keep every permission enabled.`);
         }
-        throw new Error("Meta granted the required permissions but returned no Facebook Pages. Confirm the Page belongs to the authorized Business Portfolio, then reconnect.");
+        throw new Error("Meta granted the required permissions but returned no Facebook Pages. Confirm this Facebook account has full control of a Page, then reconnect and select that Page.");
     }
     const expiresIn = Number(tokenDetails.expires_in || 0);
     const tokenExpiresAt = expiresIn
