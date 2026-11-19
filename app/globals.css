@@ -27,6 +27,56 @@
   --danger-bg: #fde8e8;
   --purple: #4a2d8a;
   --purple-bg: #eeeaf8;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --ink: #f5f7fb;
+  --ink2: #111827;
+  --ink3: #d7e0ea;
+  --mid: #a7b4c2;
+  --muted: #8392a3;
+  --border: #334155;
+  --surface: #182332;
+  --white: #111b28;
+  --page: #0b111b;
+  --accent: #7aa2ff;
+  --accent-light: #18284d;
+  --accent-mid: #527eea;
+  --accent-soft: #263b69;
+  --glass: rgba(11, 17, 27, 0.88);
+  --shadow-soft: 0 20px 60px rgba(0, 0, 0, 0.22);
+  --shadow-lift: 0 26px 80px rgba(0, 0, 0, 0.34);
+  --shadow-blue: 0 22px 70px rgba(60, 105, 220, 0.22);
+  --success: #67d6a8;
+  --success-bg: #12382c;
+  --warn: #f2ce78;
+  --warn-bg: #3c321c;
+  --danger: #ff9999;
+  --danger-bg: #421f24;
+  --purple: #c4a7ff;
+  --purple-bg: #30264a;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --ink: #f5f7fb;
+    --ink2: #111827;
+    --ink3: #d7e0ea;
+    --mid: #a7b4c2;
+    --muted: #8392a3;
+    --border: #334155;
+    --surface: #182332;
+    --white: #111b28;
+    --page: #0b111b;
+    --accent: #7aa2ff;
+    --accent-light: #18284d;
+    --accent-mid: #527eea;
+    --accent-soft: #263b69;
+    --glass: rgba(11, 17, 27, 0.88);
+    color-scheme: dark;
+  }
 }
 
 * {
@@ -42,6 +92,29 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: "Inter", system-ui, sans-serif;
+}
+
+:root[data-theme="dark"] .bg-white {
+  background-color: var(--white) !important;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background-color: var(--white);
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .ui-card,
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .dashboard-panel,
+:root[data-theme="dark"] .dashboard-card,
+:root[data-theme="dark"] .premium-panel {
+  background: linear-gradient(180deg, rgba(17, 27, 40, 0.98), rgba(15, 24, 36, 0.94));
+}
+
+:root[data-theme="dark"] img {
+  color-scheme: light;
 }
 
 h1,
@@ -218,6 +291,21 @@ h4,
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
