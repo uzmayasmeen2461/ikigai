@@ -1,6 +1,7 @@
 "use client";
 
-import { ImageIcon, Megaphone } from "lucide-react";
+import Link from "next/link";
+import { ImageIcon, Megaphone, Plus } from "lucide-react";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 import { SectionHeading, VisualActionCard } from "../DashboardUI";
@@ -33,6 +34,9 @@ export function AddInventoryChoice() {
                 eyebrow="Upload"
                 title="Upload images"
             >
+                <Link href="/dashboard/create-post" className="mb-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-800 px-5 font-bold text-white hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-800 sm:w-auto">
+                    <Plus className="h-5 w-5" /> Create a post
+                </Link>
                 <section className="dashboard-panel p-6">
                     <SectionHeading
                         icon={ImageIcon}

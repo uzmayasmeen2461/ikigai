@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Copy, Download, Film, Loader2, Music, Play, Save, SlidersHorizontal, Sparkles, Trash2, Upload, Volume2 } from "lucide-react";
+import { Camera, Copy, Download, Loader2, Music, Play, SlidersHorizontal, Sparkles, Trash2, Upload, Volume2 } from "lucide-react";
 import { supabase } from "../../../app/lib/supabase";
 import { formatINR } from "../../../app/lib/pricing";
 import { productName } from "../../../app/lib/inventory";
@@ -553,6 +553,12 @@ export function ReelStudioPage() {
     const [usage, setUsage] = useState(null);
     const [enhancerOpen, setEnhancerOpen] = useState(false);
     const [musicModalOpen, setMusicModalOpen] = useState(false);
+    const [mobileStep, setMobileStep] = useState("create");
+    const [mediaSource, setMediaSource] = useState("video");
+    const [sourceVideo, setSourceVideo] = useState("");
+    const [published, setPublished] = useState({});
+    const stepHeading = useRef(null);
+    useEffect(() => { stepHeading.current?.focus(); }, [mobileStep]);
     const [enhanceOptions, setEnhanceOptions] = useState({
         templateId: "premium-sale",
         hookText: reelTemplates[0].hookText,
@@ -567,7 +573,7 @@ export function ReelStudioPage() {
     const caption = useMemo(() => reelCaptionText(reelDraft), [reelDraft]);
     const productsWithImages = useMemo(() => products.filter((product) => product.cleaned_image_url || product.image_url), [products]);
     const selectedImageProducts = useMemo(
-        () => productsWithImages.filter((product) => selectedImageIds.includes(product.id)),
+        () => selectedImageIds.map((id) => productsWithImages.find((product) => product.id === id)).filter(Boolean),
         [productsWithImages, selectedImageIds],
     );
     const hasInventoryImages = productsWithImages.length > 0;
@@ -688,7 +694,7 @@ export function ReelStudioPage() {
         setSelectedImageIds((current) => (
             current.includes(productId)
                 ? current.filter((id) => id !== productId)
-                : [...current, productId]
+                : current.length < 8 ? [...current, productId] : current
         ));
     };
 
@@ -703,11 +709,13 @@ export function ReelStudioPage() {
         setProgress(20);
         try {
             const url = await uploadReelVideoFile(file, file.name || "uploaded-reel");
+            setSourceVideo(url);
             setProgress(92);
             setReelDraft((current) => ({ ...current, reel_video_url: url, reel_status: "draft" }));
             await saveBasicReelRecord(url);
             setProgress(100);
             setMessage({ type: "success", text: "Reel video uploaded." });
+            setMobileStep("music");
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not upload reel video." });
         } finally {
@@ -741,7 +749,7 @@ export function ReelStudioPage() {
                 });
             }
             setProgress(100);
-            setMessage({ type: "success", text: "Music uploaded. Click Save edited video or Generate Premium Reel to bake the music into the publishable reel." });
+            setMessage({ type: "success", text: "Music uploaded." });
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not upload reel music." });
         } finally {
@@ -839,6 +847,7 @@ export function ReelStudioPage() {
             await saveBasicReelRecord(url);
             setProgress(100);
             setMessage({ type: "success", text: "Reel created from inventory images. Review it before publishing." });
+            setMobileStep("finish");
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not create reel from images." });
         } finally {
@@ -944,11 +953,11 @@ export function ReelStudioPage() {
         }
     };
 
-    const applyVideoEdits = async () => {
+    const applyVideoEdits = async (draft = reelDraft, options = videoEdit, advance = false) => {
         setWorking("edit-video");
         setProgress(8);
         try {
-            const blob = await createEditedVideo(reelDraft, videoEdit, setProgress);
+            const blob = await createEditedVideo(draft, options, setProgress);
             setProgress(94);
             const editedFile = new File([blob], "orva-edited-reel.webm", { type: blob.type || "video/webm" });
             const url = await uploadReelVideoFile(editedFile, "edited-reel");
@@ -960,6 +969,7 @@ export function ReelStudioPage() {
             });
             setProgress(100);
             setMessage({ type: "success", text: reelDraft.reel_audio_url ? "Video edits saved with music. Review before publishing." : "Video edits saved. Review before publishing." });
+            if (advance) setMobileStep("finish");
         } catch (error) {
             setMessage({ type: "error", text: error.message || "Could not edit this video." });
         } finally {
@@ -980,18 +990,25 @@ export function ReelStudioPage() {
 
     const publish = async (channel) => {
         if (!reelDraft.reel_video_url) return setMessage({ type: "error", text: "Upload or create a reel video before publishing." });
+        if (working || published[channel] === reelDraft.reel_video_url) return;
         setWorking(channel);
-        const token = await getToken();
-        const response = await fetch(channel === "facebook" ? "/api/facebook/reels/test-publish" : "/api/instagram/reels/test-publish", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ caption, reel: reelDraft }),
-        });
-        const result = await readJson(response);
-        setWorking("");
-        if (!response.ok) return setMessage({ type: "error", text: result.error || `Could not publish to ${channel}.` });
-        setReelDraft((current) => ({ ...current, reel_status: "published" }));
-        setMessage({ type: "success", text: result.warning || result.message || "Reel published." });
+        try {
+            const token = await getToken();
+            const response = await fetch(channel === "facebook" ? "/api/facebook/reels/test-publish" : "/api/instagram/reels/test-publish", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ caption, reel: reelDraft }),
+            });
+            const result = await readJson(response);
+            if (!response.ok) return setMessage({ type: "error", text: result.error || `Could not publish to ${channel}.` });
+            setPublished((current) => ({ ...current, [channel]: reelDraft.reel_video_url }));
+            setReelDraft((current) => ({ ...current, reel_status: "published" }));
+            setMessage({ type: "success", text: result.warning || result.message || "Reel published." });
+        } catch {
+            setMessage({ type: "error", text: "Could not confirm publication. Check your social account before trying again." });
+        } finally {
+            setWorking("");
+        }
     };
 
     return (
@@ -1002,50 +1019,68 @@ export function ReelStudioPage() {
                     <div className="dashboard-panel p-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
                 ) : (
                     <div className="grid gap-5">
-                        <div className="dashboard-panel overflow-hidden p-0">
-                            <div className="grid gap-0 lg:grid-cols-[1fr_auto]">
-                                <div className="p-5">
-                                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">Studio workflow</p>
-                                    <h2 className="mt-2 text-2xl font-black text-[var(--ink)]">Create, polish, preview, publish.</h2>
-                                    <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-[var(--muted)]">Start with a video or product images. ORVA creates a reel-ready preview, lets you edit the copy and overlay, then publishes only when you click.</p>
-                                </div>
-                                <div className="grid grid-cols-5 border-t border-[var(--border)] bg-[var(--surface)] lg:w-[520px] lg:border-l lg:border-t-0">
-                                    {["Source", "Enhance", "Edit", "Preview", "Publish"].map((label, index) => (
-                                        <div key={label} className="border-r border-[var(--border)] px-3 py-4 last:border-r-0">
-                                            <p className="text-[11px] font-black text-[var(--accent)]">0{index + 1}</p>
-                                            <p className="mt-1 text-xs font-black text-[var(--ink)]">{label}</p>
-                                        </div>
+                        <ol className="grid grid-cols-3 gap-2 text-center text-sm font-bold">
+                            {[["create", "Media"], ["music", "Music"], ["finish", "Publish"]].map(([id, label], index) => (
+                                <li key={id} aria-current={mobileStep === id ? "step" : undefined} className={`rounded-lg border px-2 py-3 ${mobileStep === id ? "border-blue-800 bg-blue-800 text-white" : "border-slate-400 bg-white text-slate-900"}`}>{index + 1}. {label}</li>
+                            ))}
+                        </ol>
+                        <section key={mobileStep} className="dashboard-panel grid gap-4 p-4 motion-safe:animate-[orva-post-in_180ms_ease-out] sm:p-6">
+                            <h2 ref={stepHeading} tabIndex={-1} className="text-xl font-bold">{mobileStep === "create" ? "Choose your media" : mobileStep === "music" ? "Add music (optional)" : "Review and publish"}</h2>
+                            {working && <p role="status" className="font-semibold">{working === "upload" ? "Uploading video…" : working === "ai-video" || working === "edit-video" ? "Creating your reel…" : working === "instagram" || working === "facebook" ? "Publishing reel…" : "Working…"}</p>}
+                            {working && progress > 0 && <progress className="w-full accent-blue-800" aria-label="Reel progress" value={progress} max={100} />}
+                            {mobileStep === "create" && <>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {[["video", "Choose a video"], ["images", "Select product images"]].map(([id, label]) => (
+                                        <button key={id} type="button" disabled={Boolean(working)} aria-pressed={mediaSource === id} onClick={() => setMediaSource(id)} className={`min-h-12 rounded-lg border border-blue-800 px-3 font-bold transition-colors ${mediaSource === id ? "bg-blue-800 text-white" : "bg-white text-blue-900"}`}>{label}</button>
                                     ))}
                                 </div>
-                            </div>
-                        </div>
-
-                        <div className="grid items-start gap-5 xl:grid-cols-[minmax(260px,0.9fr)_minmax(320px,420px)_minmax(320px,1fr)]">
-                        <section className="dashboard-panel p-5">
-                            <SectionHeading title="Media source" description="Upload a video, choose ORVA music, or pick product images for ORVA to turn into a reel." />
-                            <div className="mt-4 grid gap-2">
-                                <label className="btn-primary cursor-pointer justify-center">
-                                    <Upload className="h-4 w-4" />Upload video
-                                    <input className="sr-only" type="file" accept="video/mp4,video/quicktime,video/webm" onChange={uploadVideo} disabled={working === "upload"} />
-                                </label>
-                                <button type="button" className="btn-secondary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={createAiReelFromImages}>{working === "ai-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Create from selected images</button>
-                            </div>
-                            <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Reel music</p>
-                                        <p className="mt-1 truncate text-sm font-black text-[var(--ink)]">{reelDraft.reel_audio_track_name || "No music selected"}</p>
-                                        {selectedLibraryTrack ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{selectedLibraryTrack.mood}</p> : null}
-                                    </div>
-                                    {reelDraft.reel_audio_url ? (
-                                        <button type="button" className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-red-600 shadow-sm" onClick={clearMusic} disabled={Boolean(working)}>Remove</button>
-                                    ) : null}
+                                {mediaSource === "video" ? <>
+                                    <label className="btn-secondary min-h-12 cursor-pointer justify-center focus-within:outline-2 focus-within:outline-blue-800">
+                                        <Upload className="h-4 w-4" />Upload video
+                                        <input className="sr-only" type="file" accept="video/mp4,video/quicktime,video/webm" onChange={uploadVideo} disabled={Boolean(working)} />
+                                    </label>
+                                    {(sourceVideo || reelDraft.reel_video_url) && <button type="button" className="btn-primary min-h-12 justify-center" disabled={Boolean(working)} onClick={() => setMobileStep("music")}>Continue with current video</button>}
+                                </> : <>
+                            <div className="mt-5 flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-sm font-black text-[var(--ink)]">Images selected</p>
+                                    <p className="text-xs font-semibold text-[var(--muted)]">{selectedImageProducts.length} selected · Up to 8</p>
                                 </div>
-                                {reelDraft.reel_audio_url ? (
-                                    <audio className="mt-3 w-full" src={reelDraft.reel_audio_url} controls preload="metadata" />
+                                {hasInventoryImages ? (
+                                    <button type="button" className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-[var(--accent)] shadow-sm" onClick={() => setSelectedImageIds(productsWithImages.slice(0, 8).map((product) => product.id))}>Select first 8</button>
                                 ) : null}
                             </div>
-
+                            {hasInventoryImages ? (
+                                <div className="mt-4 grid max-h-[560px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-2">
+                                    {productsWithImages.map((product) => {
+                                        const imageUrl = product.cleaned_image_url || product.image_url;
+                                        const selected = selectedImageIds.includes(product.id);
+                                        return (
+                                            <button
+                                                key={product.id}
+                                                type="button"
+                                                onClick={() => toggleProductImage(product.id)}
+                                                className={`group overflow-hidden rounded-[22px] border bg-white text-left shadow-sm transition hover:-translate-y-0.5 ${selected ? "border-[var(--accent)] ring-4 ring-[var(--accent)]/15" : "border-[var(--border)] hover:border-[var(--accent)]/40"}`}
+                                                aria-pressed={selected}
+                                                disabled={!selected && selectedImageIds.length >= 8}
+                                                title={productName(product)}
+                                            >
+                                                <div className="relative aspect-square">
+                                                    <img src={imageUrl} alt={productName(product)} className="h-full w-full object-cover" />
+                                                    <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[10px] font-black ${selected ? "bg-[var(--accent)] text-white" : "bg-white text-slate-900"}`}>{selected ? "Added" : "Pick"}</span>
+                                                </div>
+                                                <p className="truncate px-3 py-2 text-xs font-bold text-[var(--ink)]">{productName(product)}</p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="mt-4 rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold text-[var(--muted)]">No product images found. Upload a reel video instead, or add product images from Products.</p>
+                            )}
+                                    <button type="button" className="btn-primary min-h-12 justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={() => setMobileStep("music")}>Continue to music</button>
+                                </>}
+                            </>}
+                            {mobileStep === "music" && <>
                             <div className="mt-4 rounded-2xl border border-[var(--border)] bg-white p-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0">
@@ -1075,81 +1110,40 @@ export function ReelStudioPage() {
                                 <p className="mt-2 text-xs font-semibold leading-5 text-[var(--muted)]">Use music only if the license allows social posts for your business.</p>
                             </div>
 
-                            <div className="mt-5 flex items-center justify-between gap-3">
-                                <div>
-                                    <p className="text-sm font-black text-[var(--ink)]">Images selected</p>
-                                    <p className="text-xs font-semibold text-[var(--muted)]">{selectedImageProducts.length} of {productsWithImages.length} images</p>
+                                {mediaSource === "video" && reelDraft.reel_audio_url && <p className="text-sm font-semibold">Adding music uses up to the first 25 seconds of your video.</p>}
+                                <div className="flex flex-wrap gap-2">
+                                    <button type="button" className="btn-secondary min-h-12" disabled={Boolean(working)} onClick={() => setMobileStep("create")}>Back</button>
+                                    <button type="button" className="btn-primary min-h-12" disabled={Boolean(working)} onClick={() => {
+                                        if (mediaSource === "images") return createAiReelFromImages();
+                                        const url = sourceVideo || reelDraft.reel_video_url;
+                                        if (reelDraft.reel_audio_url) return applyVideoEdits({ ...reelDraft, reel_video_url: url }, { filter: "natural", startAt: 0, duration: 25, overlay: false }, true);
+                                        setReelDraft((current) => ({ ...current, reel_video_url: url }));
+                                        setMobileStep("finish");
+                                    }}>{mediaSource === "video" && !reelDraft.reel_audio_url ? "Continue without music" : "Create reel"}</button>
                                 </div>
-                                {hasInventoryImages ? (
-                                    <button type="button" className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-[var(--accent)] shadow-sm" onClick={() => setSelectedImageIds(productsWithImages.slice(0, 8).map((product) => product.id))}>Select first 8</button>
-                                ) : null}
-                            </div>
-                            {hasInventoryImages ? (
-                                <div className="mt-4 grid max-h-[560px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-2">
-                                    {productsWithImages.slice(0, 18).map((product) => {
-                                        const imageUrl = product.cleaned_image_url || product.image_url;
-                                        const selected = selectedImageIds.includes(product.id);
-                                        return (
-                                            <button
-                                                key={product.id}
-                                                type="button"
-                                                onClick={() => toggleProductImage(product.id)}
-                                                className={`group overflow-hidden rounded-[22px] border bg-white text-left shadow-sm transition hover:-translate-y-0.5 ${selected ? "border-[var(--accent)] ring-4 ring-[var(--accent)]/15" : "border-[var(--border)] hover:border-[var(--accent)]/40"}`}
-                                                title={productName(product)}
-                                            >
-                                                <div className="relative aspect-square">
-                                                    <img src={imageUrl} alt={productName(product)} className="h-full w-full object-cover" />
-                                                    <span className={`absolute right-2 top-2 rounded-full px-2 py-1 text-[10px] font-black ${selected ? "bg-[var(--accent)] text-white" : "bg-white/85 text-[var(--muted)]"}`}>{selected ? "Added" : "Pick"}</span>
-                                                </div>
-                                                <p className="truncate px-3 py-2 text-xs font-bold text-[var(--ink)]">{productName(product)}</p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="mt-4 rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold text-[var(--muted)]">No product images found. Upload a reel video instead, or add product images from Products.</p>
-                            )}
-                        </section>
-
-                        <section className="dashboard-panel p-5 xl:sticky xl:top-5">
-                            <div className="flex items-center justify-between gap-3">
-                                <SectionHeading title="Live preview" description="Phone-style reel preview." />
-                                <span className={`dashboard-badge ${reelDraft.reel_status === "published" ? "badge-green" : reelDraft.reel_status === "failed" ? "badge-red" : "badge-blue"}`}>{String(reelDraft.reel_status || "not_created").replace(/_/g, " ")}</span>
-                            </div>
-                            <div className="mt-5 overflow-hidden rounded-[28px] border-[8px] border-[#101820] bg-[#0B1420] shadow-[0_24px_60px_rgba(16,32,46,0.2)]">
-                                <div className="relative aspect-[9/16] bg-[#111827]">
-                                    {reelDraft.reel_video_url ? (
-                                        <video src={reelDraft.reel_video_url} className="h-full w-full object-cover" controls playsInline />
-                                    ) : (
-                                        <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-white/70">
-                                            <Film className="h-10 w-10" />
-                                            <p className="max-w-52 text-sm font-semibold">Upload a video or create one from inventory images.</p>
+                            </>}
+                            {mobileStep === "finish" && <>
+                                <div className="grid items-start gap-5 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+                                    <video key={reelDraft.reel_video_url} src={reelDraft.reel_video_url} className="mx-auto aspect-[9/16] max-h-[62vh] w-full rounded-lg bg-slate-950 object-contain" controls playsInline />
+                                    <div className="grid gap-3">
+                                        <label className="grid gap-2 font-semibold">Caption (optional)<textarea className="form-field min-h-28" value={reelDraft.reel_caption || ""} onChange={(event) => updateDraft("reel_caption", event.target.value)} /></label>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <button type="button" className="btn-primary min-h-12 justify-center" disabled={Boolean(working) || published.instagram === reelDraft.reel_video_url} onClick={() => publish("instagram")}><Camera className="h-4 w-4" />{published.instagram === reelDraft.reel_video_url ? "Published to Instagram" : "Publish to Instagram"}</button>
+                                            <button type="button" className="btn-secondary min-h-12 justify-center" disabled={Boolean(working) || published.facebook === reelDraft.reel_video_url} onClick={() => publish("facebook")}><Play className="h-4 w-4" />{published.facebook === reelDraft.reel_video_url ? "Published to Facebook" : "Publish to Facebook"}</button>
                                         </div>
-                                    )}
-                                    <div className="pointer-events-none absolute inset-x-4 bottom-5 rounded-2xl bg-black/38 p-3 text-white backdrop-blur">
-                                        <p className="text-sm font-bold">{productName(reelDraft)}</p>
-                                        <p className="text-xs text-white/80">{reelDraft.price ? formatINR(reelDraft.price) : "No price"} · {reelDraft.reel_cta || "DM to order"}</p>
+                                        <button type="button" className="btn-secondary min-h-12 justify-center" disabled={Boolean(working)} onClick={() => setMobileStep("music")}>Back to music</button>
                                     </div>
                                 </div>
-                            </div>
-                            {progress ? <div className="mt-4 rounded-full bg-[var(--surface)] p-1"><div className="h-2 rounded-full bg-[var(--accent)] transition-all" style={{ width: `${progress}%` }} /></div> : null}
-                            {reelDraft.reel_audio_url ? (
-                                <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
-                                    <div className="flex items-center gap-2 text-sm font-black text-[var(--ink)]"><Music className="h-4 w-4 text-[var(--accent)]" />Music attached</div>
-                                    <p className="mt-1 text-xs font-semibold leading-5 text-[var(--muted)]">For uploaded videos, use Edit reel → Save edited video to bake this music into the publishable file.</p>
-                                </div>
-                            ) : null}
-                            {reelDraft.reel_video_url ? (
-                            <div className="mt-4 grid grid-cols-2 gap-2">
-                                    <button type="button" className="btn-secondary justify-center" disabled={Boolean(working)} onClick={() => setShowEditor((value) => !value)}><SlidersHorizontal className="h-4 w-4" />{showEditor ? "Hide editor" : "Edit reel"}</button>
-                                    <button type="button" className="btn-secondary justify-center" disabled={Boolean(working)} onClick={clearVideo}>{working === "clear-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}Clear video</button>
-                                    <button type="button" className="btn-primary col-span-2 justify-center" disabled={Boolean(working)} onClick={openEnhancer}><Sparkles className="h-4 w-4" />Make it Premium</button>
-                                    <a href={reelDraft.reel_video_url} download target="_blank" rel="noreferrer" className="btn-secondary col-span-2 justify-center"><Download className="h-4 w-4" />Download Current Reel</a>
-                                </div>
-                            ) : null}
-                        </section>
-
-                        <section className="grid gap-5">
+                                <details className="min-w-0 rounded-lg border border-slate-400 p-3">
+                                    <summary className="min-h-11 cursor-pointer py-2 font-bold">Advanced editing</summary>
+                                    <div className="grid gap-4">
+                                        <div className="flex flex-wrap gap-2">
+                                            <button type="button" className="btn-secondary" disabled={Boolean(working)} onClick={generateContent}>Suggest a caption</button>
+                                            <button type="button" className="btn-secondary" onClick={copyCaption}>Copy caption</button>
+                                            <button type="button" className="btn-secondary" onClick={saveCopy}>Save caption</button>
+                                            <button type="button" className="btn-secondary" disabled={Boolean(working)} onClick={() => { clearVideo(); setSourceVideo(""); setMobileStep("create"); }}>Clear video</button>
+                                            <a href={reelDraft.reel_video_url} download target="_blank" rel="noreferrer" className="btn-secondary"><Download className="h-4 w-4" />Download reel</a>
+                                        </div>
                             <div className="dashboard-panel p-5">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <SectionHeading title="AI Reel Enhancer" description="Choose a premium template, add overlays, and generate a polished reel." />
@@ -1244,7 +1238,7 @@ export function ReelStudioPage() {
                                                 Save edited video will include: {reelDraft.reel_audio_track_name || "uploaded music"}
                                             </div>
                                         ) : null}
-                                        <button type="button" className="btn-primary justify-center" disabled={Boolean(working)} onClick={applyVideoEdits}>{working === "edit-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Save edited video</button>
+                                        <button type="button" className="btn-primary justify-center" disabled={Boolean(working)} onClick={() => applyVideoEdits()}>{working === "edit-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Save edited video</button>
                                     </div>
                                 </div>
                             ) : null}
@@ -1255,37 +1249,10 @@ export function ReelStudioPage() {
                                 </div>
                             ) : null}
 
-                        <div className="dashboard-panel p-5">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <SectionHeading title="AI caption and overlays" description="Generate caption text, edit overlays, then publish only when ready." />
-                            </div>
-                            <div className="action-grid mt-5">
-                                <button type="button" className="btn-primary" disabled={working === "generate" || !reelDraft.reel_video_url} onClick={generateContent}>{working === "generate" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Generate AI Caption from Reel</button>
-                                <button type="button" className="btn-secondary" onClick={copyCaption}><Copy className="h-4 w-4" />Copy Caption</button>
-                                <button type="button" className="btn-secondary" disabled={working === "save"} onClick={saveCopy}>{working === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save</button>
-                            </div>
-                            <div className="mt-5 grid gap-3 md:grid-cols-2">
-                                <label className="grid gap-2 text-sm font-semibold">Reel title<input className="form-field" value={reelDraft.name || ""} onChange={(event) => updateDraft("name", event.target.value)} placeholder="New collection reel" /></label>
-                                <label className="grid gap-2 text-sm font-semibold">Price / offer<input className="form-field" value={reelDraft.price || ""} onChange={(event) => updateDraft("price", event.target.value)} placeholder="1299" /></label>
-                                <label className="grid gap-2 text-sm font-semibold">Hook<input className="form-field" value={reelDraft.reel_hook || ""} onChange={(event) => updateDraft("reel_hook", event.target.value)} placeholder="New arrival for you" /></label>
-                                <label className="grid gap-2 text-sm font-semibold">CTA<input className="form-field" value={reelDraft.reel_cta || ""} onChange={(event) => updateDraft("reel_cta", event.target.value)} placeholder="DM to order" /></label>
-                                <label className="grid gap-2 text-sm font-semibold md:col-span-2">Caption<textarea className="form-field min-h-28" value={reelDraft.reel_caption || ""} onChange={(event) => updateDraft("reel_caption", event.target.value)} /></label>
-                                <label className="grid gap-2 text-sm font-semibold md:col-span-2">Hashtags<input className="form-field" value={reelDraft.reel_hashtags || ""} onChange={(event) => updateDraft("reel_hashtags", event.target.value)} placeholder="#ShopLocal #SmallBusiness #NewArrival #ORVA" /></label>
-                            </div>
-                            <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted)]">Full caption preview</p>
-                                <p className="mt-3 whitespace-pre-line text-sm leading-6 text-[var(--mid)]">{caption}</p>
-                            </div>
-                            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                                <div className="sm:col-span-2">
-                                    <SectionHeading title="Publish" description="Publish to connected channels, or use copy/download as fallback." />
-                                </div>
-                                <button type="button" className="btn-primary justify-center" disabled={Boolean(working) || !reelDraft.reel_video_url} onClick={() => publish("instagram")}>{working === "instagram" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}Publish Instagram Reel</button>
-                                <button type="button" className="btn-secondary justify-center" disabled={Boolean(working) || !reelDraft.reel_video_url} onClick={() => publish("facebook")}>{working === "facebook" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}Publish Facebook Reel</button>
-                            </div>
-                        </div>
+                                    </div>
+                                </details>
+                            </>}
                         </section>
-                        </div>
                     </div>
                 )}
                 {musicModalOpen ? (
