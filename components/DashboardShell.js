@@ -13,7 +13,6 @@ import {
     LayoutDashboard,
     LogOut,
     Menu,
-    Moon,
     Bell,
     CalendarDays,
     MessageSquareText,
@@ -24,7 +23,6 @@ import {
     Settings,
     ShieldCheck,
     Sparkles,
-    Sun,
     UserCheck,
     UsersRound,
     Upload,
@@ -82,7 +80,6 @@ export function DashboardShell({
     role = "client",
     eyebrow = "Workspace",
     title,
-    description = "",
     children,
 }) {
     const pathname = usePathname();
@@ -92,27 +89,12 @@ export function DashboardShell({
     const [email, setEmail] = useState("");
     const [notifications, setNotifications] = useState([]);
     const [activeHref, setActiveHref] = useState(pathname);
-    const [theme, setTheme] = useState("light");
 
     const navItems = useMemo(() => navConfig[role] || navConfig.client, [role]);
     const mobileNavItems = useMemo(() => {
         if (role !== "client") return navItems.slice(0, 4);
-        return navItems.filter((item) => ["Home", "Add Products", "Products", "Publish", "Reel Studio"].includes(item.label));
+        return navItems.filter((item) => ["Home", "Add Products", "Products", "Publish", "Marketing Plan"].includes(item.label));
     }, [navItems, role]);
-
-    useEffect(() => {
-        const savedTheme = window.localStorage.getItem("orva-theme");
-        const nextTheme = savedTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-        document.documentElement.dataset.theme = nextTheme;
-        queueMicrotask(() => setTheme(nextTheme));
-    }, []);
-
-    const toggleTheme = () => {
-        const nextTheme = theme === "dark" ? "light" : "dark";
-        setTheme(nextTheme);
-        document.documentElement.dataset.theme = nextTheme;
-        window.localStorage.setItem("orva-theme", nextTheme);
-    };
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -232,13 +214,13 @@ export function DashboardShell({
             )}
 
             <div className="lg:pl-56">
-                <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[color:var(--glass)] backdrop-blur-xl">
+                <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-white/88 backdrop-blur-xl">
                     <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 onClick={() => setMenuOpen(true)}
-                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--white)] text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] lg:hidden"
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] lg:hidden"
                                 aria-label="Open sidebar"
                             >
                                 <Menu className="h-5 w-5" />
@@ -250,20 +232,10 @@ export function DashboardShell({
                                 <h1 className="mt-1 text-xl font-bold tracking-[-0.01em] text-[var(--ink)] sm:text-2xl">
                                     {title}
                                 </h1>
-                                {description ? <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--mid)] sm:text-sm">{description}</p> : null}
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <button
-                                type="button"
-                                onClick={toggleTheme}
-                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--white)] text-[var(--ink)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-                                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-                            >
-                                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                            </button>
                             <span className="badge badge-blue hidden sm:inline-flex">
                                 {roleLabels[role] || roleLabels.client}
                             </span>
@@ -284,7 +256,7 @@ export function DashboardShell({
                 </header>
 
                 <main className="mx-auto max-w-[1500px] px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:py-8">
-                    <section className="dashboard-panel hero-noise relative mb-8 hidden overflow-hidden p-5 lg:block lg:p-6">
+                    <section className="dashboard-panel hero-noise relative mb-8 overflow-hidden p-5 sm:p-6">
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--accent)] via-[#7BA7F0] to-[var(--success)]" />
                         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
                             <div className="min-w-0">
@@ -366,7 +338,7 @@ export function DashboardShell({
                             }`}
                         >
                             <Icon className="h-5 w-5" />
-                            <span className="max-w-full truncate">{item.label.replace(" Products", "").replace(" Studio", "")}</span>
+                            <span className="max-w-full truncate">{item.label.replace(" Products", "")}</span>
                         </Link>
                     );
                 })}

@@ -553,7 +553,6 @@ export function ReelStudioPage() {
     const [usage, setUsage] = useState(null);
     const [enhancerOpen, setEnhancerOpen] = useState(false);
     const [musicModalOpen, setMusicModalOpen] = useState(false);
-    const [mobileStep, setMobileStep] = useState("create");
     const [enhanceOptions, setEnhanceOptions] = useState({
         templateId: "premium-sale",
         hookText: reelTemplates[0].hookText,
@@ -1021,26 +1020,8 @@ export function ReelStudioPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-1 rounded-xl border border-[var(--border)] bg-[color:var(--glass)] p-1 shadow-sm backdrop-blur-xl xl:hidden">
-                            {[
-                                { id: "create", label: "1. Create" },
-                                { id: "preview", label: "2. Preview" },
-                                { id: "finish", label: "3. Publish" },
-                            ].map((step) => (
-                                <button
-                                    key={step.id}
-                                    type="button"
-                                    onClick={() => setMobileStep(step.id)}
-                                    className={`min-h-11 rounded-lg px-2 text-xs font-bold transition ${mobileStep === step.id ? "bg-[var(--accent)] text-white shadow-sm" : "text-[var(--mid)]"}`}
-                                    aria-pressed={mobileStep === step.id}
-                                >
-                                    {step.label}
-                                </button>
-                            ))}
-                        </div>
-
                         <div className="grid items-start gap-5 xl:grid-cols-[minmax(260px,0.9fr)_minmax(320px,420px)_minmax(320px,1fr)]">
-                        <section className={`dashboard-panel p-4 sm:p-5 ${mobileStep === "create" ? "block" : "hidden xl:block"}`}>
+                        <section className="dashboard-panel p-5">
                             <SectionHeading title="Media source" description="Upload a video, choose ORVA music, or pick product images for ORVA to turn into a reel." />
                             <div className="mt-4 grid gap-2">
                                 <label className="btn-primary cursor-pointer justify-center">
@@ -1049,6 +1030,22 @@ export function ReelStudioPage() {
                                 </label>
                                 <button type="button" className="btn-secondary justify-center" disabled={Boolean(working) || !selectedImageProducts.length} onClick={createAiReelFromImages}>{working === "ai-video" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}Create from selected images</button>
                             </div>
+                            <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--muted)]">Reel music</p>
+                                        <p className="mt-1 truncate text-sm font-black text-[var(--ink)]">{reelDraft.reel_audio_track_name || "No music selected"}</p>
+                                        {selectedLibraryTrack ? <p className="mt-1 text-xs font-semibold text-[var(--muted)]">{selectedLibraryTrack.mood}</p> : null}
+                                    </div>
+                                    {reelDraft.reel_audio_url ? (
+                                        <button type="button" className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-black text-red-600 shadow-sm" onClick={clearMusic} disabled={Boolean(working)}>Remove</button>
+                                    ) : null}
+                                </div>
+                                {reelDraft.reel_audio_url ? (
+                                    <audio className="mt-3 w-full" src={reelDraft.reel_audio_url} controls preload="metadata" />
+                                ) : null}
+                            </div>
+
                             <div className="mt-4 rounded-2xl border border-[var(--border)] bg-white p-3">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0">
@@ -1112,10 +1109,9 @@ export function ReelStudioPage() {
                             ) : (
                                 <p className="mt-4 rounded-xl bg-[var(--surface)] px-3 py-3 text-xs font-semibold text-[var(--muted)]">No product images found. Upload a reel video instead, or add product images from Products.</p>
                             )}
-                            <button type="button" className="btn-primary mt-5 w-full justify-center xl:hidden" disabled={!reelDraft.reel_video_url} onClick={() => setMobileStep("preview")}>Review reel</button>
                         </section>
 
-                        <section className={`dashboard-panel p-4 sm:p-5 xl:sticky xl:top-5 ${mobileStep === "preview" ? "block" : "hidden xl:block"}`}>
+                        <section className="dashboard-panel p-5 xl:sticky xl:top-5">
                             <div className="flex items-center justify-between gap-3">
                                 <SectionHeading title="Live preview" description="Phone-style reel preview." />
                                 <span className={`dashboard-badge ${reelDraft.reel_status === "published" ? "badge-green" : reelDraft.reel_status === "failed" ? "badge-red" : "badge-blue"}`}>{String(reelDraft.reel_status || "not_created").replace(/_/g, " ")}</span>
@@ -1151,10 +1147,9 @@ export function ReelStudioPage() {
                                     <a href={reelDraft.reel_video_url} download target="_blank" rel="noreferrer" className="btn-secondary col-span-2 justify-center"><Download className="h-4 w-4" />Download Current Reel</a>
                                 </div>
                             ) : null}
-                            <button type="button" className="btn-primary mt-4 w-full justify-center xl:hidden" disabled={!reelDraft.reel_video_url} onClick={() => setMobileStep("finish")}>Add caption and publish</button>
                         </section>
 
-                        <section className={`gap-5 ${mobileStep === "finish" ? "grid" : "hidden xl:grid"}`}>
+                        <section className="grid gap-5">
                             <div className="dashboard-panel p-5">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <SectionHeading title="AI Reel Enhancer" description="Choose a premium template, add overlays, and generate a polished reel." />
