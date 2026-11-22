@@ -3,6 +3,7 @@ import { cleanPlatforms, platformOptions, refreshCampaignCompletion } from "../.
 import { publishDueCampaignItems } from "../../../lib/campaignAutomation";
 import { nowISTISOString } from "../../../lib/istDate";
 import { uploadProductImageIfNeeded } from "../../../lib/productImageStorage";
+import { requireActiveSubscription } from "../../../lib/onboarding";
 import { campaignsSetupError, isCampaignSchemaError, requireCampaignRequest } from "../../campaigns/_shared";
 
 const POST_INTERVAL_MINUTES = 30;
@@ -50,12 +51,26 @@ export async function POST(request) {
 
     try {
         const body = await request.json().catch(() => ({}));
-        const posts = Array.isArray(body.posts) ? body.posts.filter((post) => post?.imageUrl && post?.caption) : [];
+        const quickPost = body.quickPost === true;
+        const posts = Array.isArray(body.posts) ? body.posts.filter((post) => post?.imageUrl && (quickPost || post.caption)) : [];
+        const requestedPlatforms = [...new Set(Array.isArray(body.selectedPlatforms) ? body.selectedPlatforms : [])];
+        if (quickPost) {
+            const date = posts[0]?.scheduledFor;
+            if (posts.length !== 1 || !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(posts[0].imageUrl) ||
+                posts[0].imageUrl.length > 2_800_000 || !requestedPlatforms.length ||
+                requestedPlatforms.some((platform) => !["facebook_post", "instagram_post"].includes(platform)) ||
+                (date && (typeof date !== "string" || !date.endsWith("Z") || !Number.isFinite(Date.parse(date)) || Date.parse(date) <= Date.now()))) {
+                return NextResponse.json({ error: "Choose a photo, a destination, and a future date if scheduling." }, { status: 400 });
+            }
+            const access = await requireActiveSubscription(user.id);
+            if (!access.ok) return NextResponse.json({ error: access.error || "Activate your ORVA plan to publish or schedule posts." }, { status: 403 });
+        }
         if (!posts.length) {
             return NextResponse.json({ error: "Add at least one marketing image with a caption before saving to Growth Autopilot." }, { status: 400 });
         }
 
-        const selectedPlatforms = cleanPlatforms(body.selectedPlatforms, { publishableOnly: true });
+        const selectedPlatforms = cleanPlatforms(quickPost ? requestedPlatforms : body.selectedPlatforms, { publishableOnly: true });
+        const quickImageUrl = quickPost ? await uploadProductImageIfNeeded(posts[0].imageUrl, { userId: user.id, label: "quick-post" }) : null;
         const baseScheduledAt = datetimeLocalToIST(posts.find((post) => post.scheduledFor)?.scheduledFor) || nowISTISOString();
         const postsWithSchedule = posts.map((post, index) => ({
             ...post,
@@ -81,7 +96,7 @@ export async function POST(request) {
                 approval_mode: "ask_before_posting",
                 selected_platforms: selectedPlatforms,
                 settings: {
-                    source: "marketing_content_upload",
+                    source: quickPost ? "quick_photo_post" : "marketing_content_upload",
                     postCount: postsWithSchedule.length,
                     scheduleIntervalMinutes: POST_INTERVAL_MINUTES,
                     note: "Standalone marketing images saved from Content Images.",
@@ -96,10 +111,10 @@ export async function POST(request) {
         }
 
         const campaignItems = [];
-        for (let index = 0; index < postsWithSchedule.length; index += 1) {
-            const post = postsWithSchedule[index];
+        for (let index = 0; index < (quickPost ? selectedPlatforms.length : postsWithSchedule.length); index += 1) {
+            const post = postsWithSchedule[quickPost ? 0 : index];
             const contentType = selectedPlatforms[index % selectedPlatforms.length] || "instagram_post";
-            const publicImageUrl = await uploadProductImageIfNeeded(post.imageUrl, {
+            const publicImageUrl = quickImageUrl || await uploadProductImageIfNeeded(post.imageUrl, {
                 userId: user.id,
                 productId: `marketing-${campaign.id}`,
                 label: post.title || `marketing-post-${index + 1}`,
@@ -130,7 +145,7 @@ export async function POST(request) {
             throw itemsError;
         }
 
-        const publishResults = hasScheduledPosts
+        const publishResults = hasScheduledPosts && !(quickPost && posts[0].scheduledFor)
             ? await publishDueCampaignItems(supabase, {
                 campaignId: campaign.id,
                 clientId: user.id,

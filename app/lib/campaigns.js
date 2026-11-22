@@ -351,17 +351,18 @@ export async function publishCampaignItem({ supabase, item, userId }) {
         item.generated_cta && !String(item.generated_caption || "").includes(item.generated_cta) ? item.generated_cta : "",
         item.generated_hashtags && !String(item.generated_caption || "").includes(item.generated_hashtags) ? item.generated_hashtags : "",
     ].filter(Boolean).join("\n\n");
+    const allowEmptyCaption = item.campaigns?.settings?.source === "quick_photo_post";
 
     let result;
     if (item.content_type === "instagram_post") {
         const publishProduct = await publicProductImageFields(product, { userId, productId: product.id });
         const connection = await connectionFor(supabase, userId, "instagram");
         if (!mockMode && connection?.status !== "connected") throw new Error("Instagram is not connected. Use manual export or connect Instagram.");
-        result = await publishProductToInstagram({ product: publishProduct, connection, mockMode, caption: campaignCaption });
+        result = await publishProductToInstagram({ product: publishProduct, connection, mockMode, caption: campaignCaption, allowEmptyCaption });
     } else if (item.content_type === "facebook_post") {
         const connection = await connectionFor(supabase, userId, "facebook_page");
         if (!mockMode && connection?.status !== "connected") throw new Error("Facebook Page is not connected. Use manual export or connect Facebook.");
-        result = await publishProductToFacebookPage({ product, connection, mockMode, caption: campaignCaption });
+        result = await publishProductToFacebookPage({ product, connection, mockMode, caption: campaignCaption, allowEmptyCaption });
     } else if (mockMode) {
         result = { externalPostId: `mock-${item.content_type}-${item.id}`, mock: true };
     } else {

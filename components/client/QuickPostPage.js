@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, Check, Send } from "lucide-react";
+import { CalendarDays, Camera, Check, Send } from "lucide-react";
 import { supabase } from "../../app/lib/supabase";
 import { AuthGate } from "../AuthGate";
 import { DashboardShell } from "../DashboardShell";
 
 const destinations = {
-    facebook: { label: "Facebook", path: "/api/facebook/page/publish-product" },
-    instagram: { label: "Instagram", path: "/api/instagram/publish-product" },
+    facebook: { label: "Facebook" },
+    instagram: { label: "Instagram" },
 };
 const primary = "inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-800 px-5 font-bold text-white hover:bg-blue-900 disabled:bg-slate-200 disabled:text-slate-700";
 const field = "w-full rounded-lg border border-slate-500 bg-white px-3 py-2 text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800";
@@ -26,29 +26,37 @@ async function request(path, options = {}) {
     return result;
 }
 
-function readPhoto(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error("Could not read this photo."));
-        reader.readAsDataURL(file);
-    });
+async function readPhoto(file) {
+    const url = URL.createObjectURL(file);
+    try {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d", { alpha: false });
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.8);
+    } finally {
+        URL.revokeObjectURL(url);
+    }
 }
 
 export default function QuickPostPage() {
     const [photo, setPhoto] = useState("");
-    const [name, setName] = useState("");
-    const [price, setPrice] = useState("");
     const [caption, setCaption] = useState("");
-    const [review, setReview] = useState(false);
+    const [scheduling, setScheduling] = useState(false);
+    const [scheduledFor, setScheduledFor] = useState("");
     const [accounts, setAccounts] = useState(null);
     const [selected, setSelected] = useState([]);
     const [results, setResults] = useState({});
     const [busy, setBusy] = useState("");
     const [error, setError] = useState("");
-    const productId = useRef(null);
     const operation = useRef(false);
-    const heading = useRef(null);
     const destinationsLocked = Object.keys(results).length > 0;
 
     useEffect(() => {
@@ -64,58 +72,57 @@ export default function QuickPostPage() {
         return () => { active = false; };
     }, []);
 
-    useEffect(() => { heading.current?.focus(); }, [review]);
-
     async function choosePhoto(event) {
         const file = event.target.files?.[0];
         if (!file) return;
         event.target.value = "";
         setError("");
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 2 * 1024 * 1024) {
-            setError("Choose a JPG, PNG, or WebP photo under 2 MB.");
+        if (file.size > 25 * 1024 * 1024) {
+            setError("Choose a photo under 25 MB.");
             return;
         }
         setBusy("Reading photo…");
         try {
             setPhoto(await readPhoto(file));
-        } catch (failure) {
-            setError(failure.message);
+        } catch {
+            setError("Could not open this photo. Try a JPG or PNG.");
         } finally {
             setBusy("");
         }
     }
 
-    async function publish(channels) {
-        if (operation.current || !channels.length) return;
+    async function publish(date = "") {
+        if (operation.current || !selected.length || !photo || destinationsLocked) return;
+        const timestamp = date ? new Date(date) : null;
+        if (timestamp && (!Number.isFinite(timestamp.getTime()) || timestamp.getTime() <= Date.now())) {
+            setError("Choose a date and time in the future.");
+            return;
+        }
         operation.current = true;
         setError("");
+        setBusy(date ? "Scheduling post…" : "Publishing post…");
         try {
-            if (!productId.current) {
-                setBusy("Uploading photo and saving product…");
-                const data = await request("/api/inventory", {
-                    method: "POST",
-                    body: JSON.stringify({ product_name: name.trim(), price: Number(price), stock: 1, image_url: photo }),
-                });
-                productId.current = data.products?.[0]?.id;
-                if (!productId.current) throw new Error("Could not confirm the product was saved. Check Products before trying again.");
-            }
-            for (const channel of channels) {
-                setBusy(`Publishing to ${destinations[channel].label}…`);
-                try {
-                    const data = await request(destinations[channel].path, {
-                        method: "POST",
-                        body: JSON.stringify({ productId: productId.current, caption: caption.trim() }),
-                    });
-                    setResults((current) => ({ ...current, [channel]: { ok: true, message: data.warning || "Published" } }));
-                } catch (failure) {
-                    const retry = [400, 401, 403, 404].includes(failure.status);
-                    setResults((current) => ({ ...current, [channel]: {
-                        retry, message: retry ? failure.message : "Could not confirm publication. Check your account before posting again.",
-                    } }));
-                }
-            }
+            const data = await request("/api/marketing-content/schedule", {
+                method: "POST",
+                body: JSON.stringify({
+                    quickPost: true,
+                    name: "Photo post",
+                    selectedPlatforms: selected.map((channel) => `${channel}_post`),
+                    posts: [{ imageUrl: photo, caption: caption.trim(), scheduledFor: timestamp?.toISOString() }],
+                }),
+            });
+            setResults(Object.fromEntries(selected.map((channel) => {
+                const item = data.items?.find((entry) => entry.content_type === `${channel}_post`);
+                const ok = item?.status === "published" || (Boolean(date) && item?.status === "scheduled");
+                const message = item?.status === "published" ? "Published" : ok ? "Scheduled" :
+                    item?.error_message || "Check the posting queue to confirm the status.";
+                return [channel, { ok, message }];
+            })));
         } catch (failure) {
-            setError(failure.message || "Could not save your product.");
+            setError(failure.status && failure.status < 500 ? failure.message : "Could not confirm the result. Check the posting queue before trying again.");
+            if (!failure.status || failure.status >= 500) {
+                setResults(Object.fromEntries(selected.map((channel) => [channel, { ok: false, message: "Status unconfirmed" }])));
+            }
         } finally {
             setBusy("");
             operation.current = false;
@@ -125,14 +132,8 @@ export default function QuickPostPage() {
     return (
         <AuthGate allowedRoles="client">
             <DashboardShell role="client" title="Create a post">
-                <form className="mx-auto grid max-w-5xl gap-5 rounded-lg border border-slate-300 bg-white p-4 text-slate-950 sm:p-6" onSubmit={(event) => {
-                    event.preventDefault();
-                    if (review || !photo || !name.trim() || Number(price) <= 0) return;
-                    if (!caption.trim()) setCaption(`${name.trim()} is available for ₹${price}. Message us to order!`);
-                    setError("");
-                    setReview(true);
-                }}>
-                    <h2 ref={heading} tabIndex={-1} className="text-xl font-bold">{review ? "2. Review and publish" : "1. Add a product photo"}</h2>
+                <section className="mx-auto grid max-w-5xl gap-5 rounded-lg border border-slate-300 bg-white p-4 text-slate-950 sm:p-6">
+                    <h2 className="text-xl font-bold">{photo ? "Choose where to post" : "Add a photo"}</h2>
                     <div className="grid items-start gap-5 md:grid-cols-2">
                         <div className="grid gap-2">
                             {photo && (
@@ -140,14 +141,14 @@ export default function QuickPostPage() {
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={photo} alt="Post preview" className="aspect-square w-full rounded-lg border border-slate-300 bg-slate-50 object-contain motion-safe:animate-[orva-post-in_180ms_ease-out]" />
                             )}
-                            {!review && <label className={`${primary} relative cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-800`}>
+                            {!destinationsLocked && <label className={`${primary} relative cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-blue-800`}>
                                 <Camera className="h-5 w-5" /> {photo ? "Change photo" : "Choose photo"}
-                                <input type="file" className="sr-only" accept="image/jpeg,image/png,image/webp" disabled={Boolean(busy)} onChange={choosePhoto} />
+                                <input type="file" className="sr-only" accept="image/*" disabled={Boolean(busy)} onChange={choosePhoto} />
                             </label>}
                         </div>
-                        <div key={review ? "review" : "upload"} className="grid gap-4 motion-safe:animate-[orva-post-in_180ms_ease-out]">
-                            {review ? <>
-                                <label className="grid gap-1 font-semibold">Caption<textarea rows={4} className={field} value={caption} onChange={(event) => setCaption(event.target.value)} disabled={Boolean(busy) || destinationsLocked} /></label>
+                        <div key={photo ? "review" : "upload"} className="grid gap-4 motion-safe:animate-[orva-post-in_180ms_ease-out]">
+                            {photo && <>
+                                <label className="grid gap-1 font-semibold">Caption (optional)<textarea rows={4} className={field} value={caption} onChange={(event) => setCaption(event.target.value)} disabled={Boolean(busy) || destinationsLocked} /></label>
                                 <fieldset className="grid gap-2" disabled={Boolean(busy) || destinationsLocked}>
                                     <legend className="mb-2 font-semibold">Post to</legend>
                                     {accounts?.map(({ channel, external_account_name }) => (
@@ -162,23 +163,24 @@ export default function QuickPostPage() {
                                 {Object.entries(results).map(([channel, result]) => (
                                     <div key={channel} className={`rounded-lg border p-3 ${result.ok ? "border-green-700 bg-green-50 text-green-950" : "border-red-700 bg-red-50 text-red-950"}`}>
                                         <p>{result.ok && <Check className="mr-1 inline h-4 w-4" />}<strong>{destinations[channel].label}:</strong> {result.message}</p>
-                                        {result.retry && <button type="button" className="mt-2 min-h-11 font-bold underline" disabled={Boolean(busy)} onClick={() => publish([channel])}>Retry {destinations[channel].label}</button>}
                                     </div>
                                 ))}
-                                {!destinationsLocked && <div className="flex flex-wrap gap-3">
-                                    <button type="button" className={`${primary} w-full sm:w-auto`} disabled={Boolean(busy) || !selected.length || !caption.trim()} onClick={() => publish(selected)}><Send className="h-4 w-4" /> Publish now</button>
-                                    <button type="button" className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-slate-500 px-4 font-bold" disabled={Boolean(busy) || Boolean(productId.current)} onClick={() => setReview(false)}><ArrowLeft className="h-4 w-4" /> Back</button>
-                                </div>}
-                            </> : <>
-                                <label className="grid gap-1 font-semibold">Product name<input className={field} required maxLength={120} value={name} onChange={(event) => setName(event.target.value)} /></label>
-                                <label className="grid gap-1 font-semibold">Price (₹)<input className={field} required type="number" min="0.01" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} /></label>
-                                <button type="submit" className={primary} disabled={Boolean(busy) || !photo || !name.trim() || Number(price) <= 0}>Review post</button>
+                                {destinationsLocked && <Link href="/dashboard?view=growth-autopilot" className="min-h-11 font-semibold text-blue-900 underline">View posting queue</Link>}
+                                {!destinationsLocked && (scheduling ? <div className="grid gap-3 rounded-lg border border-slate-400 p-3">
+                                    <label className="grid min-w-0 gap-1 font-semibold">Post after<input type="datetime-local" className={field} value={scheduledFor} onChange={(event) => setScheduledFor(event.target.value)} disabled={Boolean(busy)} /></label>
+                                    <p className="text-sm text-slate-700">Uses your device time zone. ORVA queues the post for the next publishing run after this time.</p>
+                                    <button type="button" className={primary} disabled={Boolean(busy) || !selected.length || !scheduledFor} onClick={() => publish(scheduledFor)}>Confirm schedule</button>
+                                    <button type="button" className="min-h-11 font-semibold text-blue-900 underline" disabled={Boolean(busy)} onClick={() => setScheduling(false)}>Back</button>
+                                </div> : <div className="flex flex-wrap gap-3">
+                                    <button type="button" className={`${primary} w-full sm:w-auto`} disabled={Boolean(busy) || !selected.length} onClick={() => publish()}><Send className="h-4 w-4" /> Publish now</button>
+                                    <button type="button" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-blue-800 px-4 font-bold text-blue-900 disabled:border-slate-400 disabled:text-slate-700 sm:w-auto" disabled={Boolean(busy) || !selected.length} onClick={() => setScheduling(true)}><CalendarDays className="h-4 w-4" /> Schedule post</button>
+                                </div>)}
                             </>}
                         </div>
                     </div>
                     <p role="status" aria-live="polite" className={busy ? "font-semibold text-blue-900" : "sr-only"}>{busy}</p>
                     {error && <p role="alert" className="rounded-lg border border-red-700 bg-red-50 p-3 text-red-950">{error}</p>}
-                </form>
+                </section>
             </DashboardShell>
         </AuthGate>
     );

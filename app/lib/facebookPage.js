@@ -47,8 +47,8 @@ async function graphPost(url, params) {
     return result;
 }
 
-export async function publishProductToFacebookPage({ product, connection, mockMode = false, caption: captionOverride = "" }) {
-    const caption = String(captionOverride || "").trim() || buildFacebookPageCaption(product);
+export async function publishProductToFacebookPage({ product, connection, mockMode = false, caption: captionOverride = "", allowEmptyCaption = false }) {
+    const caption = String(captionOverride || "").trim() || (allowEmptyCaption ? "" : buildFacebookPageCaption(product));
     if (mockMode) {
         return { externalPostId: mockExternalPostId(product.id), caption, mock: true };
     }

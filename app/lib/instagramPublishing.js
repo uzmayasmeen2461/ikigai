@@ -95,8 +95,8 @@ export async function verifyInstagramConnection({ connection, mockMode = false }
     }));
 }
 
-export async function publishProductToInstagram({ product, connection, mockMode = false, caption: captionOverride = "" }) {
-    const caption = String(captionOverride || "").trim() || buildInstagramCaption(product);
+export async function publishProductToInstagram({ product, connection, mockMode = false, caption: captionOverride = "", allowEmptyCaption = false }) {
+    const caption = String(captionOverride || "").trim() || (allowEmptyCaption ? "" : buildInstagramCaption(product));
     if (mockMode) return { externalPostId: mockExternalPostId(product.id), caption, mock: true };
 
     const instagramAccountId = connection?.external_account_id;
